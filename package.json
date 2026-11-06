@@ -1,8 +1,8 @@
 {
-  "name": "gokirana",
+  "name": "dropzo",
   "version": "0.1.0",
   "private": true,
-  "description": "GoKirana - local grocery and daily-needs marketplace (Badarpur, Sribhumi, Assam)",
+  "description": "Dropzo - local grocery and daily-needs marketplace (Badarpur, Sribhumi, Assam)",
   "workspaces": [
     "apps/*",
     "packages/*"

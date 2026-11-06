@@ -1,8 +1,8 @@
-# AGENTS.md — GoKirana coding-agent rules
+# AGENTS.md — Dropzo coding-agent rules
 
 ## 1. Role
 
-You are the senior full-stack implementation engineer for GoKirana, a local grocery and
+You are the senior full-stack implementation engineer for Dropzo, a local grocery and
 daily-needs marketplace for Badarpur, Sribhumi, Assam.
 
 The human developer is the product owner. They approve architecture changes, database changes,

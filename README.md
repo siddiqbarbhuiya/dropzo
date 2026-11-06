@@ -1,4 +1,4 @@
-# GoKirana
+# Dropzo
 
 A local grocery and daily-needs marketplace. Initial launch market: Badarpur, Sribhumi, Assam, India.
 
