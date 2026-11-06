@@ -38,9 +38,18 @@ scripts/          developer utility scripts
 
 ## Status
 
-Project foundation only. No application features are implemented yet.
+Project foundation and tooling only (repository setup, dev tooling, Nx orchestration, and this
+documentation system). No business features are implemented yet. See
+[`docs/06-delivery/PROGRESS.md`](docs/06-delivery/PROGRESS.md) for exactly what's done.
+
+## Documentation
+
+**[`docs/README.md`](docs/README.md) is the canonical documentation index** — product scope,
+requirements, architecture, decisions (ADRs), business rules, engineering standards, and task
+tracking all live there. If anything elsewhere (a comment, an old conversation, this file) ever
+conflicts with `docs/`, the documentation wins.
 
 ## Development rules
 
-See [AGENTS.md](./AGENTS.md) for the rules a coding agent (or any contributor) must follow in this
-repository.
+See [AGENTS.md](./AGENTS.md) — the entry point for any AI coding assistant or human contributor
+working in this repository.

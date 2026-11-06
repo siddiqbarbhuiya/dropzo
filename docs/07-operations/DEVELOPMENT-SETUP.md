@@ -18,7 +18,9 @@ v25.7.0. If you hit a strange install or tooling issue later, try Node 22 LTS or
 
 ## Repository layout
 
-See the root [README.md](../README.md) for the full folder layout.
+See the root [README.md](../../README.md) for the full folder layout, and
+[`../02-architecture/SYSTEM-ARCHITECTURE.md`](../02-architecture/SYSTEM-ARCHITECTURE.md) for how
+the pieces fit together.
 
 ## First-time setup
 
@@ -109,25 +111,31 @@ result locally — re-running an unchanged target reads from the cache instead o
 
 Installed Nx plugins: `@nx/eslint`, `@nx/jest`, `@nx/vite`. `@nx/vitest` is intentionally **not**
 installed — it requires Vitest 3–5, and this project pins Vitest `^2.1.4`. See
-`docs/PROGRESS.md` (BC-002.1) for the full reasoning.
+[`../06-delivery/PROGRESS.md`](../06-delivery/PROGRESS.md) (BC-002.1) for the full reasoning.
 
 ## Known issues / unfinished configuration
 
-- No database is configured yet (BC-003).
+See [`../08-quality/RISK-REGISTER.md`](../08-quality/RISK-REGISTER.md) and
+[`../08-quality/TECHNICAL-DEBT.md`](../08-quality/TECHNICAL-DEBT.md) for the full, tracked list
+(unresolved `react-router-dom`, `vite`/`vitest`, and Nx `minimatch` advisories; no database or
+authentication yet; `joi` vs. `zod` validation split). Summary:
+
+- No database is configured yet.
 - No authentication is implemented yet.
-- The `@dropzo/validation` package's `zod` dependency and the backend's env validation are not
-  yet unified — `apps/api` validates its own environment variables with `joi`, independent of the
-  shared `@dropzo/validation` package. This is fine for now since they validate different things,
-  but worth keeping in mind before BC-003.
-- `react-router-dom` has an open moderate-severity advisory (GHSA-wrjc-x8rr-h8h6/GHSA-337j-9hxr-rhxg)
-  that is only fixed by a major-version upgrade to v7. Not upgraded in this task — see
-  `docs/PROGRESS.md` for details.
-- NestJS 12's tooling (`@nestjs/schematics`, pulling in `@angular-devkit/*`) carries some
-  dev-only vulnerabilities per `npm audit`. These do not appear in `npm audit --omit=dev`, so they
-  do not affect the running application, only the local dev toolchain.
-- `vite` (5.4.21) and `vitest` (2.1.9) have open dev-only advisories, up to critical severity, that
-  are only fixed by major-version upgrades (Vite 8.x, Vitest 4.x). These affect the local dev
-  server / test runner, not the production build. See `docs/PROGRESS.md` (BC-002.1) for the full
-  table and a recommended upgrade path.
-- Nx's own dependency tree carries a nested, older `minimatch` with a moderate ReDoS advisory.
-  Dev-tooling only; no fix available yet that `npm audit` can apply automatically.
+- Known dependency vulnerabilities are tracked, not fixed — see the risk register, not this file,
+  for current status.
+
+## Future: CI documentation checks
+
+No GitHub Actions workflow exists yet (`.github/workflows/` is a placeholder). When CI is
+introduced, it should include lightweight documentation checks: required files present (this
+file, `AGENTS.md`, `docs/README.md`), Markdown link validation, and Mermaid syntax validation
+where tooling allows. Do not build this pipeline speculatively before CI itself exists — this note
+exists so the requirement isn't forgotten.
+
+## Related documents
+
+- [`../README.md`](../README.md) — documentation index
+- [`../02-architecture/SYSTEM-ARCHITECTURE.md`](../02-architecture/SYSTEM-ARCHITECTURE.md)
+- [`../08-quality/RISK-REGISTER.md`](../08-quality/RISK-REGISTER.md)
+- [`../08-quality/TECHNICAL-DEBT.md`](../08-quality/TECHNICAL-DEBT.md)

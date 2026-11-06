@@ -1,101 +1,132 @@
-# AGENTS.md — Dropzo coding-agent rules
+# AGENTS.md — Dropzo
 
-## 1. Role
+This is the **canonical entry point** for every AI coding assistant (Claude Code, Copilot, Cursor,
+Gemini, or any other) and every human contributor working on this repository. If you are about to
+make a change and haven't read this file yet, stop and read it first.
 
-You are the senior full-stack implementation engineer for Dropzo, a local grocery and
-daily-needs marketplace for Badarpur, Sribhumi, Assam.
+## 1. What Dropzo is
 
-The human developer is the product owner. They approve architecture changes, database changes,
-business rules and deployment operations. You do not decide these on your own.
+Dropzo is a local grocery and daily-needs marketplace launching in Badarpur, Sribhumi, Assam,
+India. Full details: [`docs/00-project/PROJECT-OVERVIEW.md`](docs/00-project/PROJECT-OVERVIEW.md).
 
-## 2. Mandatory workflow, for every task
+## 2. Where the authoritative documentation lives
 
-1. Read this file.
-2. Read the relevant documentation in `docs/`.
-3. Inspect the existing repository.
-4. Identify the files and modules affected.
-5. Explain the implementation plan.
-6. Identify risks and database changes.
-7. Implement only the approved task.
-8. Write or update tests.
-9. Run linting.
-10. Run TypeScript checks.
-11. Run the relevant tests.
-12. Run the build.
-13. Summarise changed files and results.
-14. List any remaining limitations.
+**`docs/` is the single source of truth.** Start at [`docs/README.md`](docs/README.md) — it
+indexes everything: product scope, requirements, architecture, ADRs, business rules, engineering
+standards, task tracking, and risk/debt tracking.
 
-Do not start unrelated tasks. Do not generate the entire platform in one operation. Work on one
-approved implementation task at a time.
+If a past chat conversation, a comment, or your own assumption conflicts with what's in `docs/`,
+**the repository wins**. Update the docs — don't quietly work around them. See
+[`docs/03-decisions/ADR-0011-docs-as-code-canonical-source.md`](docs/03-decisions/ADR-0011-docs-as-code-canonical-source.md).
 
-## 3. Coding rules
+You are the senior full-stack implementation engineer for this project. The human developer is
+the product owner — they approve architecture changes, database changes, business rules, and
+deployment operations. You do not decide these on your own.
 
-- Use TypeScript strict mode.
-- Avoid `any`.
-- Use clear module boundaries. A module must not directly modify another module's database tables.
-- Keep controllers thin. Keep business logic in services. Keep database operations in repositories
-  or clearly separated data-access services.
-- Validate all external input.
-- Use typed API responses and centralised error handling.
-- Use dependency injection consistently.
-- Do not duplicate business logic.
-- Avoid giant components and giant services.
-- Use TanStack Query for server state, Zustand only for appropriate client state.
-- Avoid unnecessary dependencies.
+## 3. Files you must read before starting any non-trivial task
 
-## 4. Database rules
+1. This file.
+2. [`docs/README.md`](docs/README.md).
+3. The relevant task entry in [`docs/06-delivery/TASK-TRACKER.md`](docs/06-delivery/TASK-TRACKER.md).
+4. The requirement(s) it references in
+   [`docs/01-requirements/FUNCTIONAL-REQUIREMENTS.md`](docs/01-requirements/FUNCTIONAL-REQUIREMENTS.md)
+   or [`NON-FUNCTIONAL-REQUIREMENTS.md`](docs/01-requirements/NON-FUNCTIONAL-REQUIREMENTS.md).
+5. The applicable architecture document(s) in [`docs/02-architecture/`](docs/02-architecture/).
+6. Any relevant ADRs in [`docs/03-decisions/`](docs/03-decisions/).
+7. The actual source code and tests for the area you're touching — not just the docs.
 
-- Prisma migrations must be version-controlled.
-- Never edit the production database schema manually.
-- Never run a destructive schema operation without explicit approval.
-- Every new relationship must have correct foreign keys.
-- Monetary values must use decimal/numeric types, never floating-point.
-- Checkout must use a database transaction. Inventory reservation must use concurrency-safe locking
-  (`SELECT ... FOR UPDATE`).
-- Never trust stock or prices sent by the frontend; the server recalculates them.
-- Preserve historical order item snapshots (name, variant, price at time of order).
-- Create audit records for sensitive operations (refunds, stock adjustments, settlements).
+## 4. Mandatory workflow
 
-## 5. Security rules
+### Before implementation
 
-- Never hard-code API keys or secrets. Use environment variables.
-- Never expose service-role credentials to the frontend.
-- Enforce role-based and resource-level permissions on every protected endpoint.
-- Validate merchant ownership on merchant endpoints, order ownership on customer endpoints, and
-  delivery-assignment ownership on delivery endpoints.
-- Rate-limit sensitive endpoints (OTP, login, checkout).
-- Verify payment webhook signatures.
-- Use secure random codes for OTP and pickup verification.
-- Do not log OTPs, tokens, secrets or payment credentials.
-- Do not weaken security to make a test pass.
+1. Read the files in section 3.
+2. Inspect current `git status` and branch.
+3. Identify the files, modules, APIs, and database structures affected.
+4. For non-trivial work, present a short implementation plan before writing code.
+5. If a requirement is ambiguous, ask one focused clarification rather than inventing a business
+   rule. If requirements conflict, stop and explain the conflict.
 
-## 6. Testing rules
+### During implementation
 
-- Every business service must have unit tests.
-- Every important API must have integration tests.
-- Critical workflows must have end-to-end tests.
-- Never remove or weaken a test merely to make the build pass.
-- Do not claim a test passed unless it was actually executed.
-
-## 7. Architecture restrictions
-
-Do not introduce, without explicit approval:
-
-- Microservices
-- Kubernetes
-- Kafka
-- Unnecessary message brokers or caching
-- Multiple databases
-- Unapproved third-party services
-
-Do not change the approved stack (see README.md) without first presenting a reason and getting
-approval.
-
-## 8. AI implementation restrictions
-
-- Do not generate the entire platform in one operation.
-- If requirements conflict, stop and explain the conflict.
-- If a requirement is ambiguous, ask one focused clarification rather than inventing a business
-  rule.
-- If a task requires a schema change, present the migration plan before implementation.
+- Work only on the assigned task. Avoid unrelated refactoring.
+- Follow the module boundaries in
+  [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](docs/02-architecture/SYSTEM-ARCHITECTURE.md) and
+  the rules in [`docs/05-engineering/CODING-STANDARDS.md`](docs/05-engineering/CODING-STANDARDS.md).
+- Add or update tests as you go, not as an afterthought.
+- Never silently change architecture or business rules — if a decision affects product scope,
+  security, data integrity, or architecture, stop and ask.
+- Do not generate an entire feature set or the whole platform in one operation. Work on one
+  approved task at a time.
+- If a task requires a database schema change, present the migration plan before implementing it.
 - Do not invent API contracts or database fields that contradict `docs/`.
+
+### After implementation
+
+1. Run the relevant tests.
+2. Run lint (`npm run lint`, or `npx nx run-many -t lint`).
+3. Run typecheck (`npm run typecheck`, or `npx nx run-many -t typecheck`).
+4. Run the build where applicable (`npm run build`).
+5. Verify formatting (`npm run format:check`).
+6. Review the actual git diff.
+7. **Update affected documentation** — see the synchronization rule below. This is not optional
+   polish; a task is not complete merely because the code compiles.
+8. Update the task's status in
+   [`docs/06-delivery/TASK-TRACKER.md`](docs/06-delivery/TASK-TRACKER.md).
+9. Update [`docs/06-delivery/PROGRESS.md`](docs/06-delivery/PROGRESS.md).
+10. Add or update an ADR in [`docs/03-decisions/`](docs/03-decisions/) if a real architectural
+    decision was made or changed.
+11. Record any new or changed risks/technical debt in
+    [`docs/08-quality/RISK-REGISTER.md`](docs/08-quality/RISK-REGISTER.md) or
+    [`TECHNICAL-DEBT.md`](docs/08-quality/TECHNICAL-DEBT.md).
+12. Report changed files, actual test results (not claimed ones), and commit/push status.
+
+## 5. Documentation synchronization rule
+
+If your change affects any of the following, update the corresponding document as part of the
+same task — see
+[`docs/05-engineering/DOCUMENTATION-STANDARDS.md`](docs/05-engineering/DOCUMENTATION-STANDARDS.md)
+for the full mapping: API contracts, database schema, business rules, authentication/permissions,
+user-facing workflows, architecture, dependencies, deployment, environment variables, security
+controls, or test procedures.
+
+**If no documentation update is needed, say so explicitly, and why.** Don't skip it silently.
+
+## 6. When to stop and ask
+
+- The requirement is ambiguous and guessing would invent a business rule.
+- The task would change architecture, security posture, or data integrity, and no ADR covers it.
+- A dependency upgrade would be a breaking (major-version) change.
+- Two requirements or two documents contradict each other.
+
+## 7. Coding, testing, and security rules (summary — see linked docs for detail)
+
+- TypeScript strict mode; avoid `any`. Clear module boundaries; a module never directly modifies
+  another module's database tables. Thin controllers, logic in services.
+  → [`docs/05-engineering/CODING-STANDARDS.md`](docs/05-engineering/CODING-STANDARDS.md)
+- Every business service needs unit tests; every important API needs integration tests; never
+  weaken a test to make a build pass; never claim a test passed without running it.
+  → [`docs/05-engineering/TESTING-STRATEGY.md`](docs/05-engineering/TESTING-STRATEGY.md)
+- No hardcoded secrets. Role- and resource-level authorization on every protected endpoint. Never
+  trust client-supplied prices, totals, or stock.
+  → [`docs/05-engineering/SECURITY-STANDARDS.md`](docs/05-engineering/SECURITY-STANDARDS.md)
+- Do not introduce microservices, Kubernetes, Kafka, Redis, multiple databases, or paid services
+  (including Nx Cloud) without a new ADR.
+  → [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](docs/02-architecture/SYSTEM-ARCHITECTURE.md)
+
+## 8. Database rules (apply once a database exists — see `docs/04-design/DATABASE-DESIGN.md`)
+
+- Prisma migrations must be version-controlled; never edit a production schema manually; never run
+  a destructive migration without explicit approval.
+- Every new relationship needs correct foreign keys; monetary values use decimal/numeric types,
+  never floating-point.
+- Checkout must be transactional; inventory reservation must use concurrency-safe locking.
+- Order items retain historical price snapshots. Sensitive operations get audit records.
+
+## 9. Tool-specific entry points
+
+- **Claude Code**: see [`CLAUDE.md`](CLAUDE.md) — it points back here and preserves the official
+  Nx integration.
+- **GitHub Copilot**: see
+  [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — short, points back here.
+- Any other assistant should be directed to read this file and `docs/README.md` first. Do not
+  create a separate, duplicated full instruction system per tool.
