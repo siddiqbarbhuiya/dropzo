@@ -7,3 +7,13 @@ build/
 coverage/
 .turbo/
 *.tsbuildinfo
+
+
+
+.nx/cache
+.nx/workspace-data
+.nx/migrate-runs
+.nx/polygraph
+.claude/worktrees
+.claude/settings.local.json
+vite.config.*.timestamp*

@@ -7,9 +7,9 @@
         "dev": "nest start --watch",
         "build": "nest build",
         "start": "node dist/main.js",
-        "lint": "eslint .",
-        "lint:fix": "eslint . --fix",
-        "typecheck": "tsc --noEmit",
+        "lint": "nx eslint:lint",
+        "lint:fix": "nx eslint:lint --fix",
+        "typecheck": "nx tsc:typecheck",
         "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
         "format": "prettier --write \"src/**/*.ts\"",
         "format:check": "prettier --check \"src/**/*.ts\""

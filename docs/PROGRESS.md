@@ -95,4 +95,149 @@ Status: **Complete.**
 
 ## BC-002 completion status: **Complete**, with the remaining issues above noted for follow-up.
 
+## BC-002.1 — Nx verification and dependency security review
+
+Status: **Complete.**
+
+Note: Nx was not part of the BC-002 instructions originally given for this project — the earlier
+BC-002 prompts specified npm workspaces only, with no mention of Nx. This task treats Nx as a new,
+approved requirement and integrates it now.
+
+### Part 1 — Nx integration
+
+Nx was not installed before this task (no `nx.json`, no `nx` devDependency, no `node_modules/.bin/nx`).
+Integrated using the official `npx nx init` flow, in "Nx on top of npm workspaces" mode — npm
+workspaces are unchanged and remain the package manager; Nx adds task orchestration and caching on
+top.
+
+Installed plugins: `@nx/eslint`, `@nx/jest`, `@nx/vite` (local caching only — **no Nx Cloud**, per
+instruction; the `--nxCloud=skip` flag was used, and `nx connect`/Nx Cloud was never run).
+
+`@nx/vitest` was deliberately **not installed** — see the compatibility note below.
+
+Verified Nx discovers all 5 projects and infers `build`, `test`, `lint`, and `typecheck` targets
+correctly, with local caching active:
+
+| Command                                  | Result                                                                                                                                 |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx nx show projects`                   | `["@dropzo/shared-types","@dropzo/api-client","@dropzo/validation","@dropzo/api","@dropzo/web"]`                                       |
+| `npx nx graph --file=...`                | Generated successfully; dependency edges match actual code imports (e.g. `@dropzo/web` → `@dropzo/api-client`, `@dropzo/shared-types`) |
+| `npx nx run-many -t build`               | 2/2 succeeded (only `@dropzo/api`, `@dropzo/web` define `build`); second run: **2/2 cache hit (100%)**                                 |
+| `npx nx run-many -t test`                | 3/3 succeeded (`@dropzo/api`, `@dropzo/web`, `@dropzo/validation`)                                                                     |
+| `npx nx run-many -t lint`                | 5/5 succeeded                                                                                                                          |
+| `npx nx run-many -t typecheck`           | 5/5 succeeded                                                                                                                          |
+| `npx nx affected -t build --base=HEAD~1` | Correctly identified `@dropzo/api` and `@dropzo/web` as affected; both read from local cache                                           |
+
+Local task caching is confirmed working (`nx.json` sets `"cache": true` for `build`/`test`/`lint`,
+and repeat runs show cache hits). No remote/Nx Cloud caching is configured.
+
+A real regression surfaced and was fixed during this work: installing `@nx/vite` reshuffled npm's
+hoisting and briefly broke `apps/web`'s tests (`@testing-library/jest-dom` got hoisted to the root
+without `vitest` alongside it, so its `vitest.mjs` entry point failed to resolve). Fixed by adding
+`vitest` as an explicit root devDependency, which restored correct hoisting. Verified via a second
+`nx run-many -t test` run.
+
+### Part 2 — Dependency security audit
+
+`npm audit` (all dependencies): **42 vulnerabilities** (6 low, 33 moderate, 1 high, 2 critical).
+`npm audit --omit=dev`: **2 vulnerabilities** (both moderate) — only `react-router` /
+`react-router-dom` affect what actually ships to users; everything else is dev-tooling only.
+
+`npm audit fix` (non-force) was run and made **no changes** — every available fix in this tree
+requires a major-version upgrade (`isSemVerMajor: true`), so there was nothing safe to apply
+automatically. No major upgrades were performed without presenting them here first.
+
+| Package                                                                                                              | Installed                 | Severity          | Advisory                                                                                                                                                                                                                                                                                        | Production or dev-only                                     | Patched version                                                                                                              | Breaking?                                             |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `react-router-dom` / `react-router`                                                                                  | 6.30.6                    | Moderate          | [GHSA-wrjc-x8rr-h8h6](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6), [GHSA-337j-9hxr-rhxg](https://github.com/advisories/GHSA-337j-9hxr-rhxg)                                                                                                                                              | **Production** (bundled into the web app)                  | 7.18.5                                                                                                                       | Yes — major (v6→v7)                                   |
+| `vitest`                                                                                                             | 2.1.9                     | Critical          | [GHSA-5xrq-8626-4rwp](https://github.com/advisories/GHSA-5xrq-8626-4rwp) (Vitest UI server arbitrary file read/execute), [GHSA-82fw-gwwq-j7x9](https://github.com/advisories/GHSA-82fw-gwwq-j7x9) (moderate, path traversal)                                                                    | Dev-only (test runner)                                     | 4.1.12                                                                                                                       | Yes — major (v2→v4)                                   |
+| `tinypool`, `vite-node`, `@vitest/mocker`                                                                            | (bundled with vitest 2.x) | Critical/Moderate | Transitive via `vitest` (incl. [GHSA-5gmw-xhrv-c9v3](https://github.com/advisories/GHSA-5gmw-xhrv-c9v3), [GHSA-qxg6-89mg-rqv8](https://github.com/advisories/GHSA-qxg6-89mg-rqv8))                                                                                                              | Dev-only                                                   | Resolved by the `vitest` 4.x upgrade                                                                                         | Yes — same as above                                   |
+| `vite`                                                                                                               | 5.4.21                    | High              | [GHSA-587h-7wmj-h5pm](https://github.com/advisories/GHSA-587h-7wmj-h5pm) (`launch-editor`, Windows `fs.existsSync` bypass) plus several moderate/low dev-server-only issues (GHSA-4w7w-66w2-5vf9, GHSA-rq7h-c2jc-7f22, GHSA-fx2h-pf6j-xcff, GHSA-9jrq-w75r-8gcw, and more `launch-editor` CVEs) | Dev-only (dev server / build tool; not in shipped `dist/`) | 8.3.6                                                                                                                        | Yes — major (v5→v8, two majors)                       |
+| `esbuild`                                                                                                            | (bundled with vite 5.x)   | Moderate          | [GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99) (dev server accepts any request origin)                                                                                                                                                                                | Dev-only                                                   | Resolved by the `vite` 8.x upgrade                                                                                           | Yes — same as above                                   |
+| `nx`, `@nx/eslint`, `@nx/jest`, `@nx/vite`, `@nx/web`, `@nx/devkit`, `@nx/workspace`, `@nx/js`                       | 24.0.5 (Nx packages)      | Moderate          | No CVE of their own — all cascade from a nested `minimatch@10.2.5` inside `node_modules/nx` ([GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), ReDoS)                                                                                                                   | Dev-only (CLI tooling)                                     | None that npm can resolve automatically (its suggested "fix" is `nx@17.2.8`, a _downgrade_ from our 24.0.5 — not meaningful) | N/A — tracked upstream                                |
+| `@typescript-eslint/*`, `typescript-eslint`                                                                          | 8.x                       | Moderate          | Same nested `minimatch` ReDoS, via `@typescript-eslint/typescript-estree`                                                                                                                                                                                                                       | Dev-only                                                   | `npm audit fix` found no safe version                                                                                        | No (per audit), but blocked by the same tree conflict |
+| `jest`, `ts-jest`, `jest-*`, `babel-jest`, `@jest/*`, `glob`, `deepmerge`, `test-exclude`, `create-jest`, `jest-cli` | 29.7.0 (jest)             | Low/Moderate      | Same nested `minimatch`/`glob` ReDoS chain, pulled in by `@nx/jest`'s own dependency tree                                                                                                                                                                                                       | Dev-only                                                   | npm's suggested "fix" (`jest@25.1.0`) is a downgrade and not meaningful                                                      | N/A                                                   |
+
+### Vulnerabilities fixed in this task
+
+None of the 42 had a non-breaking fix available (confirmed empirically — `npm audit fix` made no
+changes). **No fixes were applied in Part 2.** The one real security upgrade already applied in
+this project (`zod` 3.23.8 → 4.6.7, for a high-severity advisory) was done earlier, in BC-002.
+
+### Remaining security risks (accepted, with reasons)
+
+- **`react-router-dom` (moderate, production).** Fix requires a v6→v7 major upgrade. Not applied
+  without approval, since it may require code changes to `apps/web/src/App.tsx` and routing usage.
+  **Recommendation:** schedule this as its own small task once routes exist beyond the current
+  single `/` route — the migration surface is still trivial right now.
+- **`vite`/`vitest`/`esbuild` family (dev-only, up to critical severity).** These vulnerabilities
+  require either an attacker-controlled network request reaching the local Vite dev server, or
+  Vitest's UI mode being exposed — neither applies to this solo-developer, localhost-only
+  workflow today. Risk is low in the current setup, but real if the dev server is ever exposed on
+  a shared network or a CI runner reachable by untrusted traffic.
+  **Recommendation:** upgrade `vite` to 6.x or 7.x (not 8.x yet — see compatibility note below)
+  and `vitest` to 4.x together, as a dedicated task, since both are major version jumps that touch
+  every workspace's test/build tooling and deserve their own verification pass.
+- **Nx/`@nx/*`/Jest-adjacent `minimatch`/`glob` ReDoS chain (dev-only, moderate).** No fix path
+  exists yet that `npm audit` can resolve automatically; this is upstream of Nx's own dependency
+  pinning. Accepted as-is — exposure requires feeding attacker-controlled glob patterns into the
+  local CLI tooling, which doesn't apply here.
+
+### Part 3 — Compatibility review
+
+- NestJS 12 + TypeScript 6 + Jest 29 (ESM) + Node 25.7.0: confirmed working (build, typecheck,
+  test, dev server, Swagger, live health check all verified in BC-002).
+- `@nx/vite@24.0.5` accepts Vite `^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0` — our pinned Vite 5.4.21 is
+  compatible. Confirmed by reading `@nx/vite`'s own `peerDependencies`.
+- **`@nx/vitest@24.0.5` requires Vitest `^3.0.0 || ^4.0.0 || ^5.0.0` — incompatible with our
+  approved Vitest `^2.1.4` pin.** This is why `@nx/vitest` was not installed. Vitest test running
+  still works correctly without it (Nx just doesn't get to independently infer/cache Vitest test
+  targets the same way it does for `@nx/jest`; the existing `vitest run` npm scripts, now wrapped
+  and cached by Nx's generic task runner, continue to work — confirmed by `nx run-many -t test`).
+- `npm ls` reports zero `UNMET DEPENDENCY` / `invalid` entries across the whole tree — no
+  unresolved peer dependency conflicts.
+- Installing `@nx/vite` caused npm to want to raise the root `vite` devDependency to `^8.0.0` and
+  `jest` to `~30.3.0` by default. Both were pinned back down to match the versions actually used by
+  `apps/web` (`^5.4.11`) and `apps/api` (`^29.7.0`) to avoid an unplanned major upgrade — see
+  "Problems found and fixed" below.
+- Node.js v25.7.0 (non-LTS) continues to trigger `EBADENGINE` warnings from `@angular-devkit/*` and
+  `@nestjs/schematics` (want Node 22 LTS, 24 LTS, or 26+). Still warnings only — every check in
+  this task passed on v25.7.0.
+
+### Problems found and fixed in BC-002.1
+
+1. `npx nx init` could not run non-interactively without an explicit `--plugins` flag; re-ran with
+   `--plugins=@nx/eslint,@nx/jest,@nx/vite,@nx/vitest` (the four it detected).
+2. `@nx/vite` and `@nx/vitest` failed on the first attempt: `@nx/vite` hit an `UNKNOWN: unknown
+error` writing `packages/api-client/package.json` (transient), and `@nx/vitest` failed because
+   `vitest` wasn't resolvable from the root `node_modules`. Retried `@nx/vite` alone — it
+   succeeded. `@nx/vitest` was not retried, since it also turned out to require Vitest 3+ (see
+   Part 3).
+3. `npx nx init`/`npx nx add @nx/vite` defaulted the root `vite` devDependency to `^8.0.0` and
+   `jest` to `~30.3.0`, both newer majors than our approved, working pins. Reset both to match
+   the versions already used in `apps/web`/`apps/api` (`^5.4.11` / `^29.7.0`).
+4. Installing `@nx/vite` reshuffled hoisting and broke `apps/web`'s test (see Part 1). Fixed by
+   adding `vitest` as an explicit root devDependency.
+5. `@nx/vitest` requires Vitest 3–5; our approved stack pins Vitest `^2.1.4`. Did not force this
+   upgrade — `@nx/vitest` was left uninstalled instead (see Part 3).
+
+### Files changed in BC-002.1
+
+- `package.json` (root) — added `nx` and `@nx/*` plugin devDependencies; pinned `vite`, `jest`,
+  `vitest` to match existing approved versions.
+- `package-lock.json` — regenerated.
+- `nx.json` — new; target defaults (`build`/`test`/`lint` cached) and the 3 installed plugins.
+- `.gitignore` — Nx added `.nx/cache`, `.nx/workspace-data`, `.nx/migrate-runs`.
+- `apps/api/package.json`, `apps/web/package.json`, `packages/*/package.json` — `lint`/`typecheck`
+  scripts now delegate to `nx eslint:lint` / `nx tsc:typecheck`; `apps/web`'s `dev`/`build`/
+  `preview` scripts now delegate to `nx serve` / `nx tsc:typecheck && nx vite:build` /
+  `nx vite:preview`.
+- `docs/PROGRESS.md` — this section.
+- `docs/DEVELOPMENT-SETUP.md` — Nx commands and notes added.
+
+### BC-002.1 completion status: **Complete.**
+
+Changes are committed locally but **not yet pushed** — reporting these results first, as
+instructed.
+
 Do not start BC-003 (database/Prisma) until instructed.

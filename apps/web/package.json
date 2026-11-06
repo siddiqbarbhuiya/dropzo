@@ -4,12 +4,12 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "vite",
-        "build": "tsc --noEmit && vite build",
-        "preview": "vite preview",
-        "lint": "eslint .",
-        "lint:fix": "eslint . --fix",
-        "typecheck": "tsc --noEmit",
+        "dev": "nx serve",
+        "build": "nx tsc:typecheck && nx vite:build",
+        "preview": "nx vite:preview",
+        "lint": "nx eslint:lint",
+        "lint:fix": "nx eslint:lint --fix",
+        "typecheck": "nx tsc:typecheck",
         "test": "vitest run",
         "format": "prettier --write \"src/**/*.{ts,tsx}\"",
         "format:check": "prettier --check \"src/**/*.{ts,tsx}\""

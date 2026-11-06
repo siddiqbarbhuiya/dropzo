@@ -84,6 +84,33 @@ workspace, for example:
 npm run test -w apps/api
 ```
 
+## Task orchestration with Nx
+
+This project uses [Nx](https://nx.dev) on top of npm workspaces for task running and local
+caching (no Nx Cloud, no remote caching — everything stays on your machine). The existing
+`npm run <script>` commands still work and now run through Nx under the hood for `lint`,
+`typecheck`, and (for `apps/web`) `dev`/`build`/`preview`.
+
+You can also use the Nx CLI directly:
+
+```powershell
+npx nx show projects
+npx nx graph
+npx nx run-many -t build
+npx nx run-many -t test
+npx nx run-many -t lint
+npx nx run-many -t typecheck
+npx nx affected -t build --base=HEAD~1
+```
+
+`nx run-many` runs a target across every project that defines it, in parallel, and caches the
+result locally — re-running an unchanged target reads from the cache instead of re-executing.
+`nx affected` only runs a target for projects that changed relative to a given git ref.
+
+Installed Nx plugins: `@nx/eslint`, `@nx/jest`, `@nx/vite`. `@nx/vitest` is intentionally **not**
+installed — it requires Vitest 3–5, and this project pins Vitest `^2.1.4`. See
+`docs/PROGRESS.md` (BC-002.1) for the full reasoning.
+
 ## Known issues / unfinished configuration
 
 - No database is configured yet (BC-003).
@@ -98,3 +125,9 @@ npm run test -w apps/api
 - NestJS 12's tooling (`@nestjs/schematics`, pulling in `@angular-devkit/*`) carries some
   dev-only vulnerabilities per `npm audit`. These do not appear in `npm audit --omit=dev`, so they
   do not affect the running application, only the local dev toolchain.
+- `vite` (5.4.21) and `vitest` (2.1.9) have open dev-only advisories, up to critical severity, that
+  are only fixed by major-version upgrades (Vite 8.x, Vitest 4.x). These affect the local dev
+  server / test runner, not the production build. See `docs/PROGRESS.md` (BC-002.1) for the full
+  table and a recommended upgrade path.
+- Nx's own dependency tree carries a nested, older `minimatch` with a moderate ReDoS advisory.
+  Dev-tooling only; no fix available yet that `npm audit` can apply automatically.
