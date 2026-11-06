@@ -1,0 +1,16 @@
+{
+  "name": "gokirana",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GoKirana - local grocery and daily-needs marketplace (Badarpur, Sribhumi, Assam)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "echo \"no workspaces to lint yet\"",
+    "test": "echo \"no workspaces to test yet\"",
+    "build": "echo \"no workspaces to build yet\""
+  },
+  "license": "UNLICENSED"
+}
