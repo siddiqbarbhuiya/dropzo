@@ -1,16 +1,30 @@
 {
-  "name": "dropzo",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Dropzo - local grocery and daily-needs marketplace (Badarpur, Sribhumi, Assam)",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "scripts": {
-    "lint": "echo \"no workspaces to lint yet\"",
-    "test": "echo \"no workspaces to test yet\"",
-    "build": "echo \"no workspaces to build yet\""
-  },
-  "license": "UNLICENSED"
+    "name": "dropzo",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Dropzo - local grocery and daily-needs marketplace (Badarpur, Sribhumi, Assam)",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "scripts": {
+        "dev": "concurrently -n web,api -c blue,green \"npm run dev -w apps/web\" \"npm run dev -w apps/api\"",
+        "dev:web": "npm run dev -w apps/web",
+        "dev:api": "npm run dev -w apps/api",
+        "build": "npm run build --workspaces --if-present",
+        "lint": "npm run lint --workspaces --if-present",
+        "lint:fix": "npm run lint:fix --workspaces --if-present",
+        "typecheck": "npm run typecheck --workspaces --if-present",
+        "test": "npm run test --workspaces --if-present",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.15.0",
+        "concurrently": "^9.1.0",
+        "eslint": "^9.15.0",
+        "prettier": "^3.3.3",
+        "typescript-eslint": "^8.15.0"
+    },
+    "license": "UNLICENSED"
 }
