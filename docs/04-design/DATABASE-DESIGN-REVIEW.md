@@ -1,11 +1,17 @@
 # Database design review (BC-003.1)
 
-**Status: Resolved (BC-003.2).** This review's findings were addressed by product-owner decisions
-and incorporated into a full revision of [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) in BC-003.2.
-This document is kept as the historical record of the review itself — it is not rewritten to look
-as though the corrections already existed when it was written. See
-[`../06-delivery/PROGRESS.md`](../06-delivery/PROGRESS.md) (BC-003.2 section) for what changed and
-why, and the current [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) for the resulting design.
+**Status: Resolved (BC-003.2), further corrected (BC-003.3).** This review's findings were
+addressed by product-owner decisions and incorporated into a full revision of
+[`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) in BC-003.2. A second, independent schema review then
+found that the BC-003.2 version, while complete at the entity level, still had technical gaps
+(an unbalanced financial ledger, reservations not referencing batches, missing payment history,
+incomplete order snapshots, globally-scoped idempotency keys, and more) — these were corrected in
+BC-003.3. This document is kept as the historical record of the **original** review itself — it is
+not rewritten to look as though either round of corrections already existed when it was written.
+See [`../06-delivery/PROGRESS.md`](../06-delivery/PROGRESS.md) (BC-003.2 and BC-003.3 sections) for
+what changed and why, and the current [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) for the resulting
+design, including its own "Change log for this revision" section documenting the BC-003.3
+corrections in detail.
 
 Original status when written: **Proposed** — this was a review of `DATABASE-DESIGN.md` as it stood
 after BC-003. It did not change that document at the time; see "Proposed corrections" below for

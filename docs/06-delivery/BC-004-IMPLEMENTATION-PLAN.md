@@ -2,14 +2,17 @@
 
 **Status: Proposed** (plan only — nothing in this document has been implemented). Prepared in
 BC-003.1; revised in BC-003.2 after the database design review's open questions were resolved by
-product-owner decisions (see [`../04-design/DATABASE-DESIGN.md`](../04-design/DATABASE-DESIGN.md),
-"Change from the previous revision"). Execution is a separate, future task.
+product-owner decisions; revised again in BC-003.3 after a second, independent schema review
+corrected the financial ledger, batch-level inventory/FEFO, reservation integrity, payment
+history, order snapshots, idempotency scoping, refund/settlement precision, service-zone
+semantics, and outbox reliability (see
+[`../04-design/DATABASE-DESIGN.md`](../04-design/DATABASE-DESIGN.md), "Change log for this
+revision"). Execution is a separate, future task.
 
-**Prisma schema implementation (Stage 4) must not begin until `DATABASE-DESIGN.md` itself has
-passed its own review as an implementation-ready specification** — the column-level detail now
-exists, but it has not yet been reviewed as a complete, buildable schema the way
-`DATABASE-DESIGN-REVIEW.md` reviewed the previous, high-level revision. Treat BC-004 as blocked
-until that review happens, not as newly unblocked by BC-003.2 alone.
+**Prisma schema implementation (Stage 4) must not begin until `DATABASE-DESIGN.md`'s own "Prisma
+Implementation Readiness Checklist" is satisfied.** That checklist did not exist before BC-003.3;
+it is now the explicit gate, superseding the earlier, less specific "needs its own review"
+language from BC-003.2.
 
 ## Scope
 
@@ -57,22 +60,25 @@ notification automation beyond basic record/device storage.
 
 - Translate every **MVP-required** table from
   [`DATABASE-DESIGN.md`](../04-design/DATABASE-DESIGN.md#table-inventory-and-classification) into
-  a first Prisma schema — all 38 MVP-required tables as specified there, column-for-column:
+  a first Prisma schema — all 41 MVP-required tables as specified there, column-for-column:
   identity (`users`, `user_roles`, `user_sessions`, `user_addresses`), merchant (`merchants`,
   `merchant_staff`, `stores`), location (`service_zones`), catalogue (`categories`, `products`,
   `product_variants`, `store_products`), inventory (`inventory`, `stock_batches`,
   `stock_movements`), commerce (`carts`, `cart_items`, `stock_reservations`,
   `stock_reservation_items`, `orders`, `order_items`, `order_status_history`), payment
-  (`payments`, `payment_webhook_events`, `refunds`), fulfilment (`pickup_verifications`,
-  `delivery_partners`, `delivery_assignments`, `delivery_events`), finance (`settlements`,
-  `settlement_items`, `ledger_entries`), communication (`notifications`, `notification_devices`),
-  support (`complaints`), and reliability (`audit_logs`, `idempotency_records`,
-  `outbox_events`).
+  (`payments`, `payment_status_history`, `payment_webhook_events`, `refunds`), fulfilment
+  (`pickup_verifications`, `delivery_partners`, `delivery_assignments`, `delivery_events`),
+  finance (`financial_accounts`, `ledger_transactions`, `ledger_entries`, `settlements`,
+  `settlement_items`), communication (`notifications`, `notification_devices`), support
+  (`complaints`), and reliability (`audit_logs`, `idempotency_records`, `outbox_events`).
 - `coupons`/`coupon_redemptions` are explicitly **not** part of this stage — future extension, per
   `DATABASE-DESIGN.md`.
-- This stage additionally requires its own schema-implementation review before migrations are
-  generated — translating the design document to Prisma syntax can introduce its own mistakes
-  (wrong relation modes, missed indexes) that a second pass should catch.
+- Work through `DATABASE-DESIGN.md`'s "Prisma Implementation Readiness Checklist" item by item
+  before generating the first migration. Several invariants (the ledger balance trigger, the
+  `stock_reservations` ownership `CHECK`, the partial unique indexes, the `UPDATE`/`DELETE`
+  privilege revocation on ledger tables) are **not** expressible in Prisma's schema language and
+  need a hand-written SQL migration step (`prisma migrate dev --create-only`, then edit the
+  generated SQL) — plan time for this explicitly, it is not optional polish.
 
 ### Stage 5 — Migrations and seed strategy
 

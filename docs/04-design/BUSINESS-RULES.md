@@ -6,23 +6,26 @@ exists yet.
 
 ## Catalogue and inventory
 
-| Rule                                                                                                                                                                    | Status                                              |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| One store per order; a cart cannot mix products from two stores.                                                                                                        | Planned (FR-CART-001)                               |
-| The product catalogue (global product info) and store listings (price/stock per store) are separate concepts — never store price or stock on the global product record. | Planned (FR-CAT-003)                                |
-| Product variants and selling units (kg, ml, piece, pack) must be explicit, not assumed.                                                                                 | Planned (FR-CAT-002)                                |
-| Every stock change must create an auditable movement record (who, what, when, why).                                                                                     | Planned (FR-INV-003)                                |
-| Stock reservations must prevent overselling under concurrent checkout (use row locking, e.g. `SELECT ... FOR UPDATE`).                                                  | Planned (NFR-DATA-001)                              |
-| Perishable goods may require batch tracking, expiry dates, and FEFO (first-expiry-first-out) picking.                                                                   | Planned, deferred until perishables are prioritised |
+| Rule                                                                                                                                                                        | Status                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| One store per order; a cart cannot mix products from two stores.                                                                                                            | Planned (FR-CART-001)                                                                  |
+| The product catalogue (global product info) and store listings (price/stock per store) are separate concepts — never store price or stock on the global product record.     | Planned (FR-CAT-003)                                                                   |
+| Product variants and selling units (kg, ml, piece, pack) must be explicit, not assumed.                                                                                     | Planned (FR-CAT-002)                                                                   |
+| Every stock change must create an auditable movement record (who, what, when, why).                                                                                         | Planned (FR-INV-003)                                                                   |
+| Stock reservations must prevent overselling under concurrent checkout (use row locking, e.g. `SELECT ... FOR UPDATE`).                                                      | Planned (NFR-DATA-001)                                                                 |
+| Perishable goods (dairy, bakery — in the day-one catalogue) require batch tracking, expiry dates, and FEFO (first-expiry-first-out) picking.                                | Planned, **MVP-required** — see `DATABASE-DESIGN.md`'s "Inventory and FEFO allocation" |
+| A store listing's stock is tracked either entirely through batches or entirely through plain counters — never both, to prevent the same physical stock being counted twice. | Planned (see `DATABASE-DESIGN.md`)                                                     |
 
 ## Orders and checkout
 
-| Rule                                                                                                                                          | Status                 |
-| --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| The server recalculates all prices and stock at checkout; a client-supplied total is never trusted.                                           | Planned (FR-ORD-001)   |
-| Orders must retain price snapshots (name, variant, unit price at time of order) — a later price change must never alter a past order's total. | Planned                |
-| Checkout must be transactional: order creation and stock reservation succeed or fail together.                                                | Planned (NFR-DATA-001) |
-| A repeated identical checkout/payment request must never create a duplicate order or charge (idempotency).                                    | Planned (NFR-API-001)  |
+| Rule                                                                                                                                          | Status                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| The server recalculates all prices and stock at checkout; a client-supplied total is never trusted.                                           | Planned (FR-ORD-001)                                     |
+| Orders must retain price snapshots (name, variant, unit price at time of order) — a later price change must never alter a past order's total. | Planned                                                  |
+| Checkout must be transactional: order creation and stock reservation succeed or fail together.                                                | Planned (NFR-DATA-001)                                   |
+| A repeated identical checkout/payment request must never create a duplicate order or charge (idempotency).                                    | Planned (NFR-API-001)                                    |
+| An idempotency key is scoped to the requesting user and the specific operation — never globally unique across unrelated users or endpoints.   | Planned (see `DATABASE-DESIGN.md`'s "Idempotency rules") |
+| A customer's later address edit must never change the delivery destination recorded on an existing order.                                     | Planned                                                  |
 
 ## Merchant isolation
 
@@ -41,11 +44,13 @@ exists yet.
 
 ## Payments and settlements
 
-| Rule                                                                                                         | Status              |
-| ------------------------------------------------------------------------------------------------------------ | ------------------- |
-| COD is the only payment method at launch; payment status is modelled separately from order status.           | Accepted (ADR-0009) |
-| When online payments are introduced, payment webhooks must be signature-verified and processed idempotently. | Planned             |
-| Refunds, commissions, and settlements must be auditable (traceable to a reason and an actor).                | Planned             |
+| Rule                                                                                                                                                          | Status                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| COD is the only payment method at launch; payment status is modelled separately from order status, each with its own append-only history.                     | Accepted (ADR-0009)                                               |
+| When online payments are introduced, payment webhooks must be signature-verified and processed idempotently.                                                  | Planned                                                           |
+| Refunds, commissions, and settlements must be auditable (traceable to a reason and an actor).                                                                 | Planned                                                           |
+| Every posted financial transaction must balance (total debits = total credits); corrections are new reversal/adjustment entries, never edits to a past entry. | Planned (see `DATABASE-DESIGN.md`'s "Financial accounting model") |
+| A refund's maximum amount is the order total minus any already-completed refunds for that order.                                                              | Planned                                                           |
 
 ## Related documents
 

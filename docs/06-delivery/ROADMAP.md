@@ -8,14 +8,15 @@ the roadmap and the implementation plan are the same document; see
 
 ## Completed
 
-| Task     | What it delivered                                                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| BC-001   | Repository foundation: monorepo structure, `README.md`, `AGENTS.md`, `.env.example`                                                  |
-| BC-002   | Development tooling: TypeScript/ESLint/Prettier/Jest/Vitest, NestJS health endpoint + Swagger, React shell with a live backend check |
-| BC-002.1 | Nx integration (task orchestration + local caching) and a full dependency security audit                                             |
-| BC-003   | This documentation governance system                                                                                                 |
-| BC-003.1 | Final BC-003 verification, a critical database design review, and a BC-004 implementation plan                                       |
-| BC-003.2 | Database design corrections: an implementation-ready `DATABASE-DESIGN.md` incorporating the review's approved corrections            |
+| Task     | What it delivered                                                                                                                                                                                                 |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BC-001   | Repository foundation: monorepo structure, `README.md`, `AGENTS.md`, `.env.example`                                                                                                                               |
+| BC-002   | Development tooling: TypeScript/ESLint/Prettier/Jest/Vitest, NestJS health endpoint + Swagger, React shell with a live backend check                                                                              |
+| BC-002.1 | Nx integration (task orchestration + local caching) and a full dependency security audit                                                                                                                          |
+| BC-003   | This documentation governance system                                                                                                                                                                              |
+| BC-003.1 | Final BC-003 verification, a critical database design review, and a BC-004 implementation plan                                                                                                                    |
+| BC-003.2 | Database design corrections: an implementation-ready `DATABASE-DESIGN.md` incorporating the review's approved corrections                                                                                         |
+| BC-003.3 | Database design corrections and final review: balanced financial ledger, batch-level FEFO, reservation integrity, payment history, order snapshots, idempotency scoping, settlement precision, outbox reliability |
 
 Full detail: [`PROGRESS.md`](PROGRESS.md).
 
@@ -26,9 +27,10 @@ Full detail: [`PROGRESS.md`](PROGRESS.md).
    a business task, not a coding task, and can run in parallel with the items below.
 2. **BC-004 — Database and Prisma implementation** — introduce PostgreSQL, Prisma, and a unified
    `nx run-many -t dev` startup. A detailed stage-by-stage plan already exists:
-   [`BC-004-IMPLEMENTATION-PLAN.md`](BC-004-IMPLEMENTATION-PLAN.md). The design itself is now
-   implementation-ready (`DATABASE-DESIGN.md`, revised in BC-003.2), but still needs its own
-   schema-implementation review before Prisma migrations are generated (see that plan's Stage 4).
+   [`BC-004-IMPLEMENTATION-PLAN.md`](BC-004-IMPLEMENTATION-PLAN.md). The design is now
+   implementation-ready and independently reviewed twice (`DATABASE-DESIGN.md`, BC-003.2 and
+   BC-003.3), with its own "Prisma Implementation Readiness Checklist" as the explicit gate before
+   migrations are generated (see that plan's Stage 4).
 3. **Authentication module** — phone OTP login, sessions, RBAC (FR-AUTH-001 through FR-AUTH-003).
 4. **Merchant/store module** — onboarding, store profile, operating hours (FR-MER-001 onward).
 5. **Catalogue and inventory modules** — products, variants, store listings, stock (FR-CAT-_,

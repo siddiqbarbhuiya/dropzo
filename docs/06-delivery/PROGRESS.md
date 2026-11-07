@@ -539,3 +539,189 @@ state below.
 
 Do not start BC-004 implementation. Do not implement Prisma, migrations, or application code from
 this task.
+
+_(Update: these BC-003.2 changes were subsequently approved, committed as `ac18834`, and pushed —
+see the BC-003.3 section below.)_
+
+## BC-003.3 — Database design corrections and final review
+
+Status: **Complete.** Documentation-only — no Prisma, SQL migrations, database infrastructure, or
+application code were introduced.
+
+### Why this task existed
+
+An independent schema review of the BC-003.2 `DATABASE-DESIGN.md` found that, while complete at
+the entity level, it had real technical gaps: the financial ledger could not guarantee balanced
+accounting, stock reservations didn't reference batches (undermining FEFO and risking double-
+counted stock), reservation ownership relied on a comment rather than a constraint, there was no
+payment history, order snapshots were incomplete, idempotency keys were scoped too broadly,
+`settlement_items` conflated a commission rate with a commission amount, service-zone/delivery
+eligibility was unspecified, and the outbox had no worker-claiming or retry model. All of these
+are now corrected.
+
+### Every correction made
+
+1. **Financial ledger redesigned for guaranteed balance.** Replaced the single `ledger_entries`
+   table with `financial_accounts` (a small, fixed chart of accounts: one `MERCHANT_PAYABLE` per
+   merchant, plus platform-level commission/delivery-revenue/COD-clearing/cash accounts),
+   `ledger_transactions` (groups entries that must balance), and a redesigned `ledger_entries`
+   (journal lines). Balance is enforced by a documented deferred constraint trigger, not merely a
+   convention — see "Financial accounting model" in `DATABASE-DESIGN.md`.
+2. **Batch-level stock allocation.** `stock_reservation_items` now has a `batch_id` column.
+   `store_products.uses_batch_tracking` makes explicit whether a listing's stock lives in
+   `stock_batches` or in `inventory`'s own counters — never both, which is what prevents double
+   counting. FEFO allocation order (`expiry_date ASC NULLS LAST`), batch-level locking, and exactly
+   how receiving/reserving/releasing/selling/damage/expiry movements affect batch and aggregate
+   counters are now fully specified in "Inventory and FEFO allocation."
+3. **Reservation integrity is now DB-enforced, not just commented.** Added
+   `CHECK (num_nonnulls(cart_id, order_id) = 1)` and two partial unique indexes (at most one active
+   reservation per cart, per order). Added `consumed_at`/`released_at` timestamps with `CHECK`
+   constraints tying them to `status`, so a reservation cannot be consumed or released twice. A
+   full lifecycle (cart-held → order-held → consumed/released, with exactly when each transition
+   happens) is documented in "Reservation lifecycle."
+4. **Payment history added.** New `payment_status_history` table, append-only, mirroring
+   `order_status_history` (old/new status, actor, source, reason, timestamp). `payments.updated_at`
+   now documented as "latest state only — see this table for the trail."
+5. **Order snapshots expanded.** `order_items` gained `sku_snapshot` and per-line `tax_amount`.
+   `orders` gained `store_name_snapshot`, `store_address_snapshot`,
+   `delivery_recipient_name_snapshot`, `delivery_recipient_phone_snapshot`, and a full
+   `delivery_address_snapshot` (JSONB) — all frozen at order time. `delivery_address_id` remains
+   for traceability only and is explicitly documented as "never read for display."
+6. **Idempotency keys rescoped.** `orders.idempotency_key` changed from a bare global unique
+   column to `UNIQUE (customer_id, idempotency_key)`. `idempotency_records` gained `scope` and
+   `user_id` columns, with its unique constraint changed to `(scope, user_id, idempotency_key)`.
+   Full request-handling behaviour (same key + same payload, same key + different payload,
+   concurrent requests, `IN_PROGRESS`/`COMPLETED`/`FAILED` handling, expiry) is specified in
+   "Idempotency rules," including why `idempotency_records`, `orders.idempotency_key`, and
+   `payments.idempotency_key` are deliberately layered, not redundant.
+7. **Settlement precision corrected.** `settlement_items` gained `commission_rate_applied` (the %
+   used) as a column distinct from `commission_amount` (the ₹ result) — previously only the amount
+   existed, risking confusion between the two. `settlement_items.order_id` is now `UNIQUE` on its
+   own (not just part of a composite key), so an order can never appear in two settlements.
+8. **Service zones and delivery eligibility specified.** A new section defines the MVP approach
+   (radius check within an active zone, with `service_zones.max_delivery_radius_km` as a fallback
+   until `boundary` polygons are mapped) and documents the PostGIS extension prerequisite and its
+   provider-specific migration implications.
+9. **Outbox redesigned for reliable, claim-based processing.** `outbox_events` gained `attempt_count`,
+   `max_attempts`, `next_attempt_at`, `claimed_by`, `locked_until`, and a `DEAD` terminal status.
+   The claiming pattern (`SELECT ... FOR UPDATE SKIP LOCKED`), retry/backoff, crash recovery, and
+   duplicate-delivery protection are specified in "Outbox and notification reliability" — no
+   Kafka, Redis, or microservices, as required.
+10. **`ON DELETE` behaviour specified.** Documented a default of `RESTRICT` for every foreign key,
+    with `cart_items` and `stock_reservation_items` as the only `CASCADE` exceptions (both are
+    meaningless without their parent row).
+11. **Prisma Implementation Readiness Checklist added** — a new, required closing section in
+    `DATABASE-DESIGN.md` covering schema completeness, relations/referential actions, PostgreSQL
+    extensions, constraints needing hand-written SQL, transaction boundaries, inventory
+    concurrency, financial balancing, index verification, and migration/rollback considerations.
+
+None of these corrections changed any existing product decision.
+
+### Revised table inventory
+
+41 MVP-required tables (up from 38 in BC-003.2 — net +3: `financial_accounts`,
+`ledger_transactions`, and `payment_status_history` are new; `ledger_entries`, `settlements`, and
+`settlement_items` were already counted and are now corrected in place). 2 tables remain classified
+**Future extension** (`coupons`, `coupon_redemptions`), unchanged. Full table with purpose for each
+is in `DATABASE-DESIGN.md`'s "Table inventory and classification."
+
+### Updated ERD
+
+The Mermaid ERD in `DATABASE-DESIGN.md` now includes `financial_accounts`, `ledger_transactions`,
+`payment_status_history`, and the `stock_batches` ↔ `stock_reservation_items` relationship that was
+previously missing. No undocumented entities either direction.
+
+### Financial accounting model
+
+See `DATABASE-DESIGN.md`'s dedicated section. Summary: a small fixed chart of accounts
+(`financial_accounts`), balanced journal transactions (`ledger_transactions` +
+redesigned `ledger_entries`), explicit posting points (COD recognised at order `COMPLETED`; online
+payment, when it ships, recognised at `CAPTURED`), proportional partial-refund reversal, and
+correction-via-reversal (never edits to a posted entry). Merchant outstanding balance and
+settlement reconciliation are both always derived from the ledger, never a separately-maintained
+counter that could drift.
+
+### Batch-level inventory and FEFO design
+
+See `DATABASE-DESIGN.md`'s "Inventory and FEFO allocation." Summary: batch-tracked listings
+allocate `expiry_date ASC NULLS LAST` under row locks; non-batch-tracked listings never have
+`stock_batches` rows at all — this split is what prevents double-counting the same physical stock.
+A table distinguishes what PostgreSQL can enforce (quantity `CHECK`s, reservation ownership/
+uniqueness) from what remains application responsibility (aggregate sync between `inventory` and
+its batches, FEFO ordering, lock-based concurrency).
+
+### Payment and order history improvements
+
+`payment_status_history` (new) and the expanded `orders`/`order_items` snapshot columns (see
+correction #5 above) — both summarized there, not repeated here.
+
+### Idempotency and concurrency rules
+
+See `DATABASE-DESIGN.md`'s "Idempotency rules" for the full decision table (same key/same payload,
+same key/different payload, concurrent requests, status handling, expiry) and "Inventory and FEFO
+allocation" / "Reservation lifecycle" for concurrency (row locking, lock ordering to avoid
+deadlocks).
+
+### Refund and settlement rules
+
+See `DATABASE-DESIGN.md`'s "Refunds and settlements": COD vs. online refunds, partial vs. full,
+maximum refundable amount, initiation vs. completion, settlement eligibility, and the two
+independent duplicate-inclusion guards (`settlement_items.order_id UNIQUE`,
+`ledger_entries.settlement_id IS NULL` as the selection filter).
+
+### ADR review
+
+Reviewed all 12 ADRs against these corrections. **No conflicts found, no amendment or new ADR
+needed** — the financial-accounting model, batch-level inventory, reservation constraints, and
+outbox design are all implementation detail within already-accepted decisions
+([ADR-0001](../03-decisions/ADR-0001-modular-monolith.md),
+[ADR-0005](../03-decisions/ADR-0005-postgresql-database.md),
+[ADR-0006](../03-decisions/ADR-0006-prisma-orm-planned.md)), not new architecture. The explicit
+"no Kafka, Redis, or microservices" requirement for the outbox is consistent with, not a departure
+from, ADR-0001.
+
+### BUSINESS-RULES.md corrected
+
+Found and fixed one real contradiction: `BUSINESS-RULES.md` listed perishable batch/FEFO tracking
+as "deferred until perishables are prioritised," which contradicted `DATABASE-DESIGN.md`'s
+classification of `stock_batches` as MVP-required (dairy/bakery are in the day-one catalogue).
+Corrected, and added three new rows reflecting the financial-ledger balance requirement, the
+idempotency-key scoping rule, and the address-snapshot immutability rule — all cross-referencing
+`DATABASE-DESIGN.md` rather than duplicating its detail.
+
+### BC-004 plan updated
+
+Stage 4 now lists all 41 finalized tables and explicitly points to the new "Prisma Implementation
+Readiness Checklist" as the gate, replacing the vaguer "needs its own review" language from
+BC-003.2. The header now states the full history of both review rounds.
+
+### Documentation verification
+
+| Check                                                                               | Result                                                                                                                                                |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run format:check`                                                              | Pass                                                                                                                                                  |
+| `npm run lint`                                                                      | Pass (5/5 projects)                                                                                                                                   |
+| `npm run typecheck`                                                                 | Pass (5/5 projects)                                                                                                                                   |
+| `npm run test`                                                                      | Pass — API: 1, web: 1, validation: 3                                                                                                                  |
+| `npm run build`                                                                     | Pass                                                                                                                                                  |
+| Internal documentation links                                                        | 0 broken                                                                                                                                              |
+| Mermaid fences                                                                      | Balanced in `DATABASE-DESIGN.md`                                                                                                                      |
+| Application code / package files / dependencies / migrations / infrastructure files | **Unchanged** — confirmed via `git diff`: no `package.json`, `package-lock.json`, `apps/*/src`, `packages/*/src`, or `infrastructure/*` files touched |
+
+### Remaining unresolved decisions
+
+None invented. Two items are explicitly left as open, documented questions rather than silent
+assumptions:
+
+- The exact Prisma `relationMode`/referential-action syntax is intentionally left to BC-004's own
+  implementation (a Prisma-specific detail, not a database-design decision).
+- A formal data-retention/deletion policy remains out of scope, flagged for the future
+  authentication/privacy task (unchanged from BC-003.2).
+
+### BC-003.3 completion status: **Complete.**
+
+Not committed and not pushed — reporting these results first, per instruction. See the
+working-tree state below.
+
+Do not start BC-004 implementation. Do not implement Prisma, migrations, or application code from
+this task.
