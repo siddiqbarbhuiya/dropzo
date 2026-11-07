@@ -725,3 +725,127 @@ working-tree state below.
 
 Do not start BC-004 implementation. Do not implement Prisma, migrations, or application code from
 this task.
+
+_(Update: these BC-003.3 changes were subsequently approved, committed as `13bd139`, and pushed —
+see the BC-003.4 section below.)_
+
+## BC-003.4 — Final database finalization (one-time comprehensive review)
+
+Status: **Complete. Database design review is now closed.**
+
+### Why this task existed
+
+A final, comprehensive review of the complete BC-003.3 design — not limited to re-checking the
+three headline BC-003.3 findings — was commissioned to either close database design review
+entirely or identify a genuine implementation blocker. It found five further, real defects.
+
+### Every defect found and its resolution
+
+1. **`financial_accounts` platform-account uniqueness was actually broken.** PostgreSQL treats
+   every `NULL` as distinct from every other `NULL` in an ordinary `UNIQUE` constraint, so the
+   BC-003.3 `UNIQUE (account_type, merchant_id)` constraint did **not** prevent two
+   `PLATFORM_CASH` (or any other platform-level) rows from both existing with
+   `merchant_id = NULL` — a real, demonstrable bug, not a style nitpick. **Resolution**: kept the
+   composite unique (correct for merchant-owned accounts, where `merchant_id` is never null), and
+   added a partial unique index, `UNIQUE (account_type) WHERE merchant_id IS NULL`, which correctly
+   enforces "exactly one of each platform-level account type."
+2. **Settlement reconciliation had no worked example and no failed-payout procedure.**
+   **Resolution**: added a full numeric example (order → ledger entries → settlement generation →
+   payout, with the exact `settlement_id` tagging that prevents double-counting), explicit
+   partial-settlement handling (untouched entries simply roll into the next period), and explicit
+   failed-payout handling (the amount re-enters the outstanding balance via an
+   `OR settlement.status = 'FAILED'` clause, without altering any historical row).
+3. **The outbox/notification design didn't address the FCM delivery guarantee.** A PostgreSQL
+   transaction cannot atomically commit an external Firebase Cloud Messaging call, so a worker can
+   crash between sending a push and recording that it sent it. **Resolution**: explicitly
+   documented that database event processing is idempotent (via the new
+   `notifications.source_outbox_event_id` unique column) but external push delivery is
+   at-least-once and can duplicate — with `notifications.id` as the stable client-side dedup key
+   sent in the push payload, which is the standard, proportional mitigation (not a database-level
+   fix, since none exists for this class of problem without a distributed transaction).
+4. **FEFO batch-locking order wasn't fully deadlock-safe.** Locking batches in `expiry_date` order
+   alone isn't a deterministic _global_ order if two batches share an expiry date. **Resolution**:
+   added an `id` tiebreaker to the lock-acquisition order, and stated a global rule (always lock
+   `inventory` before its `stock_batches`, never the reverse) explicitly.
+5. **The ER diagram omitted five tables** (`service_zones`, `categories`, `audit_logs`,
+   `idempotency_records`, `outbox_events`) while the document claimed none were omitted — a real
+   internal-consistency defect. **Resolution**: added every genuine foreign-key relationship these
+   tables have (`categories` ↔ `products` and self; `audit_logs`/`idempotency_records` ↔ `users`
+   via `actor_user_id`/`user_id`; `outbox_events` ↔ `notifications` via the new
+   `source_outbox_event_id`), and corrected the document's claim to be accurate:
+   `service_zones` has no foreign-key relationship by design (delivery eligibility is computed at
+   query time, not stored as a FK) and is explicitly called out as the one intentionally
+   unconnected table, rather than silently missing.
+
+None of these corrections changed any existing product decision, and the MVP-required table count
+remains 41 (no tables added or removed — only `notifications` gained one new column,
+`source_outbox_event_id`, and `settlements` gained `paid_at`/`failed_at`).
+
+### Platform-account uniqueness, settlement reconciliation, and outbox delivery — explained
+
+See defects #1, #2, and #3 above for the full explanation of each, as specifically requested.
+
+### ADR review
+
+Reviewed all 12 ADRs again against these five corrections. **No conflicts, no amendment or new ADR
+needed** — a partial unique index, a worked accounting example, an external-delivery disclosure,
+and a lock-ordering clarification are all implementation detail within already-accepted decisions,
+not new architecture.
+
+### Documentation synchronization
+
+- `docs/04-design/DATABASE-DESIGN.md`: all five corrections applied in place; a new "Change log for
+  this revision (BC-003.4 — final)" section added above the existing BC-003.3 change log (renamed
+  "Change log for the BC-003.3 revision" to disambiguate); status line changed to "Finalized for
+  BC-004 (BC-003.4)."
+- `docs/04-design/DATABASE-DESIGN-REVIEW.md`: resolution note extended to mention BC-003.4 and the
+  closed status; original review findings untouched.
+- `docs/06-delivery/BC-004-IMPLEMENTATION-PLAN.md`: status changed to "Ready to begin"; Stage 4's
+  custom-SQL list expanded with the two new partial indexes; Stage 9 expanded with concrete
+  database integrity/concurrency tests and explicit Stage-4 acceptance criteria (both were missing
+  before this task).
+- `docs/06-delivery/TASK-TRACKER.md`, `ROADMAP.md`: BC-003.4 entry added; BC-004 status changed
+  from Backlog to **Ready**.
+- `docs/04-design/BUSINESS-RULES.md`: not changed in this task — the BC-003.3 pass already
+  resolved its one real contradiction, and none of this task's five corrections touch
+  business-rule-level statements (they're schema/implementation-detail corrections).
+
+### Final verification
+
+| Check                                                                               | Result                                                                    |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `npm run format:check`                                                              | Pass                                                                      |
+| `npm run lint`                                                                      | Pass (5/5 projects)                                                       |
+| `npm run typecheck`                                                                 | Pass (5/5 projects)                                                       |
+| `npm run test`                                                                      | Pass — API: 1, web: 1, validation: 3                                      |
+| `npm run build`                                                                     | Pass                                                                      |
+| Internal documentation links                                                        | 0 broken                                                                  |
+| Mermaid fences                                                                      | Balanced in `DATABASE-DESIGN.md`                                          |
+| ERD completeness (every FK-connected table present)                                 | Verified — see defect #5 resolution                                       |
+| Application code / package files / dependencies / migrations / infrastructure files | **Unchanged** — confirmed via `git diff`: nothing outside `docs/` touched |
+
+### Schema consistency checks (requested explicitly)
+
+- Table inventory count re-verified programmatically against the document: 41 MVP-required rows,
+  2 future-extension rows — unchanged from BC-003.3.
+- Every table with a foreign-key relationship appears in the ERD (verified by diffing the entity
+  list in the diagram against the full table inventory — see defect #5).
+- The worked settlement example's numbers reconcile exactly (400 gross − 32 commission = 368 net;
+  merchant account nets to 0 after payout).
+- No remaining stale references to superseded terms (`remaining_quantity`, bare global idempotency
+  keys, etc.) found via a repository-wide grep.
+
+### No critical unresolved blocker
+
+No genuinely important business decision was encountered that couldn't be safely inferred from
+approved requirements and established PostgreSQL/accounting/inventory practice. The two previously
+flagged open items remain explicitly deferred (not blockers): exact Prisma `relationMode` syntax
+(a BC-004 implementation detail) and a formal data-retention/deletion policy (belongs with the
+future authentication/privacy task).
+
+### BC-003.4 completion status: **Complete. Database design review is closed.**
+
+Not committed and not pushed — reporting these results first, per instruction.
+
+BC-004 is ready to begin, pending your explicit go-ahead. Do not implement Prisma, migrations, or
+application code from this task.

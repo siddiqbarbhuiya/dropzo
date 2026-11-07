@@ -1,12 +1,14 @@
 # Database design
 
-**Status: Proposed — implementation-ready, independently reviewed (BC-003.3).** No database,
-Prisma schema, or migration exists in this repository yet (see
-[ADR-0005](../03-decisions/ADR-0005-postgresql-database.md) and
+**Status: Finalized for BC-004 (BC-003.4).** No database, Prisma schema, or migration exists in
+this repository yet (see [ADR-0005](../03-decisions/ADR-0005-postgresql-database.md) and
 [ADR-0006](../03-decisions/ADR-0006-prisma-orm-planned.md): the technology is decided, the schema
-is not implemented). This revision corrects gaps found in an independent schema review of the
-BC-003.2 version — see "Change log for this revision" below. **Prisma schema work must not begin
-until this document's own "Prisma Implementation Readiness Checklist" is satisfied.**
+is not implemented). This document has now been through three correction rounds (BC-003.2,
+BC-003.3, BC-003.4) and is considered **closed** for database-design review — see
+[`DATABASE-DESIGN-REVIEW.md`](DATABASE-DESIGN-REVIEW.md) for the full history. Further changes
+should only happen if BC-004 implementation discovers an actual, demonstrable defect, not as
+another round of preliminary review. **Prisma schema work must not begin until this document's own
+"Prisma Implementation Readiness Checklist" is satisfied.**
 
 This remains one canonical file, by decision (BC-003.2) — not split across `02-architecture/` and
 `04-design/`, and not split per module.
@@ -29,9 +31,43 @@ This remains one canonical file, by decision (BC-003.2) — not split across `02
 - Idempotency keys are scoped to the requesting user and operation, never globally unique across
   unrelated users or endpoints (corrected in this revision).
 
-## Change log for this revision (BC-003.3)
+## Change log for this revision (BC-003.4 — final)
 
-An independent review of the BC-003.2 design found the following gaps, all corrected here:
+A comprehensive, final review of the complete BC-003.3 design (not just its three headline
+findings) found five further defects, all corrected here:
+
+1. **`financial_accounts` platform-account uniqueness was broken.** PostgreSQL treats every `NULL`
+   as distinct in an ordinary `UNIQUE` constraint, so `UNIQUE (account_type, merchant_id)` did
+   **not** stop two `PLATFORM_CASH` (or any other platform-level) rows from both existing with
+   `merchant_id = NULL`. Added a partial unique index,
+   `UNIQUE (account_type) WHERE merchant_id IS NULL`, alongside the existing composite unique
+   (which correctly handles merchant-owned accounts, where `merchant_id` is never null).
+2. **Settlement reconciliation lacked a worked example and failed-payout handling.** Added a full
+   numeric example showing that outstanding balance is never double-counted (the payout entry
+   itself is tagged with the settlement it closes, at creation time), plus explicit partial-
+   settlement and failed-payout procedures (a failed settlement's amount re-enters the outstanding
+   balance via an `OR settlement.status = 'FAILED'` clause, without altering history).
+3. **The outbox/notification design didn't address external delivery guarantees.** Added an
+   explicit statement that database event processing is idempotent but push delivery to a device
+   is at-least-once (a worker can crash between calling FCM and recording success) — with
+   `notifications.source_outbox_event_id` (new, unique) as the database-side dedup key and
+   `notifications.id` as the client-side display-dedup key sent in the push payload.
+4. **Lock ordering for FEFO allocation wasn't fully deadlock-safe.** Batch locking now specifies an
+   `id` tiebreaker on top of `expiry_date` ordering, and a global rule (always lock `inventory`
+   before its `stock_batches`) is stated explicitly.
+5. **The ERD omitted five tables** (`service_zones`, `categories`, `audit_logs`,
+   `idempotency_records`, `outbox_events`) despite the document claiming none were omitted. Added
+   every real foreign-key relationship these tables have (`categories` ↔ `products`/self;
+   `audit_logs`/`idempotency_records` ↔ `users`; `outbox_events` ↔ `notifications`); `service_zones`
+   remains unconnected in the diagram by design (no FK — see the note under the diagram) rather
+   than forced into a misleading relationship.
+
+None of these corrections changed any existing product decision, and none required touching any
+MVP-required vs. deferred classification.
+
+## Change log for the BC-003.3 revision
+
+An independent review of the BC-003.2 design found the following gaps, all corrected then:
 
 1. **Financial ledger could not guarantee balanced accounting.** A single `ledger_entries` table
    with a `direction` column had no mechanism forcing debits to equal credits. Replaced with a
@@ -130,6 +166,13 @@ erDiagram
     USERS ||--o{ NOTIFICATION_DEVICES : registers
     USERS ||--o{ NOTIFICATIONS : receives
     USERS ||--o{ COMPLAINTS : raises
+    USERS ||--o{ AUDIT_LOGS : performs
+    USERS ||--o{ IDEMPOTENCY_RECORDS : initiates
+
+    CATEGORIES ||--o{ CATEGORIES : has_subcategory
+    CATEGORIES ||--o{ PRODUCTS : classifies
+
+    OUTBOX_EVENTS ||--o| NOTIFICATIONS : dispatches
 
     MERCHANTS ||--o{ MERCHANT_STAFF : employs
     MERCHANTS ||--o{ STORES : operates
@@ -182,8 +225,12 @@ erDiagram
     SETTLEMENTS ||--o{ LEDGER_TRANSACTIONS : pays_out
 ```
 
-No entity appears in this diagram without a full specification below, and no table below is
-omitted from this diagram.
+No entity appears in this diagram without a full specification below. Every table with at least
+one foreign-key relationship to another MVP table appears in this diagram. One table —
+`service_zones` — has **no** foreign-key relationship to any other table by design: delivery
+eligibility is computed at query time against it (radius/polygon check), not stored as a FK on
+`stores` or `orders` — see "Service zones and delivery eligibility." It is still a MVP-required
+table (see the inventory above); it is simply not a connected node in this particular diagram.
 
 ## Table specifications
 
@@ -714,9 +761,22 @@ specification only.
 | `currency`     | VARCHAR(3)  | NOT NULL | `'INR'`             |                                                                                                                      |
 | `created_at`   | TIMESTAMPTZ | NOT NULL | `NOW()`             |                                                                                                                      |
 
-Unique: `(account_type, merchant_id)` — exactly one `MERCHANT_PAYABLE` account per merchant;
-exactly one of each platform-level account type (`merchant_id IS NULL`). CHECK:
-`(owner_type = 'MERCHANT') = (merchant_id IS NOT NULL)`.
+CHECK: `(owner_type = 'MERCHANT') = (merchant_id IS NOT NULL)`.
+
+**Uniqueness — corrected in BC-003.4.** PostgreSQL's ordinary `UNIQUE` constraint treats every
+`NULL` as distinct from every other `NULL`, so a plain `UNIQUE (account_type, merchant_id)` would
+**not** stop two `PLATFORM_CASH` rows from both existing with `merchant_id = NULL` — a real bug in
+the BC-003.3 version. Two separate constraints are needed:
+
+- `UNIQUE (account_type, merchant_id)` — correctly enforces "one `MERCHANT_PAYABLE` account per
+  merchant," since `merchant_id` is always non-null for those rows.
+- A **partial unique index** for platform-owned accounts, where the plain constraint cannot help
+  because `merchant_id` is always `NULL` for them:
+  `CREATE UNIQUE INDEX uq_financial_accounts_platform ON financial_accounts (account_type) WHERE
+merchant_id IS NULL;`
+
+Prisma's schema language cannot express a partial unique index — this one is listed in the "Prisma
+Implementation Readiness Checklist" as a required hand-written migration step.
 
 #### `ledger_transactions` — MVP-required (new)
 
@@ -745,7 +805,12 @@ Index: `(reference_type, reference_id)`.
 | `settlement_id`  | UUID          | NULL     | —                   | FK → `settlements.id` `ON DELETE RESTRICT`; set once this entry (if on a `MERCHANT_PAYABLE` account) has been included in a settlement — **prevents double-inclusion** |
 | `created_at`     | TIMESTAMPTZ   | NOT NULL | `NOW()`             |                                                                                                                                                                        |
 
-Index: `(account_id, created_at)`, `(transaction_id)`. **Balance enforcement**: PostgreSQL cannot
+Index: `(account_id, created_at)`, `(transaction_id)`, and a **partial index**
+`(account_id) WHERE settlement_id IS NULL` — this is the exact filter the outstanding-balance and
+settlement-generation queries use, and a partial index keeps it fast as the table grows (settled
+history accumulates, but the "still owed" set stays small). Prisma cannot express this partial
+index either — add it to the same hand-written migration step as the `financial_accounts`
+platform-account index. **Balance enforcement**: PostgreSQL cannot
 express "sum of debits = sum of credits for this `transaction_id`" as a row-level `CHECK`
 constraint, since it is a cross-row aggregate. This is enforced by a `CONSTRAINT TRIGGER ...
 INITIALLY DEFERRED` that runs once per modified `transaction_id` at transaction-commit time and
@@ -754,23 +819,26 @@ partial write to `ledger_entries` outside a single database transaction. **Never
 `DELETE` a row here — the application's database role should have `INSERT`/`SELECT` only on this
 table (no `UPDATE`/`DELETE` grants), as a second line of defence beyond application discipline.
 
-#### `settlements` — MVP-required
+#### `settlements` — MVP-required (clarified in BC-003.4)
 
-Unchanged.
+| Column              | Type          | Null     | Default             | Notes                                                 |
+| ------------------- | ------------- | -------- | ------------------- | ----------------------------------------------------- |
+| `id`                | UUID          | NOT NULL | `gen_random_uuid()` | PK                                                    |
+| `merchant_id`       | UUID          | NOT NULL | —                   | FK → `merchants.id` `ON DELETE RESTRICT`              |
+| `period_start`      | DATE          | NOT NULL | —                   |                                                       |
+| `period_end`        | DATE          | NOT NULL | —                   |                                                       |
+| `gross_amount`      | NUMERIC(12,2) | NOT NULL | —                   |                                                       |
+| `commission_amount` | NUMERIC(12,2) | NOT NULL | —                   |                                                       |
+| `deductions`        | NUMERIC(12,2) | NOT NULL | `0`                 |                                                       |
+| `net_amount`        | NUMERIC(12,2) | NOT NULL | —                   | what the settlement payout transaction actually moves |
+| `status`            | VARCHAR(30)   | NOT NULL | `'PENDING'`         | **clarified** — `PENDING`, `PAID`, `FAILED`           |
+| `paid_at`           | TIMESTAMPTZ   | NULL     | —                   | **new** — set when `status` becomes `PAID`            |
+| `failed_at`         | TIMESTAMPTZ   | NULL     | —                   | **new** — set when `status` becomes `FAILED`          |
+| `reference_number`  | VARCHAR(150)  | NULL     | —                   |                                                       |
+| `created_at`        | TIMESTAMPTZ   | NOT NULL | `NOW()`             |                                                       |
 
-| Column              | Type          | Null     | Default             | Notes                                    |
-| ------------------- | ------------- | -------- | ------------------- | ---------------------------------------- |
-| `id`                | UUID          | NOT NULL | `gen_random_uuid()` | PK                                       |
-| `merchant_id`       | UUID          | NOT NULL | —                   | FK → `merchants.id` `ON DELETE RESTRICT` |
-| `period_start`      | DATE          | NOT NULL | —                   |                                          |
-| `period_end`        | DATE          | NOT NULL | —                   |                                          |
-| `gross_amount`      | NUMERIC(12,2) | NOT NULL | —                   |                                          |
-| `commission_amount` | NUMERIC(12,2) | NOT NULL | —                   |                                          |
-| `deductions`        | NUMERIC(12,2) | NOT NULL | `0`                 |                                          |
-| `net_amount`        | NUMERIC(12,2) | NOT NULL | —                   |                                          |
-| `status`            | VARCHAR(30)   | NOT NULL | `'PENDING'`         |                                          |
-| `reference_number`  | VARCHAR(150)  | NULL     | —                   |                                          |
-| `created_at`        | TIMESTAMPTZ   | NOT NULL | `NOW()`             |                                          |
+See "Settlement reconciliation" below for the full worked example, including partial settlements
+and failed payouts.
 
 #### `settlement_items` — MVP-required (corrected)
 
@@ -793,23 +861,27 @@ Unchanged.
 
 ## Communication
 
-#### `notifications` — MVP-required
+#### `notifications` — MVP-required (corrected in BC-003.4)
 
-Unchanged.
+| Column                   | Type         | Null     | Default             | Notes                                                                     |
+| ------------------------ | ------------ | -------- | ------------------- | ------------------------------------------------------------------------- |
+| `id`                     | UUID         | NOT NULL | `gen_random_uuid()` | PK — also used as the stable delivery key sent to FCM, see below          |
+| `user_id`                | UUID         | NOT NULL | —                   | FK → `users.id` `ON DELETE RESTRICT`                                      |
+| `channel`                | VARCHAR(20)  | NOT NULL | —                   | `PUSH`, `SMS`                                                             |
+| `title`                  | VARCHAR(200) | NOT NULL | —                   |                                                                           |
+| `body`                   | TEXT         | NOT NULL | —                   |                                                                           |
+| `related_order_id`       | UUID         | NULL     | —                   | FK → `orders.id` `ON DELETE RESTRICT`                                     |
+| `source_outbox_event_id` | UUID         | NULL     | —                   | **new** — FK → `outbox_events.id` `ON DELETE RESTRICT`, UNIQUE if present |
+| `status`                 | VARCHAR(20)  | NOT NULL | `'PENDING'`         | `PENDING`, `SENT`, `FAILED`                                               |
+| `sent_at`                | TIMESTAMPTZ  | NULL     | —                   |                                                                           |
+| `created_at`             | TIMESTAMPTZ  | NOT NULL | `NOW()`             |                                                                           |
 
-| Column             | Type         | Null     | Default             | Notes                                 |
-| ------------------ | ------------ | -------- | ------------------- | ------------------------------------- |
-| `id`               | UUID         | NOT NULL | `gen_random_uuid()` | PK                                    |
-| `user_id`          | UUID         | NOT NULL | —                   | FK → `users.id` `ON DELETE RESTRICT`  |
-| `channel`          | VARCHAR(20)  | NOT NULL | —                   | `PUSH`, `SMS`                         |
-| `title`            | VARCHAR(200) | NOT NULL | —                   |                                       |
-| `body`             | TEXT         | NOT NULL | —                   |                                       |
-| `related_order_id` | UUID         | NULL     | —                   | FK → `orders.id` `ON DELETE RESTRICT` |
-| `status`           | VARCHAR(20)  | NOT NULL | `'PENDING'`         | `PENDING`, `SENT`, `FAILED`           |
-| `sent_at`          | TIMESTAMPTZ  | NULL     | —                   |                                       |
-| `created_at`       | TIMESTAMPTZ  | NOT NULL | `NOW()`             |                                       |
-
-Dispatched via `outbox_events` — see "Outbox and notification reliability."
+`source_outbox_event_id` being `UNIQUE` (when present) is what makes the **database-side** step of
+notification creation idempotent: if the outbox worker retries processing the same event (e.g.
+after a crash and recovery sweep), the second attempt to insert a `notifications` row for that
+event fails the unique constraint instead of creating a duplicate row. This does **not** by itself
+prevent a duplicate push being delivered to the device — see "Outbox and notification reliability"
+for why that's a separate, unavoidable concern.
 
 #### `notification_devices` — MVP-required
 
@@ -964,14 +1036,79 @@ it can never drift out of sync with the entries that justify it.
 
 ### Settlement reconciliation
 
-Generating a settlement for a merchant: select all `ledger_entries` on that merchant's
-`MERCHANT_PAYABLE` account with `settlement_id IS NULL` for the period, sum them to get
-`net_amount`, create the `settlements` row, create one `settlement_items` row per contributing
-order (with `commission_rate_applied` and `commission_amount` from that order's own entries), post
-a `SETTLEMENT_PAYOUT` ledger transaction, and set `settlement_id` on every included `ledger_entries`
-row — which is exactly what prevents the same entry (and therefore the same order) from being
-included in a future settlement. `settlement_items.order_id` being `UNIQUE` on its own is a second,
-independent guarantee of the same invariant.
+**Generation procedure**:
+
+1. Select all `ledger_entries` on the merchant's `MERCHANT_PAYABLE` account where
+   `settlement_id IS NULL` and `created_at` falls in the requested period.
+2. Sum them (credits minus debits) to get `net_amount`; group by `order_id` to build one
+   `settlement_items` row per contributing order, with that order's own
+   `commission_rate_applied`/`commission_amount` copied from its original ledger entries — never
+   recalculated from `merchants.commission_percent`, which may have changed since.
+3. Create the `settlements` row (`status = 'PENDING'`).
+4. **In the same database transaction**, set `settlement_id` to this new settlement's `id` on
+   every `ledger_entries` row selected in step 1 — this is what removes them from a future
+   "unsettled" query, and it happens atomically with step 3, not as a separate later step.
+5. Post a `SETTLEMENT_PAYOUT` `ledger_transactions` row: `DEBIT MERCHANT_PAYABLE(merchant)
+net_amount`, `CREDIT PLATFORM_CASH net_amount`. **This payout entry's own `settlement_id` is set
+   at creation**, not left `NULL` and linked later — it is generated as part of the same settlement
+   operation.
+
+#### Worked example
+
+Order O1 (COD, ₹400, 8% commission) completes. Its `ORDER_SALE`/`COMMISSION` ledger transaction
+posts: `DEBIT COD_CASH_CLEARING 400`, `CREDIT MERCHANT_PAYABLE(M) 400`, `DEBIT MERCHANT_PAYABLE(M)
+32`, `CREDIT PLATFORM_COMMISSION_REVENUE 32` (balanced: 432 = 432). Both `MERCHANT_PAYABLE(M)`
+entries have `settlement_id = NULL`. Merchant M's outstanding balance: `400 − 32 = 368`.
+
+A settlement is generated for M's period: both entries (`settlement_id IS NULL`) are selected,
+`settlement_items` records `gross_amount = 400`, `commission_rate_applied = 8.00`,
+`commission_amount = 32`, `net_amount = 368`. Both original entries get `settlement_id = S1`. A new
+`SETTLEMENT_PAYOUT` transaction posts `DEBIT MERCHANT_PAYABLE(M) 368`
+(`settlement_id = S1`, set at creation), `CREDIT PLATFORM_CASH 368`. Merchant M's
+`MERCHANT_PAYABLE` account now has three entries, all with `settlement_id = S1`:
+`+400, −32, −368`, net `0`. Outstanding balance (`settlement_id IS NULL`) is correctly `0` — the
+settled amount is not double-counted, because every entry that contributed to it, **including the
+payout itself**, is tagged with the same settlement.
+
+#### Partial settlements
+
+If a settlement run only covers orders up to a cutoff date, any `MERCHANT_PAYABLE` entries created
+after that cutoff simply still have `settlement_id = NULL` — they are untouched and automatically
+roll into the next settlement period's query. No special "partial" flag or table is needed; this
+falls directly out of filtering by `created_at` and `settlement_id IS NULL`.
+
+#### Failed payouts
+
+If the external payout (e.g. a bank transfer) fails **after** the settlement was generated and its
+`SETTLEMENT_PAYOUT` transaction posted, set `settlements.status = 'FAILED'`, `failed_at = NOW()`.
+**Do not** null out `settlement_id` on the affected entries — that would lose the audit trail of
+which settlement attempt they belonged to. Instead, the outstanding-balance query is refined to:
+
+> `SUM(CREDIT) − SUM(DEBIT)` over `ledger_entries` on the merchant's `MERCHANT_PAYABLE` account
+> where `settlement_id IS NULL` **OR** `settlement_id IN (SELECT id FROM settlements WHERE
+merchant_id = M AND status = 'FAILED')`.
+
+This correctly brings the failed settlement's amount back into the merchant's outstanding balance
+without altering history. A retry generates a **new** settlement (a new `settlements` row, a new
+`SETTLEMENT_PAYOUT` transaction) covering the same now-again-outstanding entries — the original
+failed settlement and its entries are left exactly as they were, including the failed payout's own
+ledger lines (an audit trail of the failed attempt, not reversed, since no money actually moved).
+
+`settlement_items.order_id` being `UNIQUE` on its own remains a second, independent guard: once an
+order's `settlement_items` row exists (even under a later-failed settlement), the generation query
+for a _different_ settlement must exclude orders already present in any `settlement_items` row —
+not just rely on the `ledger_entries.settlement_id` filter — so the retry settlement re-uses the
+same `settlement_items` rows (re-pointed to the new `settlement_id`) rather than creating duplicate
+line items for the same order. Implementing this re-pointing (vs. deleting and recreating) is an
+application-logic decision for BC-004, not a schema-level requirement; this document establishes
+the invariant (an order's settlement history must be traceable and never duplicated), not the
+exact update statement.
+
+#### Corrections
+
+A correction to an already-`PAID` settlement (e.g. a miscalculated commission discovered later)
+is a new `ADJUSTMENT` ledger transaction, as described in "Corrections" above — never an edit to
+the original `settlements`/`settlement_items`/`ledger_entries` rows.
 
 ## Inventory and FEFO allocation
 
@@ -1005,8 +1142,15 @@ When reserving stock for a batch-tracked listing:
 LAST`** — batches with a known, sooner expiry are allocated first; batches with no expiry date
    (shelf-stable goods mistakenly batch-tracked, or genuinely non-expiring items) are allocated
    last, since they carry no urgency.
-3. Lock each candidate batch row in that same order (`SELECT ... FOR UPDATE`) to avoid deadlocks
-   between concurrent checkouts.
+3. Lock each candidate batch row in that same order (`SELECT ... FOR UPDATE ... ORDER BY
+expiry_date ASC NULLS LAST, id ASC`) — the `id` tiebreaker makes the lock order a deterministic
+   global total order over all batches of that inventory row, not just "whatever order this one
+   transaction happens to need them in." Two concurrent transactions touching overlapping batch
+   sets will always request their locks consistent with that same global order, which is what
+   actually prevents a deadlock cycle — locking "in expiry order" without a tiebreaker would not
+   guarantee this if two batches ever shared an `expiry_date`. **Global rule**: always lock the
+   parent `inventory` row before any of its `stock_batches` rows, in every code path that touches
+   both (reservation, release, sale, damage/expiry) — never the reverse order.
 4. Allocate the requested quantity across batches in order, creating one `stock_reservation_items`
    row per batch actually used, until the full quantity is reserved or stock is exhausted.
 5. Increase `reserved_quantity` on each touched batch and on the parent `inventory` row, in the
@@ -1178,17 +1322,44 @@ next_attempt_at <= NOW()) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT N`, t
    back to `PENDING` so another worker can pick it up.
 5. **Processed-event handling**: on success, set `status = 'PROCESSED'`, `processed_at = NOW()` —
    terminal, never reprocessed.
-6. **Duplicate delivery protection**: a worker always checks the row's `status` is still
-   `PROCESSING` (claimed by itself) immediately before performing the side effect, inside the
-   claiming transaction's logic — this, plus `SKIP LOCKED`, is what prevents two workers from both
-   sending the same notification. For the notification side effect itself, inserting the
-   corresponding `notifications` row happens in the same step as marking the outbox event
-   `PROCESSED`, so a crash between the two can at worst cause one redundant retry (the outbox
-   event stays `PROCESSING`→recovered→retried), never silent loss.
+6. **Duplicate _database-side processing_ protection**: `SKIP LOCKED` ensures only one worker ever
+   claims a given `outbox_events` row at a time, and `notifications.source_outbox_event_id` being
+   `UNIQUE` ensures that even a retried claim of the _same_ event (after a crash-and-recovery) can
+   insert at most one `notifications` row for it — a second attempt's `INSERT` fails the unique
+   constraint and the worker treats that as "already created, proceed to dispatch" rather than
+   erroring out.
 7. **Basic notification dispatch**: for the MVP, a worker turns an `OrderPlaced`/
-   `OrderReadyForPickup`/etc. outbox event into one `notifications` row (and, for `PUSH`, a call to
-   Firebase Cloud Messaging using the user's `notification_devices` rows) — no templating engine,
-   no campaign scheduling, consistent with the "basic notifications only" MVP decision.
+   `OrderReadyForPickup`/etc. outbox event into one `notifications` row (database step, idempotent
+   per point 6) and, for `PUSH`, a call to Firebase Cloud Messaging using the user's
+   `notification_devices` rows (external step — see the delivery guarantee below) — no templating
+   engine, no campaign scheduling, consistent with the "basic notifications only" MVP decision.
+
+### Delivery guarantee: database idempotency vs. external push delivery
+
+**A PostgreSQL transaction cannot atomically commit an external Firebase Cloud Messaging call.**
+The sequence is necessarily: (a) mark the outbox event claimed, (b) create the `notifications` row,
+(c) call FCM, (d) mark the outbox event `PROCESSED`. A worker can crash between (c) and (d) — after
+FCM has already accepted and will deliver the push, but before the database records that success.
+On recovery, the event is re-claimed and retried, and FCM is called a second time for the same
+logical notification.
+
+**Therefore: database event processing is idempotent (points 6 above), but external push delivery
+to the device is at-least-once and can produce duplicate pushes.** This is accepted, MVP-
+proportional behaviour, not a defect to eliminate — eliminating it entirely would require a
+distributed transaction or an external exactly-once delivery system, disproportionate to Dropzo's
+MVP.
+
+**Mitigation** (client-side, not database-side): every push payload includes a stable delivery key
+— `notifications.id` — in its data payload. The receiving app (web or future native client) uses
+this ID to de-duplicate on display: if a push with an already-seen `notifications.id` arrives
+again, the client discards the second copy rather than showing it twice. This is the standard,
+proportional way to handle at-least-once push delivery, and it requires no additional database
+table — the existing `notifications.id` already serves as the stable key.
+
+**Recovery process**: the recovery sweep described in point 4 is what surfaces a stuck
+`PROCESSING` row after a crash; the retry policy in point 3 (bounded `attempt_count`, eventual
+`DEAD` state) bounds how many times a duplicate push can be sent for the same event before it's
+flagged for manual review instead of retried indefinitely.
 
 ## Critical integrity rules
 
@@ -1221,11 +1392,19 @@ is either checked or explicitly deferred with a reason.**
       against the chosen hosting provider's extension-enabling process (see "Service zones and
       delivery eligibility").
 - [ ] **Database constraints requiring custom SQL** (Prisma's schema language cannot express these
-      — they need a `prisma migrate dev --create-only` + hand-written SQL step):
-    - The `ledger_entries` balance-check deferred constraint trigger.
+      — they need a `prisma migrate dev --create-only` + hand-written SQL step). As of BC-003.4,
+      this is the complete list:
+    - The `ledger_entries` balance-check deferred constraint trigger (`CONSTRAINT TRIGGER ...
+INITIALLY DEFERRED`).
     - `CHECK (num_nonnulls(cart_id, order_id) = 1)` on `stock_reservations`.
     - The two partial unique indexes on `stock_reservations` (`WHERE status = 'ACTIVE'`).
+    - **The partial unique index on `financial_accounts` for platform-owned accounts**
+      (`UNIQUE (account_type) WHERE merchant_id IS NULL`) — added in BC-003.4 after this exact
+      class of PostgreSQL NULL-uniqueness gap was found in the BC-003.3 version.
+    - The partial index on `ledger_entries` (`(account_id) WHERE settlement_id IS NULL`), for
+      outstanding-balance and settlement-generation query performance.
     - The `CHECK` constraints on `inventory`/`stock_batches` quantity relationships.
+    - The `CHECK` constraints tying `stock_reservations.status` to `consumed_at`/`released_at`.
     - Revoking `UPDATE`/`DELETE` privileges on `ledger_transactions`/`ledger_entries` for the
       application's database role.
 - [ ] **Transaction boundaries**: every multi-table write described above (checkout, stock

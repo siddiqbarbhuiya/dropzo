@@ -1,17 +1,22 @@
 # Database design review (BC-003.1)
 
-**Status: Resolved (BC-003.2), further corrected (BC-003.3).** This review's findings were
-addressed by product-owner decisions and incorporated into a full revision of
+**Status: Resolved (BC-003.2), further corrected (BC-003.3), finalized (BC-003.4).** This review's
+findings were addressed by product-owner decisions and incorporated into a full revision of
 [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) in BC-003.2. A second, independent schema review then
 found that the BC-003.2 version, while complete at the entity level, still had technical gaps
 (an unbalanced financial ledger, reservations not referencing batches, missing payment history,
 incomplete order snapshots, globally-scoped idempotency keys, and more) — these were corrected in
-BC-003.3. This document is kept as the historical record of the **original** review itself — it is
-not rewritten to look as though either round of corrections already existed when it was written.
-See [`../06-delivery/PROGRESS.md`](../06-delivery/PROGRESS.md) (BC-003.2 and BC-003.3 sections) for
-what changed and why, and the current [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) for the resulting
-design, including its own "Change log for this revision" section documenting the BC-003.3
-corrections in detail.
+BC-003.3. A third, final comprehensive review then found five further defects (a PostgreSQL
+NULL-uniqueness bug on platform financial accounts, incomplete settlement-reconciliation
+documentation, an unaddressed external push-delivery guarantee, an incompletely deadlock-safe lock
+order, and five tables missing from the ER diagram) — all corrected in BC-003.4, after which the
+database design is considered **closed** pending actual BC-004 implementation experience. This
+document is kept as the historical record of the **original** review itself — it is not rewritten
+to look as though any round of corrections already existed when it was written. See
+[`../06-delivery/PROGRESS.md`](../06-delivery/PROGRESS.md) (BC-003.2, BC-003.3, and BC-003.4
+sections) for what changed and why, and the current [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) for
+the resulting design, including its own change-log sections documenting every round of corrections
+in detail.
 
 Original status when written: **Proposed** — this was a review of `DATABASE-DESIGN.md` as it stood
 after BC-003. It did not change that document at the time; see "Proposed corrections" below for

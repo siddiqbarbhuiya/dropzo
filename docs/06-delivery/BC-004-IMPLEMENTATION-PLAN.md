@@ -1,18 +1,19 @@
 # BC-004 implementation plan: PostgreSQL, Docker Compose, Prisma, and unified dev environment
 
-**Status: Proposed** (plan only — nothing in this document has been implemented). Prepared in
-BC-003.1; revised in BC-003.2 after the database design review's open questions were resolved by
-product-owner decisions; revised again in BC-003.3 after a second, independent schema review
-corrected the financial ledger, batch-level inventory/FEFO, reservation integrity, payment
-history, order snapshots, idempotency scoping, refund/settlement precision, service-zone
-semantics, and outbox reliability (see
-[`../04-design/DATABASE-DESIGN.md`](../04-design/DATABASE-DESIGN.md), "Change log for this
-revision"). Execution is a separate, future task.
+**Status: Ready to begin.** Prepared in BC-003.1; revised in BC-003.2 after the database design
+review's open questions were resolved by product-owner decisions; revised in BC-003.3 after a
+second, independent schema review; finalized in BC-003.4 after a third, comprehensive review
+closed the remaining defects (platform-account uniqueness, settlement reconciliation, outbox
+delivery guarantees, lock ordering, ERD completeness — see
+[`../04-design/DATABASE-DESIGN.md`](../04-design/DATABASE-DESIGN.md)'s change-log sections).
+**Database design review is now closed** — further changes should only happen if BC-004
+implementation itself discovers an actual, demonstrable defect, not from another preliminary
+review pass. Execution (i.e. actually writing code) is still a separate, future task — nothing in
+this plan has been implemented.
 
 **Prisma schema implementation (Stage 4) must not begin until `DATABASE-DESIGN.md`'s own "Prisma
-Implementation Readiness Checklist" is satisfied.** That checklist did not exist before BC-003.3;
-it is now the explicit gate, superseding the earlier, less specific "needs its own review"
-language from BC-003.2.
+Implementation Readiness Checklist" is satisfied** — work through it item by item before the first
+migration.
 
 ## Scope
 
@@ -74,11 +75,18 @@ notification automation beyond basic record/device storage.
 - `coupons`/`coupon_redemptions` are explicitly **not** part of this stage — future extension, per
   `DATABASE-DESIGN.md`.
 - Work through `DATABASE-DESIGN.md`'s "Prisma Implementation Readiness Checklist" item by item
-  before generating the first migration. Several invariants (the ledger balance trigger, the
-  `stock_reservations` ownership `CHECK`, the partial unique indexes, the `UPDATE`/`DELETE`
-  privilege revocation on ledger tables) are **not** expressible in Prisma's schema language and
-  need a hand-written SQL migration step (`prisma migrate dev --create-only`, then edit the
-  generated SQL) — plan time for this explicitly, it is not optional polish.
+  before generating the first migration. As of BC-003.4, the complete list of invariants requiring
+  a hand-written SQL step (`prisma migrate dev --create-only`, then edit the generated SQL,
+  since Prisma's schema language cannot express them) is: the ledger balance deferred constraint
+  trigger; the `stock_reservations` ownership `CHECK`; the two `stock_reservations` partial unique
+  indexes; **the `financial_accounts` platform-account partial unique index**
+  (`UNIQUE (account_type) WHERE merchant_id IS NULL` — added in BC-003.4 after this exact class of
+  PostgreSQL NULL-uniqueness bug was found); **the `ledger_entries` partial index**
+  (`(account_id) WHERE settlement_id IS NULL`); the `inventory`/`stock_batches` quantity `CHECK`s;
+  the `stock_reservations` status/timestamp `CHECK`s; and the `UPDATE`/`DELETE` privilege
+  revocation on `ledger_transactions`/`ledger_entries`. Plan time for this explicitly — it is not
+  optional polish, and missing any one of these silently reintroduces a bug that was specifically
+  found and fixed in design review.
 
 ### Stage 5 — Migrations and seed strategy
 
@@ -124,12 +132,46 @@ needs to add:
 
 ### Stage 9 — Testing and verification
 
+**Startup verification:**
+
 - Verify `nx run-many -t dev` starts Postgres (healthy), the API (connects successfully), and the
   web app (reaches the API) from a single command, in a fresh PowerShell session.
 - Verify `nx run infrastructure:down` cleanly stops and removes containers.
 - Verify repeated `nx run-many -t dev` after a `down` doesn't error or leave orphaned containers.
 - Re-run the full existing check suite (`lint`, `typecheck`, `test`, `build`) to confirm nothing
   regressed.
+
+**Database integrity and concurrency tests** (new in BC-003.4 — these exercise the specific
+invariants the design review established, and must pass before Stage 4 is considered done):
+
+- Two simulated concurrent checkouts for the last unit of a batch-tracked product: exactly one
+  succeeds, the other sees insufficient stock — never both, never neither.
+- A `financial_accounts` seed attempt that tries to insert a second row with the same
+  `account_type` and `merchant_id = NULL` fails against the partial unique index.
+- A `ledger_transactions` insert with unbalanced `ledger_entries` (debits ≠ credits) is rejected by
+  the deferred constraint trigger at commit time.
+- A `stock_reservations` insert with both `cart_id` and `order_id` set (or both `NULL`) is rejected
+  by the `CHECK` constraint.
+- A second `ACTIVE` reservation for the same `cart_id` is rejected by the partial unique index.
+- A repeated checkout request with the same idempotency key and the same payload returns the
+  original response without creating a second order; the same key with a different payload is
+  rejected.
+- A repeated payment webhook with the same `(provider, provider_event_id)` is processed exactly
+  once.
+- The worked settlement example from `DATABASE-DESIGN.md` is reproduced against a real database:
+  after settlement generation, the merchant's outstanding balance (filtered on
+  `settlement_id IS NULL`) is exactly zero for the settled period.
+- A simulated failed settlement payout correctly re-exposes its amount in the outstanding-balance
+  query (via the `OR settlement.status = 'FAILED'` clause) without altering any existing row.
+
+**Acceptance criteria for Stage 4 (schema) specifically:**
+
+- All 41 MVP-required tables exist with the exact columns, types, and constraints specified in
+  `DATABASE-DESIGN.md` — verified by diffing the generated migration SQL against the document, not
+  just by Prisma generating without error.
+- Every custom-SQL invariant listed in the Prisma Implementation Readiness Checklist is present in
+  the migration and covered by at least one of the tests above.
+- `npx prisma validate` and `npx prisma migrate status` both succeed against a fresh database.
 
 ## One-time prerequisite: bare `nx` command on Windows
 
