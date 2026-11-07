@@ -77,6 +77,13 @@ export class TokenService {
      * session), 'expired' (session past its absolute lifetime), or 'reused' (the session exists
      * but its stored hash doesn't match what was presented - the session is revoked as a side
      * effect of this outcome, before returning).
+     *
+     * Locks the matching row (`SELECT ... FOR UPDATE`, the same pattern used in
+     * `OtpService.verifyOtp`) inside one transaction before reading or writing it: the original
+     * implementation did a plain `findFirst` followed by a separate `update`, so two concurrent
+     * refresh calls presenting the same still-valid token could both pass every check and both
+     * rotate, racing to decide the session's next hash - weakening reuse detection exactly when a
+     * genuine replay (attacker racing the legitimate client) is the scenario this exists to catch.
      */
     async rotateRefreshToken(
         presentedToken: string,
@@ -88,48 +95,52 @@ export class TokenService {
         | { outcome: 'reused' }
     > {
         const presentedHash = this.hashRefreshToken(presentedToken);
-        const matching = await this.prisma.userSession.findFirst({
-            where: { refresh_token_hash: presentedHash },
-        });
 
-        if (!matching) {
-            return { outcome: 'invalid' };
-        }
-        if (matching.revoked_at) {
-            // A revoked session's hash should never match a *newly* presented token under normal
-            // operation (rotation always changes the hash), so this branch means the same token
-            // is being replayed after the session was already revoked - treat as reuse.
-            return { outcome: 'reused' };
-        }
-        if (matching.expires_at.getTime() < Date.now()) {
-            await this.prisma.userSession.update({
-                where: { id: matching.id },
-                data: { revoked_at: new Date() },
+        return this.prisma.$transaction(async (tx) => {
+            const rows = await tx.$queryRaw<UserSession[]>`
+                SELECT * FROM "user_sessions" WHERE refresh_token_hash = ${presentedHash} FOR UPDATE
+            `;
+            const matching = rows[0];
+
+            if (!matching) {
+                return { outcome: 'invalid' as const };
+            }
+            if (matching.revoked_at) {
+                // A revoked session's hash should never match a *newly* presented token under
+                // normal operation (rotation always changes the hash), so this branch means the
+                // same token is being replayed after the session was already revoked - reuse.
+                return { outcome: 'reused' as const };
+            }
+            if (matching.expires_at.getTime() < Date.now()) {
+                await tx.userSession.update({
+                    where: { id: matching.id },
+                    data: { revoked_at: new Date() },
+                });
+                return { outcome: 'expired' as const };
+            }
+
+            const user = await tx.user.findUniqueOrThrow({
+                where: { id: matching.user_id },
+                include: { roles: true },
             });
-            return { outcome: 'expired' };
-        }
+            const newRefreshToken = this.generateRefreshToken();
+            const updated = await tx.userSession.update({
+                where: { id: matching.id },
+                data: {
+                    refresh_token_hash: this.hashRefreshToken(newRefreshToken),
+                    user_agent: context.userAgent ?? matching.user_agent,
+                    ip_address: context.ipAddress ?? matching.ip_address,
+                },
+            });
 
-        const user = await this.prisma.user.findUniqueOrThrow({
-            where: { id: matching.user_id },
-            include: { roles: true },
+            const roles = user.roles.map((r) => r.role);
+            const accessToken = this.signAccessToken({ sub: user.id, sid: updated.id, roles });
+            return {
+                outcome: 'rotated' as const,
+                userId: user.id,
+                tokens: { accessToken, refreshToken: newRefreshToken, session: updated },
+            };
         });
-        const newRefreshToken = this.generateRefreshToken();
-        const updated = await this.prisma.userSession.update({
-            where: { id: matching.id },
-            data: {
-                refresh_token_hash: this.hashRefreshToken(newRefreshToken),
-                user_agent: context.userAgent ?? matching.user_agent,
-                ip_address: context.ipAddress ?? matching.ip_address,
-            },
-        });
-
-        const roles = user.roles.map((r) => r.role);
-        const accessToken = this.signAccessToken({ sub: user.id, sid: updated.id, roles });
-        return {
-            outcome: 'rotated',
-            userId: user.id,
-            tokens: { accessToken, refreshToken: newRefreshToken, session: updated },
-        };
     }
 
     async revokeSessionByRefreshToken(presentedToken: string): Promise<boolean> {

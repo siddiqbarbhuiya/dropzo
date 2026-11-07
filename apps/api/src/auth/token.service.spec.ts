@@ -68,11 +68,45 @@ describe('TokenService', () => {
         });
     });
 
+    /**
+     * rotateRefreshToken runs entirely inside prisma.$transaction(tx => ...), locking the matching
+     * row via tx.$queryRaw (see token.service.ts) and writing via tx.userSession.update - so the
+     * mock's `tx` must support both, and $transaction must actually invoke the callback with it.
+     */
+    interface RotationTx {
+        $queryRaw: (...args: unknown[]) => Promise<Array<Record<string, unknown>>>;
+        userSession: { update: (...args: unknown[]) => Promise<Record<string, unknown>> };
+        user: { findUniqueOrThrow: (...args: unknown[]) => Promise<Record<string, unknown>> };
+    }
+
+    function makeRotationPrisma(options: {
+        queryRawResult: Array<Record<string, unknown>>;
+        update?: (data: Record<string, unknown>) => Record<string, unknown>;
+        findUniqueOrThrow?: () => Promise<Record<string, unknown>>;
+    }) {
+        const update = jest.fn((async (args: { data: Record<string, unknown> }) =>
+            (options.update ?? ((d) => d))(args.data)) as never);
+        const tx = {
+            $queryRaw: jest.fn((async () => options.queryRawResult) as never),
+            userSession: { update },
+            user: {
+                findUniqueOrThrow: jest.fn(
+                    (options.findUniqueOrThrow ?? (async () => ({}))) as never,
+                ),
+            },
+        } as unknown as RotationTx;
+        return {
+            prisma: {
+                $transaction: jest.fn((async (callback: (tx: RotationTx) => unknown) =>
+                    callback(tx)) as never),
+            } as never,
+            update,
+        };
+    }
+
     describe('refresh token rotation', () => {
         it('reports "invalid" when no session matches the presented token', async () => {
-            const prisma = {
-                userSession: { findFirst: jest.fn(async () => null) },
-            } as never;
+            const { prisma } = makeRotationPrisma({ queryRawResult: [] });
             const service = new TokenService(new JwtService({}), makeConfig(), prisma);
 
             const result = await service.rotateRefreshToken('nonexistent-token', {});
@@ -80,15 +114,15 @@ describe('TokenService', () => {
         });
 
         it('reports "reused" when the matching session was already revoked', async () => {
-            const prisma = {
-                userSession: {
-                    findFirst: jest.fn(async () => ({
+            const { prisma } = makeRotationPrisma({
+                queryRawResult: [
+                    {
                         id: 'session-1',
                         revoked_at: new Date(),
                         expires_at: new Date(Date.now() + 1_000_000),
-                    })),
-                },
-            } as never;
+                    },
+                ],
+            });
             const service = new TokenService(new JwtService({}), makeConfig(), prisma);
 
             const result = await service.rotateRefreshToken('some-token', {});
@@ -96,17 +130,15 @@ describe('TokenService', () => {
         });
 
         it('reports "expired" and revokes the session when past its absolute lifetime', async () => {
-            const update = jest.fn(async () => ({}));
-            const prisma = {
-                userSession: {
-                    findFirst: jest.fn(async () => ({
+            const { prisma, update } = makeRotationPrisma({
+                queryRawResult: [
+                    {
                         id: 'session-1',
                         revoked_at: null,
                         expires_at: new Date(Date.now() - 1_000),
-                    })),
-                    update,
-                },
-            } as never;
+                    },
+                ],
+            });
             const service = new TokenService(new JwtService({}), makeConfig(), prisma);
 
             const result = await service.rotateRefreshToken('some-token', {});
@@ -127,19 +159,11 @@ describe('TokenService', () => {
                 user_agent: null,
                 ip_address: null,
             };
-            const updatedSession = { ...session, refresh_token_hash: 'new-hash' };
-            const prisma = {
-                userSession: {
-                    findFirst: jest.fn(async () => session),
-                    update: jest.fn(async () => updatedSession),
-                },
-                user: {
-                    findUniqueOrThrow: jest.fn(async () => ({
-                        id: 'user-1',
-                        roles: [{ role: 'CUSTOMER' }],
-                    })),
-                },
-            } as never;
+            const { prisma } = makeRotationPrisma({
+                queryRawResult: [session],
+                update: (data) => ({ ...session, ...data }),
+                findUniqueOrThrow: async () => ({ id: 'user-1', roles: [{ role: 'CUSTOMER' }] }),
+            });
             const service = new TokenService(new JwtService({}), makeConfig(), prisma);
 
             const result = await service.rotateRefreshToken('old-token', {});

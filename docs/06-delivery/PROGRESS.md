@@ -1249,3 +1249,38 @@ files).
 **Explicitly not done, by design (BC-005's own scope boundary):** no frontend, no merchant
 onboarding/store CRUD, no production SMS provider, no Redis/microservices, no changes to BC-004's
 applied migration history or approved architecture.
+
+## BC-005 follow-up — post-commit automated security review, two TOCTOU races fixed
+
+After the first BC-005 commit (`67a0d19`) was pushed, an automated security review flagged two
+further concurrency issues in the new auth code, both genuine, both the same class of bug already
+fixed once in this task (`OtpService.verifyOtp`'s race):
+
+1. **`TokenService.rotateRefreshToken`** did a plain `findFirst` then a separate `update` - two
+   concurrent refresh calls presenting the same still-valid token could both pass every check
+   before either write committed, weakening reuse detection in exactly the scenario (an attacker
+   racing a legitimate client) it exists to catch. Fixed by locking the matching row
+   (`SELECT ... FOR UPDATE`) inside one transaction, the same pattern used elsewhere in this task.
+   Verified with a new real-database integration test that races two concurrent rotations of the
+   same token: outcomes are always exactly one `rotated` and one `invalid` (the loser's presented
+   hash matches no row once the lock releases, since the winner's commit already moved the row's
+   hash on) - never two successes.
+2. **`OtpService.requestOtp`** read the cooldown/rate-limit state and then wrote its new challenge
+   row as two separate steps - concurrent requests for the same phone could each observe "no recent
+   challenge" before any of their inserts committed, bypassing both the cooldown and the hourly
+   limits entirely ("SMS pumping"). Fixed by taking a per-phone Postgres advisory lock
+   (`pg_advisory_xact_lock(hashtext(phone))`) inside the same transaction as the cooldown check,
+   rate-limit counts, and insert, serializing all requests for one phone. Verified with a new
+   real-database integration test that fires five concurrent requests for one fresh phone: exactly
+   one reports `sent` and the other four report `cooldown`, with exactly one row ever created.
+   **Accepted residual limitation, documented in code**: the per-IP count is not similarly
+   serialized across _different_ phones sharing one IP - a burst from several phones behind one IP
+   could overshoot `OTP_PER_IP_HOURLY_LIMIT` by a small margin; each individual phone number remains
+   fully protected regardless.
+
+Both fixes required rewriting their existing unit test mocks (`token.service.spec.ts`,
+`otp.service.spec.ts`) to model `$transaction`/`$queryRaw`/`$executeRaw` instead of plain Prisma
+calls, the same adjustment already made once for `otp.service.ts`'s first fix. Re-verified:
+typecheck clean, lint clean, all 37 unit tests pass, build succeeds. The two new concurrency
+integration tests could not be run locally (same database-unavailability blocker as the rest of the
+integration suite) - pending the same CI run already needed to confirm the suite as a whole.

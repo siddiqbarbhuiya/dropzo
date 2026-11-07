@@ -60,18 +60,38 @@ function makeVerifyPrisma(options: {
     };
 }
 
+/**
+ * requestOtp also runs inside prisma.$transaction(tx => ...) (a per-phone advisory lock via
+ * tx.$executeRaw, then the cooldown check, rate-limit counts, and insert all against `tx` - see
+ * otp.service.ts) so this mock's `tx` must support $executeRaw, otpChallenge.findFirst/create, and
+ * otpChallenge.count.
+ */
+interface RequestTx {
+    $executeRaw: (...args: unknown[]) => Promise<number>;
+    otpChallenge: {
+        findFirst: (...args: unknown[]) => Promise<{ created_at: Date } | null>;
+        create: (...args: unknown[]) => Promise<unknown>;
+        count: (...args: unknown[]) => Promise<number>;
+    };
+}
+
 function makeRequestPrisma(options?: {
     findFirst?: () => Promise<{ created_at: Date } | null>;
     create?: (data: { code_hash: string }) => Promise<unknown>;
     count?: () => Promise<number>;
 }) {
-    return {
+    const tx = {
+        $executeRaw: jest.fn((async () => 0) as never),
         otpChallenge: {
             findFirst: jest.fn(options?.findFirst ?? (async () => null)),
             create: jest.fn((async (args: { data: { code_hash: string } }) =>
                 (options?.create ?? (async () => ({})))(args.data)) as never),
             count: jest.fn(options?.count ?? (async () => 0)),
         },
+    } as unknown as RequestTx;
+    return {
+        $transaction: jest.fn((async (callback: (tx: RequestTx) => unknown) =>
+            callback(tx)) as never),
     } as never;
 }
 

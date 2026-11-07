@@ -306,6 +306,28 @@ describe('OTP security (service + real DB)', () => {
 
         await expect(otpService.requestOtp(phone, null)).rejects.toThrow();
     });
+
+    it('serializes concurrent requests for the same phone instead of letting them all bypass the cooldown', async () => {
+        // The exact race a security review flagged ("SMS pumping"): many requests for one phone
+        // fired at once, each reading "no recent challenge" before any of their inserts commit,
+        // so none would see another's effect and the cooldown/rate-limit would be bypassed
+        // entirely. requestOtp takes a per-phone Postgres advisory lock (pg_advisory_xact_lock)
+        // before its cooldown check, serializing these five calls - so only the first through the
+        // lock should ever see "sent"; every other one must observe that challenge and report
+        // "cooldown", never a second "sent" for the same phone within the cooldown window.
+        const phone = freshPhone();
+
+        const results = await Promise.all(
+            Array.from({ length: 5 }, () => otpService.requestOtp(phone, null)),
+        );
+
+        const sentCount = results.filter((r) => r.outcome === 'sent').length;
+        expect(sentCount).toBe(1);
+        expect(results.filter((r) => r.outcome === 'cooldown')).toHaveLength(4);
+
+        const challenges = await prisma.otpChallenge.findMany({ where: { phone } });
+        expect(challenges).toHaveLength(1);
+    });
 });
 
 describe('Token lifecycle (service + real DB)', () => {
@@ -350,6 +372,33 @@ describe('Token lifecycle (service + real DB)', () => {
         await tokenService.revokeSessionByRefreshToken(result.tokens.refreshToken);
         const outcome = await tokenService.rotateRefreshToken(result.tokens.refreshToken, {});
         expect(outcome.outcome).toBe('reused');
+    });
+
+    it('never produces two valid refresh tokens from one concurrent rotation race', async () => {
+        // The exact race a security review flagged: two refresh calls presenting the same
+        // still-valid token at once (a retried request, or an attacker racing the legitimate
+        // client). rotateRefreshToken locks the session row (SELECT ... FOR UPDATE) inside one
+        // transaction, so the second transaction blocks until the first commits and then sees the
+        // already-rotated hash - exactly one of the two calls may "win" with a usable new token.
+        const phone = freshPhone();
+        const result = await verifyViaService(phone);
+        if (result.outcome !== 'verified') throw new Error('expected verified');
+
+        const [a, b] = await Promise.all([
+            tokenService.rotateRefreshToken(result.tokens.refreshToken, {}),
+            tokenService.rotateRefreshToken(result.tokens.refreshToken, {}),
+        ]);
+        const outcomes = [a.outcome, b.outcome].sort();
+        // Postgres's row lock serializes the two transactions: the second to acquire the lock
+        // re-evaluates its WHERE clause against the now-committed row, whose hash has already
+        // moved on to the winner's new token - so the loser's presented (stale) hash matches no
+        // row at all ("invalid"), never a second "rotated" success from the same original token.
+        expect(outcomes).toEqual(['invalid', 'rotated']);
+
+        const winner = a.outcome === 'rotated' ? a : b;
+        if (winner.outcome !== 'rotated') throw new Error('expected one rotated outcome');
+        const followUp = await tokenService.rotateRefreshToken(winner.tokens.refreshToken, {});
+        expect(followUp.outcome).toBe('rotated');
     });
 });
 

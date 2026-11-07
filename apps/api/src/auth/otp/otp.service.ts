@@ -1,9 +1,12 @@
 import { randomInt, createHmac, timingSafeEqual } from 'node:crypto';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { OtpProvider } from './otp-provider.interface.js';
 import { OTP_PROVIDER } from './otp.constants.js';
+
+type OtpTx = Prisma.TransactionClient;
 
 export type OtpRequestResult =
     { outcome: 'sent' } | { outcome: 'cooldown'; retryAfterSeconds: number };
@@ -29,41 +32,63 @@ export class OtpService {
         @Inject(OTP_PROVIDER) private readonly provider: OtpProvider,
     ) {}
 
+    /**
+     * The cooldown check, the rate-limit counts, and the insert all happen inside one transaction,
+     * serialized per phone number with a Postgres advisory lock (`pg_advisory_xact_lock`) taken
+     * first. Without this, the same class of bug already fixed in `verifyOtp` applies here too: an
+     * attacker firing many concurrent requests for one phone could have every one of them read the
+     * cooldown/rate-limit state *before* any request's insert committed, so none would see another
+     * request's effect - bypassing the cooldown and the per-phone/per-IP hourly limits entirely and
+     * pumping unlimited OTP sends through the configured SMS provider. The advisory lock is scoped
+     * to this transaction only (`_xact_`) and releases automatically on commit or rollback -
+     * cheaper than a row lock here, since (unlike `verifyOtp`) there may be no existing row for
+     * this phone yet to lock.
+     */
     async requestOtp(phone: string, ipAddress: string | null): Promise<OtpRequestResult> {
         const cooldownSeconds = this.config.get<number>('OTP_RESEND_COOLDOWN_SECONDS', 30);
-        const mostRecent = await this.prisma.otpChallenge.findFirst({
-            where: { phone },
-            orderBy: { created_at: 'desc' },
-        });
-        if (mostRecent) {
-            const elapsedSeconds = (Date.now() - mostRecent.created_at.getTime()) / 1000;
-            if (elapsedSeconds < cooldownSeconds) {
-                return {
-                    outcome: 'cooldown',
-                    retryAfterSeconds: Math.ceil(cooldownSeconds - elapsedSeconds),
-                };
-            }
-        }
-
-        await this.enforceRateLimits(phone, ipAddress);
-
         const codeLength = this.config.get<number>('OTP_CODE_LENGTH', 6);
         const expirySeconds = this.config.get<number>('OTP_EXPIRY_SECONDS', 300);
         const maxAttempts = this.config.get<number>('OTP_MAX_ATTEMPTS', 5);
         const code = this.generateCode(codeLength);
+        const codeHash = this.hashCode(code);
 
-        await this.prisma.otpChallenge.create({
-            data: {
-                phone,
-                code_hash: this.hashCode(code),
-                max_attempts: maxAttempts,
-                expires_at: new Date(Date.now() + expirySeconds * 1000),
-                ip_address: ipAddress ?? undefined,
-            },
+        const result = await this.prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${phone}))`;
+
+            const mostRecent = await tx.otpChallenge.findFirst({
+                where: { phone },
+                orderBy: { created_at: 'desc' },
+            });
+            if (mostRecent) {
+                const elapsedSeconds = (Date.now() - mostRecent.created_at.getTime()) / 1000;
+                if (elapsedSeconds < cooldownSeconds) {
+                    return {
+                        outcome: 'cooldown' as const,
+                        retryAfterSeconds: Math.ceil(cooldownSeconds - elapsedSeconds),
+                    };
+                }
+            }
+
+            await this.enforceRateLimits(tx, phone, ipAddress);
+
+            await tx.otpChallenge.create({
+                data: {
+                    phone,
+                    code_hash: codeHash,
+                    max_attempts: maxAttempts,
+                    expires_at: new Date(Date.now() + expirySeconds * 1000),
+                    ip_address: ipAddress ?? undefined,
+                },
+            });
+            return { outcome: 'sent' as const };
         });
 
-        await this.provider.send(phone, code);
-        return { outcome: 'sent' };
+        if (result.outcome === 'sent') {
+            // Sent after the transaction commits, never inside it - an external SMS call must
+            // never be rolled back (or retried) alongside a database write.
+            await this.provider.send(phone, code);
+        }
+        return result;
     }
 
     /**
@@ -133,10 +158,25 @@ export class OtpService {
         });
     }
 
-    private async enforceRateLimits(phone: string, ipAddress: string | null): Promise<void> {
+    /**
+     * Takes `tx` (the same transaction `requestOtp` holds its per-phone advisory lock in) rather
+     * than `this.prisma` directly, so the per-phone count below is read inside that serialized,
+     * not-yet-committed view - closing the primary SMS-pumping vector (many concurrent requests
+     * for the *same* phone). The per-IP count is not similarly serialized across *different*
+     * phones sharing one IP (that would mean locking per-IP too, serializing unrelated phones'
+     * requests against each other for a secondary, defence-in-depth limit) - a burst of concurrent
+     * requests for several different phones from one IP could overshoot `OTP_PER_IP_HOURLY_LIMIT`
+     * by a small margin. Accepted: each individual phone number is still fully protected by its own
+     * serialized cooldown and per-phone limit above.
+     */
+    private async enforceRateLimits(
+        tx: OtpTx,
+        phone: string,
+        ipAddress: string | null,
+    ): Promise<void> {
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
         const perPhoneLimit = this.config.get<number>('OTP_PER_PHONE_HOURLY_LIMIT', 5);
-        const phoneCount = await this.prisma.otpChallenge.count({
+        const phoneCount = await tx.otpChallenge.count({
             where: { phone, created_at: { gte: oneHourAgo } },
         });
         if (phoneCount >= perPhoneLimit) {
@@ -148,7 +188,7 @@ export class OtpService {
 
         if (ipAddress) {
             const perIpLimit = this.config.get<number>('OTP_PER_IP_HOURLY_LIMIT', 20);
-            const ipCount = await this.prisma.otpChallenge.count({
+            const ipCount = await tx.otpChallenge.count({
                 where: { ip_address: ipAddress, created_at: { gte: oneHourAgo } },
             });
             if (ipCount >= perIpLimit) {
