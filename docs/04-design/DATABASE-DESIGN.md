@@ -69,8 +69,15 @@ Never store stock or price on the global `products` table. The same product (e.g
 catalogue-level identity; `store_products` holds per-store price and availability; `inventory`
 holds the actual stock count, linked to `store_products` one-to-one.
 
+## Review
+
+See [`DATABASE-DESIGN-REVIEW.md`](DATABASE-DESIGN-REVIEW.md) (BC-003.1) for a critical review of
+this design — missing entities, constraint/index gaps, and proposed corrections pending
+product-owner approval. This document has not yet been updated with those corrections.
+
 ## Related documents
 
+- [`DATABASE-DESIGN-REVIEW.md`](DATABASE-DESIGN-REVIEW.md)
 - [`../02-architecture/SYSTEM-ARCHITECTURE.md`](../02-architecture/SYSTEM-ARCHITECTURE.md)
 - [`BUSINESS-RULES.md`](BUSINESS-RULES.md)
 - [`../03-decisions/ADR-0005-postgresql-database.md`](../03-decisions/ADR-0005-postgresql-database.md)

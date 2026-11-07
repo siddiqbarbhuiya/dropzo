@@ -315,6 +315,128 @@ today.
 
 ### BC-003 completion status: **Complete.**
 
-Committed locally; **not pushed** — pending explicit approval, as instructed.
+Committed locally as `3c0303e`; pushed to `origin/main` once BC-003.1 confirmed it was safe to do
+so (see the BC-003.1 section below).
 
-Do not start BC-004 or any implementation task until instructed.
+## BC-003.1 — Final documentation review, database design review, BC-004 preparation
+
+Status: **Complete.**
+
+### Part 1 — BC-003 final verification
+
+Inspected `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.github/copilot-instructions.md`,
+`docs/README.md`, all documentation directories, all 12 ADRs, `docs/04-design/DATABASE-DESIGN.md`,
+and the delivery/quality tracking docs. Ran `git status`, `git log -5 --oneline`,
+`git fetch origin`, and `git diff origin/main...HEAD --stat`.
+
+Findings:
+
+- All 12 ADRs have appropriate statuses (11 plain "Accepted"; ADR-0005 and ADR-0006 correctly
+  qualified as "Accepted (decision made, not yet implemented)" / "Accepted (implementation
+  planned)").
+- Prisma is correctly marked planned, not implemented, everywhere it's mentioned.
+- The proposed database design is clearly labelled "Proposed."
+- `CLAUDE.md`'s Nx-generated block is preserved unchanged; no conflicting AI-agent instructions
+  found between `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md`.
+- `PROGRESS.md` history has not been rewritten — each `BC-xxx` section's original content is
+  intact; this BC-003.1 section is purely additive.
+- 0 broken internal documentation links (same automated check as BC-003, re-run).
+- `git diff origin/main...HEAD --stat` showed exactly the 53 files from the BC-003 commit — no
+  unexpected application or dependency changes.
+- **One discrepancy found**: the task brief for BC-003.1 asked to read
+  `docs/01-requirements/PRODUCT-SRS.md`. That file does not exist — BC-003 deliberately
+  consolidated its content into `docs/00-project/PROJECT-OVERVIEW.md` and `SCOPE.md` (documented in
+  `docs/05-engineering/DOCUMENTATION-STANDARDS.md`). No action taken; noted per "the repository
+  wins" when a brief's assumed file list differs from actual state.
+
+Verification commands and results (all re-run after this task's own changes, not just before):
+
+| Command                | Result                               |
+| ---------------------- | ------------------------------------ |
+| `npm run format:check` | Pass                                 |
+| `npm run lint`         | Pass (5/5 projects)                  |
+| `npm run typecheck`    | Pass (5/5 projects)                  |
+| `npm run test`         | Pass — API: 1, web: 1, validation: 3 |
+| `npm run build`        | Pass                                 |
+| `npx nx show projects` | Same 5 projects, unaffected          |
+
+No genuine BC-003 corrections were needed.
+
+### Part 2 — Database design review
+
+Full review: [`../04-design/DATABASE-DESIGN-REVIEW.md`](../04-design/DATABASE-DESIGN-REVIEW.md).
+Summary: the design is a correct high-level overview but is missing several entities explicitly
+required by this review (an idempotency mechanism, a financial ledger, `payment_webhook_events`
+and `refunds` in the diagram, `carts`/`cart_items` in the diagram, `stock_reservations` in the
+diagram, `audit_logs` in the diagram), and has no column-level detail (keys, constraints, indexes)
+anywhere in the repository yet. `DATABASE-DESIGN.md` was **not modified** beyond adding a link to
+the review — per instruction, no design changes were made silently. Five decisions need
+product-owner approval before BC-004 schema work begins (see the review's section 10).
+
+### Part 3 — Single-command development environment investigation
+
+Investigated whether `nx run-many -t dev` can work as a bare command (no `npm`/`npx` prefix) on
+Windows. **Confirmed working**, using Nx's own documented global/local delegation behaviour:
+
+```powershell
+npm install -g nx@24.0.5   # one-time, matches this repo's pinned local version
+```
+
+Verified in this session:
+
+- Before the install, a global `nx@23.1.0` already existed on this machine (from an earlier `nx
+init` in BC-002.1) and the bare `nx show projects` command — run from inside the repository —
+  already correctly delegated to the **local** pinned Nx (v24.0.5), returning the same 5 projects
+  as `npx nx show projects`. It printed a cosmetic "time to update" nag because the global version
+  was older than the local one.
+- After `npm install -g nx@24.0.5` (matching the local version), `nx --version` reported
+  `Local: v24.0.5` / `Global: v24.0.5` with no nag, and `nx show projects` returned the correct
+  result.
+- Confirmed via `git status` that this global install did **not** touch this repository's
+  `package.json` or `package-lock.json` — only `docs/04-design/DATABASE-DESIGN-REVIEW.md` (new)
+  and a link added to `DATABASE-DESIGN.md` were pending, both unrelated to the global install.
+- Confirmed `@dropzo/web` and `@dropzo/api` already have an Nx-inferred `dev` target each (from
+  their existing `"dev"` npm scripts), and that the shared packages (`shared-types`, `validation`,
+  `api-client`) do **not** get a `dev` target, since they define no `dev` script — satisfying "do
+  not create fake targets for shared libraries" without any extra configuration.
+- **Did not run** `nx run-many -t dev` for real in this session — both existing `dev` scripts start
+  long-running dev servers with no orchestration or Docker dependency yet, and actually starting
+  them was out of scope for a verification task (and risked leaving unmanaged background processes,
+  as already happened once in BC-002).
+
+Conclusion: the bare `nx` command requirement is achievable with a one-time, per-machine global
+install that does not affect the repository's pinned version. Full design for the orchestrated
+`nx run-many -t dev` (Docker Compose dependency ordering, infrastructure project, etc.) is in
+[`BC-004-IMPLEMENTATION-PLAN.md`](BC-004-IMPLEMENTATION-PLAN.md), Stage 8 — not implemented here,
+per instruction.
+
+### Part 4 — BC-004 preparation
+
+Produced [`BC-004-IMPLEMENTATION-PLAN.md`](BC-004-IMPLEMENTATION-PLAN.md): 9 stages (Docker
+Compose → Nx infrastructure project → Prisma installation → initial MVP-required schema →
+migrations/seed → dev/test database separation → local backup/restore → unified `nx run-many -t
+dev` → testing/verification), each with explicit dependencies on the previous stages. Schema work
+(Stage 4) is explicitly blocked on approving the database review's open questions.
+
+### Part 5 — Security and technical debt re-verification
+
+Re-checked [`../08-quality/RISK-REGISTER.md`](../08-quality/RISK-REGISTER.md) and
+[`../08-quality/TECHNICAL-DEBT.md`](../08-quality/TECHNICAL-DEBT.md): all three BC-002.1 findings
+(`react-router-dom` production CVEs, `vite`/`vitest`/`esbuild` dev-tooling CVEs, Nx's nested
+`minimatch` advisory) remain present and marked unresolved/open. **No dependency upgrades were
+made in this task** — confirmed via `git diff` showing no changes to any `package.json` or
+`package-lock.json`.
+
+### Part 6 — Git and push
+
+- Branch: `main`. Confirmed commit `3c0303e` contains BC-003 (`git log`, `git diff` both verified).
+- Confirmed `origin/main` had not advanced unexpectedly — `git fetch origin` showed `13554d4` as
+  the remote tip, exactly the expected baseline.
+- Reviewed the full diff (`git diff origin/main...HEAD --stat`) before pushing.
+- Pushed `main` to `origin` (fast-forward, no force) after this task's own BC-003.1 changes were
+  committed. See the commit hash in this task's final report.
+
+### BC-003.1 completion status: **Complete.**
+
+Do not start BC-004 implementation. Awaiting approval of the database review's open questions
+(section 10) before that task begins.
