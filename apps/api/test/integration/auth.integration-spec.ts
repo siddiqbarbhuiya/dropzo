@@ -343,6 +343,46 @@ describe('OTP security (service + real DB)', () => {
         const challenges = await prisma.otpChallenge.findMany({ where: { phone } });
         expect(challenges).toHaveLength(1);
     });
+
+    it('never verifies the same single challenge twice under a concurrent race', async () => {
+        // This is the exact TOCTOU bug verifyOtp's SELECT ... FOR UPDATE transaction was written
+        // to close: two verify calls racing the *same* PENDING row (one legitimate client retrying
+        // a slow response, or an attacker racing a guess against a legitimate verification), not
+        // two separate challenges (that registration-race scenario is covered above). The second
+        // transaction must block until the first commits, then see the row already VERIFIED and
+        // report not_found - never a second "verified" for the same challenge.
+        const phone = freshPhone();
+        await otpService.requestOtp(phone, null);
+        const code = otpProvider.getLastCodeForTesting(phone)!;
+
+        const [a, b] = await Promise.all([
+            otpService.verifyOtp(phone, code),
+            otpService.verifyOtp(phone, code),
+        ]);
+
+        expect([a.outcome, b.outcome].sort()).toEqual(['not_found', 'verified']);
+        const challenge = await prisma.otpChallenge.findFirstOrThrow({ where: { phone } });
+        expect(challenge.status).toBe('VERIFIED');
+    });
+
+    it('rejects further OTP requests once the per-IP hourly limit is reached', async () => {
+        // OTP_PER_IP_HOURLY_LIMIT=20 (.env.test.example) - distinct phones sharing one IP, all
+        // past the resend cooldown, still within the hourly rate-limit window (same timing
+        // reasoning as the per-phone limit test above).
+        const ip = '203.0.113.7';
+        await prisma.otpChallenge.createMany({
+            data: Array.from({ length: 20 }, () => ({
+                phone: freshPhone(),
+                code_hash: 'irrelevant',
+                created_at: new Date(Date.now() - 45_000),
+                expires_at: new Date(Date.now() - 1000),
+                status: 'EXPIRED',
+                ip_address: ip,
+            })),
+        });
+
+        await expect(otpService.requestOtp(freshPhone(), ip)).rejects.toThrow();
+    });
 });
 
 describe('Token lifecycle (service + real DB)', () => {
@@ -360,7 +400,13 @@ describe('Token lifecycle (service + real DB)', () => {
         expect(replay.outcome).toBe('invalid');
     });
 
-    it('treats presenting an already-rotated token as reuse and revokes the session', async () => {
+    it('rejects a stale (already-rotated-away) refresh token, without reviving or revoking the session', async () => {
+        // See ADR-0013's "Reuse/rotation conflict": user_sessions keeps no hash history, so a
+        // rotated-away token matches no row at all and is correctly rejected as 'invalid' - it
+        // does NOT get flagged as 'reused' (that outcome is reserved for presenting a token whose
+        // session was already explicitly revoked through another path - see the next test), and
+        // it does NOT revoke the session it used to belong to, which keeps working under its new
+        // hash for whoever holds the current token.
         const phone = freshPhone();
         const result = await verifyViaService(phone);
         if (result.outcome !== 'verified') throw new Error('expected verified');
@@ -369,14 +415,18 @@ describe('Token lifecycle (service + real DB)', () => {
         const rotated = await tokenService.rotateRefreshToken(result.tokens.refreshToken, {});
         expect(rotated.outcome).toBe('rotated');
 
-        // The session's stored hash has moved on to the new token; replaying the stale (rotated
-        // away) token must never succeed, and must not quietly re-issue a new pair either.
+        const replay = await tokenService.rotateRefreshToken(result.tokens.refreshToken, {});
+        expect(replay.outcome).toBe('invalid');
+
         const session = await prisma.userSession.findUniqueOrThrow({ where: { id: sessionId } });
-        const replayOutcome =
-            session.revoked_at === null
-                ? (await tokenService.rotateRefreshToken(result.tokens.refreshToken, {})).outcome
-                : 'reused';
-        expect(replayOutcome).toBe('invalid');
+        expect(session.revoked_at).toBeNull();
+        if (rotated.outcome === 'rotated') {
+            const stillWorks = await tokenService.rotateRefreshToken(
+                rotated.tokens.refreshToken,
+                {},
+            );
+            expect(stillWorks.outcome).toBe('rotated');
+        }
     });
 
     it('rejects an already-revoked session even presenting its still-current token', async () => {
@@ -570,6 +620,55 @@ describe('Admin role assignment (service + real DB)', () => {
             where: { user_id: result.tokens.session.user_id },
         });
         expect(roles.map((r) => r.role)).toEqual(['CUSTOMER']);
+    });
+
+    it('revoking a role forces every session of the target user to be revoked immediately', async () => {
+        // Access tokens otherwise keep whatever roles they were issued with until they naturally
+        // expire (ACCESS_TOKEN_TTL_SECONDS) regardless of later role changes - an accepted tradeoff
+        // for an ordinary logout/suspension, but a de-admin'd user retaining admin capability, even
+        // briefly, is judged unacceptable. See ADR-0013 and AUTHENTICATION-DESIGN.md.
+        const admin = await bootstrapAdmin();
+        const target = await verifyViaService(freshPhone());
+        if (target.outcome !== 'verified') throw new Error('expected verified');
+        const targetUserId = target.tokens.session.user_id;
+        await adminRolesController.updateRole(
+            targetUserId,
+            { role: 'MERCHANT_OWNER', action: 'GRANT' },
+            { id: admin.userId, roles: admin.roles, sessionId: 's' },
+        );
+
+        await adminRolesController.updateRole(
+            targetUserId,
+            { role: 'MERCHANT_OWNER', action: 'REVOKE' },
+            { id: admin.userId, roles: admin.roles, sessionId: 's' },
+        );
+
+        const sessions = await prisma.userSession.findMany({ where: { user_id: targetUserId } });
+        expect(sessions.length).toBeGreaterThan(0);
+        expect(sessions.every((s) => s.revoked_at !== null)).toBe(true);
+        const refreshOutcome = await tokenService.rotateRefreshToken(
+            target.tokens.refreshToken,
+            {},
+        );
+        expect(refreshOutcome.outcome).toBe('reused');
+    });
+
+    it("granting a role does not revoke the target user's existing sessions", async () => {
+        const admin = await bootstrapAdmin();
+        const target = await verifyViaService(freshPhone());
+        if (target.outcome !== 'verified') throw new Error('expected verified');
+
+        await adminRolesController.updateRole(
+            target.tokens.session.user_id,
+            { role: 'MERCHANT_OWNER', action: 'GRANT' },
+            { id: admin.userId, roles: admin.roles, sessionId: 's' },
+        );
+
+        const refreshOutcome = await tokenService.rotateRefreshToken(
+            target.tokens.refreshToken,
+            {},
+        );
+        expect(refreshOutcome.outcome).toBe('rotated');
     });
 });
 

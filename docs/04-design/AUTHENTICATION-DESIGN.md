@@ -87,9 +87,14 @@ See ADR-0013 for the format decisions. Summary of the mechanics:
   refresh token's hash, an absolute expiry (`REFRESH_TOKEN_TTL_DAYS`, default 30 days), and the
   requesting user agent/IP for the session list the user can see and revoke from.
 - **Rotating** (`POST /auth/refresh`): looks up the session by the presented token's hash.
-    - No match → `invalid` → `401`.
-    - Match, but already revoked → `reused` → `401`, logged as
-      `AUTH_REFRESH_TOKEN_REUSE_DETECTED` (see "Audit events" below).
+    - No match → `invalid` → `401`. **Covers both** a token that was never issued, **and** a stale
+      token that has since been rotated away — `user_sessions` keeps no hash history, so once a
+      token is rotated past, there is nothing left to trace it back to. This does not revoke
+      anything; see ADR-0013's "Reuse/rotation conflict" for why that's an accepted, documented
+      limitation of the no-history design, not a bug.
+    - Match, but already revoked (via logout, logout-all, or the suspension check below) → `reused`
+      → `401`, logged as `AUTH_REFRESH_TOKEN_REUSE_DETECTED` (see "Audit events" below). This is the
+      one case that genuinely detects presenting a token for a session that's already dead.
     - Match, but past `expires_at` → `expired` → the session is revoked as a side effect, `401`.
     - Match, active, unexpired → issues a new access+refresh pair, overwrites the session's stored
       hash with the new one's. The old refresh token is now worthless even if it leaks afterward.
@@ -129,7 +134,12 @@ any other role. The only way a user gains or loses a role beyond that is
 protected, with an additional in-code check: granting or revoking `SUPER_ADMIN` itself requires the
 acting user to already hold `SUPER_ADMIN` (an `ADMIN` cannot mint another `SUPER_ADMIN`, including
 themself). Every change is audit-logged (`AUTH_ROLE_GRANTED` / `AUTH_ROLE_REVOKED`) with the
-actor, target, and role.
+actor, target, and role. **Revoking a role immediately revokes every session the target user
+holds**, forcing re-authentication before they can act again — access tokens otherwise keep the
+roles they were issued with until they naturally expire (see ADR-0013's access-token tradeoff), and
+a de-admin'd user retaining admin capability for any part of that window was judged unacceptable.
+Granting a role does not revoke sessions — an upgraded user's existing token simply doesn't carry
+the new role yet, same as it wouldn't without this change at all.
 
 **First-admin bootstrap is a documented manual/seed-time step, not a public endpoint**, and
 deliberately so: there is no mechanism by which an unauthenticated or freshly-registered user can
@@ -199,9 +209,20 @@ entity for the schema's entity-keyed audit trail to point at.
   only.** It resets on restart and does not coordinate across instances. The authoritative,
   database-backed controls are OtpService's own per-phone/per-IP hourly limits and resend cooldown,
   which survive restarts and would work correctly if Dropzo ever ran more than one instance.
-- **`user_sessions` keeps only the latest refresh-token hash, not a history.** This means any
-  mismatch is treated as reuse (see ADR-0013's "Reuse/rotation conflict" section) — a legitimate
-  client losing a retry race is logged out, not silently recovered.
+- **`user_sessions` keeps only the latest refresh-token hash, not a history.** A stale
+  (already-rotated-away) refresh token is correctly rejected (`invalid`) and can never be used to
+  authenticate or rotate again, but presenting one does **not**, by itself, revoke the session it
+  used to belong to — there is no history to trace it back to. Genuine `reused` detection only
+  covers presenting a token for a session already revoked through another path (logout, logout-all,
+  suspension). See ADR-0013's "Reuse/rotation conflict" section for the full reasoning and the
+  accepted tradeoff this implies.
+- **`POST /auth/verify-otp` distinguishes `expired`/`locked` from `invalid`/`not_found` in its error
+  message**, which reveals whether a live OTP challenge recently existed for a phone number (not
+  whether that phone has an account — registration and login are indistinguishable throughout this
+  flow). This is accepted: it's useful UX ("your code expired" vs "wrong code"), the exposure window
+  is the challenge's own short lifetime (`OTP_EXPIRY_SECONDS`, default 5 minutes), and it reveals
+  nothing an attacker couldn't already infer from `send-otp`'s own cooldown response for the same
+  phone.
 - **No data-retention policy has been decided** for `otp_challenges` or `audit_logs` rows (how long
   expired/failed OTP challenges or audit log entries are kept before deletion). This is a real,
   open decision deferred to a future task, not an invented default — see `TECHNICAL-DEBT.md`.

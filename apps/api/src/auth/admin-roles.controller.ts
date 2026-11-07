@@ -13,6 +13,7 @@ import { Roles } from './decorators/roles.decorator.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import type { RequestUser } from './auth.types.js';
 import { UpdateRoleDto } from './dto/update-role.dto.js';
+import { TokenService } from './token.service.js';
 
 /**
  * The only way a user ever gains or loses a role beyond the CUSTOMER role every registration
@@ -29,6 +30,7 @@ export class AdminRolesController {
     constructor(
         private readonly prisma: PrismaService,
         private readonly audit: AuditService,
+        private readonly tokens: TokenService,
     ) {}
 
     @Patch(':id/roles')
@@ -58,6 +60,13 @@ export class AdminRolesController {
             await this.prisma.userRole.deleteMany({
                 where: { user_id: targetUserId, role: dto.role },
             });
+            // Access tokens embed roles at issue time (see TokenService) and are otherwise valid
+            // until they naturally expire (ACCESS_TOKEN_TTL_SECONDS) regardless of later role
+            // changes - an accepted tradeoff for an ordinary logout/suspension, but revoking a
+            // role (ADMIN/SUPER_ADMIN above all) must not leave an already-issued token usable
+            // with the privilege that was just taken away. Force re-authentication so the next
+            // access token reflects the current role set.
+            await this.tokens.revokeAllSessionsForUser(targetUserId);
         }
 
         await this.audit.record({

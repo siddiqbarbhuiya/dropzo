@@ -23,10 +23,19 @@ export interface IssuedTokens {
  * implies: a revoked session's already-issued access token remains valid until it naturally
  * expires). Refresh tokens are opaque random values, hashed at rest with SHA-256 - high entropy
  * already, so no signing secret or slow password-style hashing is needed, unlike a human-chosen
- * password. Rotation + reuse detection: `user_sessions` stores only the latest refresh token hash;
- * a refresh request whose presented token doesn't match it revokes the whole session outright, the
- * standard conservative response since the schema has no history of prior hashes to distinguish
- * "stale token" from "stolen token being replayed."
+ * password.
+ *
+ * Reuse detection, precisely: `user_sessions` stores only the latest refresh-token hash (no
+ * history), so a presented token that has already been rotated away simply matches no row at all -
+ * `rotateRefreshToken` returns `'invalid'` for it, with no side effect, exactly as it would for a
+ * token that was never issued. `'reused'` is a narrower, different case: it fires only when the
+ * presented token's hash still matches a row, but that session has already been explicitly revoked
+ * through another path (logout, logout-all, or the suspended-account check on refresh). **This
+ * means a stale (already-rotated-away) refresh token is correctly rejected, but presenting one does
+ * not, by itself, revoke the session it used to belong to** - the schema has no history to trace it
+ * back to that session with. See ADR-0013's "Reuse/rotation conflict" section for why this is an
+ * accepted limitation of the no-history design, not a bug: closing it fully would need a
+ * refresh-token-hash history table, deferred until there is a demonstrated need for it.
  */
 @Injectable()
 export class TokenService {
@@ -63,20 +72,28 @@ export class TokenService {
         return this.jwt.sign(claims, {
             secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
             expiresIn: ttlSeconds,
+            algorithm: 'HS256',
         });
     }
 
+    // Pinning `algorithms` explicitly (rather than relying on jsonwebtoken's default) means a
+    // token's own header can never widen what this call will accept - defence in depth, not a fix
+    // for a reachable bug today: this service only ever uses one symmetric secret, so there is no
+    // HS/RS algorithm-confusion surface to exploit either way.
     verifyAccessToken(token: string): AccessTokenClaims {
         return this.jwt.verify<AccessTokenClaims>(token, {
             secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+            algorithms: ['HS256'],
         });
     }
 
     /**
-     * Rotates a refresh token. Returns the new token pair, or 'invalid' (no matching active
-     * session), 'expired' (session past its absolute lifetime), or 'reused' (the session exists
-     * but its stored hash doesn't match what was presented - the session is revoked as a side
-     * effect of this outcome, before returning).
+     * Rotates a refresh token. Returns the new token pair, or 'invalid' (no row has this exact
+     * hash - either never issued, or already rotated away), 'expired' (the matching session is past
+     * its absolute lifetime), or 'reused' (the matching session's hash still matches what was
+     * presented, but the session was already explicitly revoked through another path - see the
+     * class-level doc comment for exactly which outcome covers which case; 'invalid' does **not**
+     * revoke anything).
      *
      * Locks the matching row (`SELECT ... FOR UPDATE`, the same pattern used in
      * `OtpService.verifyOtp`) inside one transaction before reading or writing it: the original

@@ -1351,3 +1351,66 @@ of hitting cooldown.
 
 Re-verified: typecheck clean, lint clean, all 37 unit tests pass, build succeeds, formatting clean.
 Pushed as a new commit; pending the next CI run to confirm 0 failures.
+
+## BC-005 — CI run #8 (`0a1849d`) confirmed: 0 failures
+
+Read the actual job log, not the badge: `Test Suites: 7 passed, 7 total` / `Tests: 37 passed, 37
+total` (unit), then `Test Suites: 6 passed, 6 total` / `Tests: 50 passed, 50 total` (integration,
+including `auth.integration-spec.ts` in full, alongside every pre-existing BC-004 integration
+suite). **BC-005's integration suite has now had a genuine, confirmed-clean CI run against real
+PostgreSQL+PostGIS**, the same bar BC-004 was held to.
+
+## BC-005 — final security review (post-CI-pass, before first commit's follow-up)
+
+A focused, adversarial re-read of the authentication implementation (not a redesign) was performed
+against ADR-0013, `AUTHENTICATION-DESIGN.md`, and the project's security standards, specifically
+re-deriving each concurrency/security claim rather than trusting its own prior documentation. Full
+detail, classification, and verification results are in the review's own final report (delivered to
+the project owner alongside this entry); summarized here for the historical record:
+
+**Two genuine defects found and fixed** (uncommitted as of this entry, per the review's explicit
+instruction not to commit or push):
+
+1. **Documentation overclaimed a security property the code doesn't have.** ADR-0013 and
+   `token.service.ts`'s own doc comment stated that presenting a refresh token which doesn't match
+   the current stored hash "revokes the session outright" - re-deriving the actual
+   `rotateRefreshToken` logic shows this is false: a stale (already-rotated-away) token matches no
+   row at all (there's no hash history to find it in) and is simply rejected as `'invalid'`, with no
+   side effect - the session it used to belong to is **not** revoked, and keeps working under its
+   new hash. The genuinely-detected `'reused'` case is narrower: presenting a token for a session
+   already revoked through another path (logout, logout-all, suspension). **No unauthorized access
+   is possible either way** (a stale token can never be used to authenticate), but the false claim
+   matters: it overstates the system's theft-detection story. Fixed by correcting ADR-0013,
+   `AUTHENTICATION-DESIGN.md`, and the code's own doc comments to state the real, narrower behavior,
+   and by renaming/rewriting the integration test whose name made the same false claim.
+2. **Revoking a role didn't invalidate the target user's existing sessions.** Access tokens embed
+   roles at issue time and are otherwise valid until they naturally expire
+   (`ACCESS_TOKEN_TTL_SECONDS`, default 15 minutes) regardless of later role changes - an accepted
+   tradeoff for an ordinary logout/suspension (see ADR-0013), but revoking `ADMIN` (or any role)
+   left an already-issued access token usable with the privilege that was just taken away, for up to
+   that same window. Fixed: `AdminRolesController.updateRole` now calls
+   `TokenService.revokeAllSessionsForUser` on every `REVOKE` action (not `GRANT` - an upgraded
+   user's old token simply not yet carrying the new role is not a security problem). Added an
+   integration test proving a revoked role forces every session dead immediately, and a companion
+   test proving a grant does not.
+
+**One hardening change with no corresponding vulnerability** (defence-in-depth, not a fix for a
+reachable bug): `TokenService` now pins `algorithm: 'HS256'` / `algorithms: ['HS256']` explicitly on
+sign/verify, rather than relying on the JWT library's own default - this service only ever uses one
+symmetric secret, so there was no actual algorithm-confusion attack surface either way.
+
+**Everything else reviewed came back confirmed-correct**, re-derived rather than assumed: OTP
+single-use enforcement and the max-attempts lockout math, the per-phone advisory-lock serialization
+closing the OTP request race, `MerchantAccessGuard`'s server-side-only ownership resolution,
+`RolesGuard`/`JwtAuthGuard`'s deny-by-default wiring, the `SUPER_ADMIN`-only escalation guard, the
+migration's forward-only status, and that no audit call anywhere still passes a non-UUID value as
+`entity_id`.
+
+**Verified** (all against the exact repository scripts, nothing newly invented): formatting, lint,
+typecheck (both the main and `test/` tsconfigs), all 37 unit tests, Prisma schema validation, seed
+UUID validation, and the production build - all passed. The integration suite could not be
+re-executed locally (same Docker/PostGIS environment limitation as every prior entry in this
+document) - confirmed once, not retried repeatedly, per the review's own instruction. **These two
+fixes are not yet committed or pushed**, so they have not yet had their own CI run - `RISK-010` and
+`TD-009` are updated to reflect that CI run #8 passed for the code as of `0a1849d`, but remain open
+until a follow-up CI run confirms these additional changes.

@@ -42,15 +42,21 @@ it simply expires naturally, within `ACCESS_TOKEN_TTL_SECONDS` (default 900s / 1
 tradeoff is deliberately accepted, not an oversight: a 15-minute worst-case window after logout or
 suspension is judged acceptable for Dropzo's threat model (low-value consumer orders, not a
 financial/banking system), against the cost of looking up every access token on every request.
+**Role changes are the one case this tradeoff does not cover**: revoking a role (`PATCH
+/admin/users/:id/roles`, `AdminRolesController`) forces that user's sessions to be revoked
+immediately, rather than letting an already-issued token keep the removed privilege until it
+expires - a de-admin'd user retaining admin capability, even briefly, is judged a different and
+less acceptable risk than an ordinary logout/suspension window.
 
 ### Refresh tokens: opaque random values, hashed at rest, not JWTs
 
 Refresh tokens are **not** JWTs. They are 32 random bytes (`crypto.randomBytes`), hex-encoded, with
 only their SHA-256 hash ever stored, in `user_sessions.refresh_token_hash`. Presenting a refresh
 token means looking it up by its hash; a match proves possession of the original value. Rotation:
-every successful refresh issues a new refresh token and overwrites the stored hash. Reuse
-detection: `user_sessions` keeps only the latest hash, not a history. Rotation is a one-way
-ratchet; a session has one valid token's hash at a time.
+every successful refresh issues a new refresh token and overwrites the stored hash. `user_sessions`
+keeps only the latest hash, not a history - rotation is a one-way ratchet, a session has one valid
+token's hash at a time. See "Reuse/rotation conflict" below for exactly what this does and does not
+detect.
 
 **Why opaque tokens, not JWT refresh tokens:** a refresh token already carries 256 bits of entropy
 from a CSPRNG — it needs no signature to prove authenticity, and hashing it at rest (so a database
@@ -59,14 +65,24 @@ A JWT refresh token would add a decode/verify step for no security benefit here,
 need a revocation list to support logout (since JWTs are stateless by design) — effectively
 reinventing what `user_sessions` already provides directly.
 
-### Reuse/rotation conflict: a stolen token replayed after rotation revokes the whole session
+### Reuse/rotation conflict: a stale token is rejected, but does not revoke the session on its own
 
 Because only the latest hash is stored (no history), a presented token that doesn't match the
-current hash is indistinguishable from "stale, already-rotated token" and "stolen token being
-replayed by an attacker after the legitimate client already rotated." The conservative response —
-revoke the session outright rather than silently rotating anyway — is the standard mitigation
-(OWASP ASVS 3.3.1-class guidance): a legitimate client that loses a race is forced to re-login,
-which is an acceptable cost against the alternative of an indefinitely-replayable stolen token.
+current hash matches no row at all once it has been rotated away - the implementation cannot tell
+"stale, already-rotated token" apart from "a token that was never issued," because by design it has
+already forgotten the old hash the moment it rotated. `rotateRefreshToken` therefore returns
+`'invalid'` for this case, with no side effect: it does **not** revoke the session the stale token
+used to belong to (that session, under its current hash, keeps working for whoever holds the latest
+token - the legitimate client, ordinarily). **Accepted tradeoff, corrected from an earlier,
+inaccurate version of this ADR**: a real reuse-detection system (distinguishing "this exact
+rotated-away token is being replayed" from "this token was never issued" and revoking the session on
+the former) needs a hash _history_, not just the latest hash - see the alternative below. Without
+it, a stolen-then-rotated-away refresh token is harmless (it can never be used to authenticate or
+rotate again), but its theft and replay attempt leaves no trace and triggers no session kill. The
+`'reused'` outcome that does exist today covers a different, narrower case: presenting a token
+(current or stale) for a session that was already explicitly revoked through another path (logout,
+logout-all, or the suspended-account check on refresh) - genuine "this session is dead, stop trying"
+detection, just not stale-token reuse detection.
 
 ## Alternatives considered
 
@@ -86,12 +102,16 @@ which is an acceptable cost against the alternative of an indefinitely-replayabl
 
 ## Consequences
 
-- Easier: no password-reset flow to build; refresh-token theft has a bounded, auditable blast
-  radius (one session, revoked wholesale on detected reuse); access-token verification needs no
-  database round-trip.
-- Harder: a revoked session's access token stays valid for up to `ACCESS_TOKEN_TTL_SECONDS` after
-  revocation (documented tradeoff above); a legitimate client racing a retry during rotation is
-  logged out rather than silently recovered (documented tradeoff above).
+- Easier: no password-reset flow to build; a stolen refresh token can never be used once it has been
+  rotated away, with no history table to maintain; access-token verification needs no database
+  round-trip.
+- Harder: stale-token replay rejects cleanly but doesn't revoke the session it used to belong to, so
+  theft-and-replay leaves no trace or forced logout (see "Reuse/rotation conflict" above); a revoked
+  session's access token stays valid for up to `ACCESS_TOKEN_TTL_SECONDS` after revocation
+  (documented tradeoff above); a legitimate client racing a retry during rotation gets a hard
+  `'invalid'` failure on the losing request rather than a silently-recovered success - its session
+  itself is unaffected (the winning request's new tokens remain valid), but a client that doesn't
+  tolerate a redundant request failing will appear to the user as having been logged out.
 
 ## Security and operational implications
 
