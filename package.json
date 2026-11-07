@@ -19,7 +19,8 @@
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "db:backup": "node scripts/db-backup.mjs",
-        "db:restore": "node scripts/db-restore.mjs"
+        "db:restore": "node scripts/db-restore.mjs",
+        "verify": "node scripts/pre-push-check.mjs"
     },
     "devDependencies": {
         "@eslint/js": "^9.15.0",

@@ -146,6 +146,32 @@ See [`DATABASE-BACKUP-RESTORE.md`](DATABASE-BACKUP-RESTORE.md).
 
 ## Running checks
 
+### Before pushing: run everything CI runs, locally
+
+```powershell
+npm run verify
+```
+
+Runs every check `.github/workflows/ci.yml` runs, **in the same order, using the exact same
+command for each step** (see [`scripts/pre-push-check.mjs`](../../scripts/pre-push-check.mjs)):
+formatting, lint, typecheck, unit tests, Prisma schema validation, seed UUID validation, migrations
+against both the development and test databases, the deterministic seed (twice, to check
+idempotency), the full integration/concurrency test suite, and the production builds. It stops at
+the first failure and tells you the exact command to re-run just that one check once you've fixed
+it. A pass here means the same thing a passing CI run means - run this before every push, so CI is
+a confirmation, not a discovery mechanism, and you don't spend GitHub Actions minutes finding
+problems that could have been found locally first.
+
+Needs the database set up (see "Database setup" above) - a migrated, reachable `dropzo`/
+`dropzo_test`. If you only want the fast checks that don't need Postgres running (formatting,
+lint, typecheck, unit tests, Prisma validation, seed UUID validation, production builds):
+
+```powershell
+npm run verify -- --skip-db
+```
+
+### Individual checks
+
 ```powershell
 npm run typecheck
 npm run lint
