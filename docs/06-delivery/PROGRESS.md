@@ -1330,3 +1330,24 @@ succeeds. The corrected integration suite could not be re-run locally (same data
 blocker) - pending another CI run to confirm. This is the exact verification discipline the task
 asked for throughout: read the real log, find the real cause, fix the real bug, never assume a fix
 worked without re-running it.
+
+## BC-005 — second real CI run (`f532b83`, run #7): down to 2 failures, one more test bug fixed
+
+Pushing `f532b83` cut the integration failures from 20 to 2 (unit tests, lint, typecheck, build,
+and every other integration suite - inventory, ledger, schema-integrity, orders-payments,
+outbox-notifications - all passed). Both remaining failures were the same root cause, read from the
+actual log: `verifyViaService("logs an existing user in on a second verification...")` and
+`verifyViaService("rejects login itself for a suspended account")` each call the test's
+`verifyViaService(phone)` helper twice in a row for the same phone (registration, then a second
+login; or registration, then a second attempt after suspension). The second call fell inside
+`OTP_RESEND_COOLDOWN_SECONDS` (30s), so `requestOtp` correctly returned `{outcome: 'cooldown'}`
+without creating a new challenge - and the test then reused the _first_ call's already-consumed
+code, which `verifyOtp` correctly rejected as `not_found` (reported as `'invalid'` to the caller).
+**Test bug, not an application bug** - the helper's job is "get this phone to a verified session,"
+not exercise the resend cooldown (already covered directly in the "OTP security" tests). **Fixed**
+by having `verifyViaService` backdate any existing challenge for the phone past the cooldown window
+before requesting, so a second call for the same phone always gets a fresh, verifiable OTP instead
+of hitting cooldown.
+
+Re-verified: typecheck clean, lint clean, all 37 unit tests pass, build succeeds, formatting clean.
+Pushed as a new commit; pending the next CI run to confirm 0 failures.

@@ -120,6 +120,15 @@ beforeEach(async () => {
 });
 
 async function verifyViaService(phone: string) {
+    // This helper's job is "get phone to a verified session," not exercise the resend cooldown
+    // (covered directly in "OTP security" below) - so any prior challenge for this phone is
+    // backdated past OTP_RESEND_COOLDOWN_SECONDS first, letting a second call for the same phone
+    // (e.g. registration then login) always get a fresh, verifiable OTP rather than hitting
+    // cooldown and reusing the first call's already-consumed code.
+    await prisma.otpChallenge.updateMany({
+        where: { phone },
+        data: { created_at: new Date(Date.now() - 60_000) },
+    });
     await authService.requestOtp(phone, { ipAddress: '10.0.0.1', userAgent: null });
     const code = otpProvider.getLastCodeForTesting(phone);
     if (!code) throw new Error('DevOtpProvider did not record a code for this phone.');
