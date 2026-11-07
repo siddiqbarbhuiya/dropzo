@@ -1026,26 +1026,31 @@ CREATE INDEX "idx_products_name_fts" ON "products" USING GIN (to_tsvector('engli
 CREATE OR REPLACE FUNCTION check_ledger_transaction_balance() RETURNS TRIGGER AS $$
 DECLARE
     v_transaction_id UUID;
-    v_debit_total NUMERIC(14, 2);
-    v_credit_total NUMERIC(14, 2);
 BEGIN
-    IF TG_OP = 'DELETE' THEN
-        v_transaction_id := OLD.transaction_id;
-    ELSE
-        v_transaction_id := NEW.transaction_id;
-    END IF;
+    -- OLD is NULL on INSERT and NEW is NULL on DELETE, so this naturally checks
+    -- just the one relevant transaction_id for INSERT/DELETE. On UPDATE,
+    -- transaction_id itself cannot actually change (see trg_ledger_entries_protect
+    -- below), but checking both OLD and NEW here is a second, independent line
+    -- of defence that costs nothing: this trigger is correct even if that
+    -- guard is ever removed or bypassed by a future change.
+    FOR v_transaction_id IN
+        SELECT DISTINCT t FROM (VALUES (OLD.transaction_id), (NEW.transaction_id)) AS ids(t)
+        WHERE t IS NOT NULL
+    LOOP
+        PERFORM 1
+        FROM (
+            SELECT
+                COALESCE(SUM("amount") FILTER (WHERE "direction" = 'DEBIT'), 0) AS debit_total,
+                COALESCE(SUM("amount") FILTER (WHERE "direction" = 'CREDIT'), 0) AS credit_total
+            FROM "ledger_entries"
+            WHERE "transaction_id" = v_transaction_id
+        ) totals
+        WHERE totals.debit_total <> totals.credit_total;
 
-    SELECT
-        COALESCE(SUM("amount") FILTER (WHERE "direction" = 'DEBIT'), 0),
-        COALESCE(SUM("amount") FILTER (WHERE "direction" = 'CREDIT'), 0)
-    INTO v_debit_total, v_credit_total
-    FROM "ledger_entries"
-    WHERE "transaction_id" = v_transaction_id;
-
-    IF v_debit_total <> v_credit_total THEN
-        RAISE EXCEPTION 'Ledger transaction % does not balance: debits % <> credits %',
-            v_transaction_id, v_debit_total, v_credit_total;
-    END IF;
+        IF FOUND THEN
+            RAISE EXCEPTION 'Ledger transaction % does not balance', v_transaction_id;
+        END IF;
+    END LOOP;
 
     RETURN NULL;
 END;
@@ -1056,6 +1061,47 @@ CREATE CONSTRAINT TRIGGER "trg_ledger_entries_balance"
     INITIALLY DEFERRED
     FOR EACH ROW
     EXECUTE FUNCTION check_ledger_transaction_balance();
+
+-- ---------------------------------------------------------------------------
+-- Append-only enforcement, precisely: DATABASE-DESIGN.md's "Settlement
+-- reconciliation" step 4 is the one sanctioned exception to "never UPDATE a
+-- posted ledger row" - tagging an entry with the settlement that closes it.
+-- Everything else about a posted row must be immutable. These BEFORE triggers
+-- make that a hard database invariant, not just application discipline or the
+-- REVOKE below (which only restricts the application's own role - a BEFORE
+-- trigger also protects against a bug in whatever privileged process performs
+-- settlement tagging).
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION prevent_ledger_transactions_update() RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'ledger_transactions rows are immutable once created - insert a correcting transaction instead (see DATABASE-DESIGN.md "Corrections")';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "trg_ledger_transactions_immutable"
+    BEFORE UPDATE ON "ledger_transactions"
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_ledger_transactions_update();
+
+CREATE OR REPLACE FUNCTION prevent_ledger_entries_protected_update() RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.transaction_id IS DISTINCT FROM NEW.transaction_id
+        OR OLD.account_id IS DISTINCT FROM NEW.account_id
+        OR OLD.direction IS DISTINCT FROM NEW.direction
+        OR OLD.amount IS DISTINCT FROM NEW.amount
+        OR OLD.created_at IS DISTINCT FROM NEW.created_at
+    THEN
+        RAISE EXCEPTION 'ledger_entries rows may only have settlement_id updated (settlement tagging) - everything else is immutable once posted';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "trg_ledger_entries_protect"
+    BEFORE UPDATE ON "ledger_entries"
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_ledger_entries_protected_update();
 
 -- ---------------------------------------------------------------------------
 -- Least-privilege application role. Migrations and seeding run as the

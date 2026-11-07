@@ -997,3 +997,16 @@ migration now creates `dropzo_app` with `LOGIN` and no password (unable to authe
 is set); a new `scripts/set-app-role-password.mjs` (wired as `npm run prisma:set-app-password[:test]
 -w apps/api`) sets it per environment from `APP_DATABASE_URL` - the one place the password is
 configured. `ci.yml` and `DEVELOPMENT-SETUP.md` updated to run this step after each migration.
+
+### Second security review finding, fixed
+
+A follow-up automated review of the pushed migration flagged (MEDIUM) that the balance trigger's
+`IF TG_OP = 'DELETE' ... ELSE NEW.transaction_id` logic only checked `NEW.transaction_id` on
+UPDATE, never `OLD.transaction_id` - if a row's `transaction_id` were ever changed, the old
+transaction's now-altered balance would go unchecked. Fixed two ways: (1) the balance trigger now
+checks both `OLD` and `NEW` transaction IDs whenever they differ; (2) new `BEFORE UPDATE` triggers
+on both ledger tables make the design document's own stated invariant - a posted
+`ledger_transactions` row is never updated at all, and a posted `ledger_entries` row may only ever
+have `settlement_id` changed (the one sanctioned exception, for settlement tagging) - a hard
+database rule, not just application discipline or the `dropzo_app` REVOKE (which only restricts
+the application's own role, not whatever process performs settlement tagging).
