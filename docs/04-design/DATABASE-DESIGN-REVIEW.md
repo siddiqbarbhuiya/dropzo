@@ -1,8 +1,16 @@
 # Database design review (BC-003.1)
 
-**Status: Proposed** — this is a review of `DATABASE-DESIGN.md` as it stood after BC-003. It does
-not change that document; see "Proposed corrections" below for what should change, pending
-product-owner approval. No schema, migration, or Prisma installation resulted from this review.
+**Status: Resolved (BC-003.2).** This review's findings were addressed by product-owner decisions
+and incorporated into a full revision of [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) in BC-003.2.
+This document is kept as the historical record of the review itself — it is not rewritten to look
+as though the corrections already existed when it was written. See
+[`../06-delivery/PROGRESS.md`](../06-delivery/PROGRESS.md) (BC-003.2 section) for what changed and
+why, and the current [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) for the resulting design.
+
+Original status when written: **Proposed** — this was a review of `DATABASE-DESIGN.md` as it stood
+after BC-003. It did not change that document at the time; see "Proposed corrections" below for
+what was recommended, since approved. No schema, migration, or Prisma installation resulted from
+this review.
 
 ## 1. Overall assessment
 

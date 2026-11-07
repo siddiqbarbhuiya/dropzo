@@ -1,19 +1,25 @@
 # BC-004 implementation plan: PostgreSQL, Docker Compose, Prisma, and unified dev environment
 
 **Status: Proposed** (plan only — nothing in this document has been implemented). Prepared in
-BC-003.1; execution is a separate, future task. Do not implement from this plan until the open
-questions in [`../04-design/DATABASE-DESIGN-REVIEW.md`](../04-design/DATABASE-DESIGN-REVIEW.md#10-decisions-requiring-product-owner-approval)
-are resolved — building the full schema before that review is approved risks rework.
+BC-003.1; revised in BC-003.2 after the database design review's open questions were resolved by
+product-owner decisions (see [`../04-design/DATABASE-DESIGN.md`](../04-design/DATABASE-DESIGN.md),
+"Change from the previous revision"). Execution is a separate, future task.
+
+**Prisma schema implementation (Stage 4) must not begin until `DATABASE-DESIGN.md` itself has
+passed its own review as an implementation-ready specification** — the column-level detail now
+exists, but it has not yet been reviewed as a complete, buildable schema the way
+`DATABASE-DESIGN-REVIEW.md` reviewed the previous, high-level revision. Treat BC-004 as blocked
+until that review happens, not as newly unblocked by BC-003.2 alone.
 
 ## Scope
 
 In scope: local PostgreSQL via Docker Compose, Prisma installation and NestJS integration, the
-**MVP-required** tables from the database review (not the full business schema — see the review's
-section 8), environment variable management, migration/seed workflow, and the unified
+**MVP-required** tables from `DATABASE-DESIGN.md` (not the full business schema — see its table
+inventory), environment variable management, migration/seed workflow, and the unified
 `nx run-many -t dev` startup experience.
 
-Out of scope: business APIs, authentication, the full future schema (coupons, notifications,
-ledger details beyond a minimal table), and anything the database review flags as "future phase."
+Out of scope: business APIs, authentication, coupons/redemptions (explicitly deferred), and any
+notification automation beyond basic record/device storage.
 
 ## Stages
 
@@ -49,18 +55,24 @@ ledger details beyond a minimal table), and anything the database review flags a
 
 ### Stage 4 — Initial schema (MVP-required tables only)
 
-- Translate the **MVP-required** entity list from
-  [`DATABASE-DESIGN-REVIEW.md`](../04-design/DATABASE-DESIGN-REVIEW.md#8-mvp-vs-future-phase-recommendations)
-  into a first Prisma schema: `users`, `user_roles`, `user_sessions`, `user_addresses`,
-  `merchants`, `merchant_staff`, `stores`, `service_zones`, `categories`, `products`,
-  `product_variants`, `store_products`, `inventory`, `stock_movements`, `stock_reservations`,
-  `carts`, `cart_items`, `orders`, `order_items`, `order_status_history`, `payments`,
-  `pickup_verifications`, `audit_logs`, plus the idempotency and ledger additions the review
-  recommends.
-- This stage waits on product-owner approval of the review's open questions (financial ledger,
-  notifications classification, `store_locations`).
-- No full business schema (coupons, settlements beyond a minimal shape, notifications) in this
-  stage — those come with their own feature tasks.
+- Translate every **MVP-required** table from
+  [`DATABASE-DESIGN.md`](../04-design/DATABASE-DESIGN.md#table-inventory-and-classification) into
+  a first Prisma schema — all 38 MVP-required tables as specified there, column-for-column:
+  identity (`users`, `user_roles`, `user_sessions`, `user_addresses`), merchant (`merchants`,
+  `merchant_staff`, `stores`), location (`service_zones`), catalogue (`categories`, `products`,
+  `product_variants`, `store_products`), inventory (`inventory`, `stock_batches`,
+  `stock_movements`), commerce (`carts`, `cart_items`, `stock_reservations`,
+  `stock_reservation_items`, `orders`, `order_items`, `order_status_history`), payment
+  (`payments`, `payment_webhook_events`, `refunds`), fulfilment (`pickup_verifications`,
+  `delivery_partners`, `delivery_assignments`, `delivery_events`), finance (`settlements`,
+  `settlement_items`, `ledger_entries`), communication (`notifications`, `notification_devices`),
+  support (`complaints`), and reliability (`audit_logs`, `idempotency_records`,
+  `outbox_events`).
+- `coupons`/`coupon_redemptions` are explicitly **not** part of this stage — future extension, per
+  `DATABASE-DESIGN.md`.
+- This stage additionally requires its own schema-implementation review before migrations are
+  generated — translating the design document to Prisma syntax can introduce its own mistakes
+  (wrong relation modes, missed indexes) that a second pass should catch.
 
 ### Stage 5 — Migrations and seed strategy
 

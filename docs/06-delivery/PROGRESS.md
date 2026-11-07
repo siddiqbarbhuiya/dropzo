@@ -438,5 +438,104 @@ made in this task** — confirmed via `git diff` showing no changes to any `pack
 
 ### BC-003.1 completion status: **Complete.**
 
-Do not start BC-004 implementation. Awaiting approval of the database review's open questions
-(section 10) before that task begins.
+## BC-003.2 — Database design corrections and implementation readiness review
+
+Status: **Complete.** Documentation-only — no Prisma, migrations, Docker services, or application
+code were introduced.
+
+### What changed
+
+The product owner approved 6 decisions resolving `DATABASE-DESIGN-REVIEW.md`'s open questions:
+keep one canonical database file (no split); include a minimal financial ledger in the MVP;
+include basic notifications/notification-device registration in the MVP (advanced automation
+stays deferred); remove `store_locations` as a separate table (a store's location is a column on
+`stores`); include every entity the review flagged as missing (carts, stock reservations, refunds,
+payment webhook events, audit logs, idempotency records); and preserve all existing product
+decisions (still one store per order, no microservices, no new infrastructure).
+
+`docs/04-design/DATABASE-DESIGN.md` was rewritten in full as an implementation-ready
+specification: every MVP-required table (38 of them) now has its columns, types, nullability,
+defaults, keys, unique constraints, and indexes specified, plus the business rule it serves. The
+previous high-level module-list version is superseded — not kept alongside it, per the "one
+canonical file" decision.
+
+Key corrections from the review that are now reflected:
+
+- `stock_reservations`/`stock_reservation_items`, `carts`/`cart_items`, `refunds`,
+  `payment_webhook_events`, and `audit_logs` are now fully specified and in the ERD (previously
+  missing from the diagram, some missing from the document entirely).
+- A new `ledger_entries` table provides the minimal financial ledger the review found missing —
+  see its own section in `DATABASE-DESIGN.md` for the debit/credit model, what counts as a
+  financial event, and how corrections are recorded (new offsetting entries, never edits).
+- New `idempotency_records` and `outbox_events` tables close the idempotency/reliable-async-
+  processing gap the review flagged against NFR-API-001.
+- `notifications`/`notification_devices` are now included, scoped to "basic record and device
+  registration only" per the approved decision — not a notification automation system.
+- `store_locations` is removed; `stores.location` (a `GEOGRAPHY(POINT, 4326)` column) is the
+  single source of a store's location, resolving the review's finding #1.
+- `stock_batches` was reclassified from "MVP optional" (in the review) to **MVP-required** in this
+  revision — dairy and bakery items are in the day-one catalogue per `docs/00-project/SCOPE.md`,
+  so batch/expiry tracking is needed immediately, not deferred.
+- Coupons/redemptions remain the only tables classified **Future extension** — consistent with
+  `SCOPE.md`'s existing deferral of promotions/dynamic pricing.
+
+`docs/04-design/DATABASE-DESIGN-REVIEW.md` was **not rewritten** — a short "Resolved" note was
+added at its top pointing to this section and the new design, while its original findings remain
+intact as the historical record of the review itself.
+
+### ADR review
+
+Reviewed all 12 ADRs against the approved decisions. **No conflicts found, no ADR amendment or
+new ADR needed.** Specifically: the financial ledger, notification tables, and additional
+reliability tables (idempotency, outbox) are implementation details within the already-accepted
+modular-monolith and PostgreSQL/Prisma decisions ([ADR-0001](../03-decisions/ADR-0001-modular-monolith.md),
+[ADR-0005](../03-decisions/ADR-0005-postgresql-database.md),
+[ADR-0006](../03-decisions/ADR-0006-prisma-orm-planned.md)), not architectural changes. Removing
+`store_locations` doesn't touch any ADR — it was never itself the subject of one. One store per
+order ([ADR-0008](../03-decisions/ADR-0008-one-store-per-order-mvp.md)), merchant-owned inventory
+([ADR-0007](../03-decisions/ADR-0007-merchant-owned-inventory-launch.md)), COD-first
+([ADR-0009](../03-decisions/ADR-0009-cod-first-payments.md)), and pickup/manual delivery
+([ADR-0010](../03-decisions/ADR-0010-pickup-manual-delivery.md)) are all still fully reflected in
+the revised schema.
+
+### BC-004 plan updated
+
+`docs/06-delivery/BC-004-IMPLEMENTATION-PLAN.md` Stage 4 now lists the actual 38 MVP-required
+tables from the finalized design (previously a shorter, pre-decision list), and the plan's header
+now states explicitly that Prisma implementation additionally needs its own
+schema-implementation review (translating a design document to Prisma syntax can introduce its
+own mistakes) before migrations are generated — this is a new gate, not yet satisfied. The unified
+`nx run-many -t dev` command, Docker Compose/health-check approach, and Windows PowerShell
+verification steps from BC-003.1 are preserved unchanged in Stages 1, 2, 8, and 9.
+
+### Documentation verification
+
+| Check                                                        | Result                                                                                                                            |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run format:check`                                       | Pass                                                                                                                              |
+| `npm run lint`                                               | Pass (5/5 projects)                                                                                                               |
+| `npm run typecheck`                                          | Pass (5/5 projects)                                                                                                               |
+| `npm run test`                                               | Pass — API: 1, web: 1, validation: 3                                                                                              |
+| `npm run build`                                              | Pass                                                                                                                              |
+| Internal documentation links                                 | 0 broken (same automated check as BC-003/BC-003.1)                                                                                |
+| Mermaid fences                                               | Balanced in `DATABASE-DESIGN.md` (1 open, 1 close)                                                                                |
+| Application code / package files / dependencies / migrations | **Unchanged** — confirmed via `git diff`: no `package.json`, `package-lock.json`, or `apps/*/src`, `packages/*/src` files touched |
+
+### Remaining unresolved decisions
+
+None from this task's own scope — all 6 approved decisions were applied. Two smaller items remain
+open for whoever implements BC-004, not requiring a decision now:
+
+- The exact Prisma `relationMode` / referential-action choices (`onDelete`, `onUpdate`) per
+  relationship aren't specified at the Prisma-syntax level yet — intentionally left to Stage 4's
+  own implementation, since that's a Prisma-specific detail, not a database-design decision.
+- A formal data-retention/deletion policy (flagged in `DATABASE-DESIGN.md`'s "Critical integrity
+  rules") is explicitly out of this task's scope and belongs with the authentication/privacy task.
+
+### BC-003.2 completion status: **Complete.**
+
+Not committed and not pushed — reporting these results first, as instructed. See the working-tree
+state below.
+
+Do not start BC-004 implementation. Do not implement Prisma, migrations, or application code from
+this task.
