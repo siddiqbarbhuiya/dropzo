@@ -42,6 +42,7 @@ export const appPrisma = new PrismaClient({
 // order mostly a documentation aid rather than a strict requirement, but listing children before
 // parents keeps this readable and keeps CASCADE's effect minimal/obvious).
 const ALL_TABLES = [
+    'otp_challenges',
     'outbox_events',
     'notification_devices',
     'notifications',

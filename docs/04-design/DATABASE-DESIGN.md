@@ -36,6 +36,14 @@ This remains one canonical file, by decision (BC-003.2) — not split across `02
 - Idempotency keys are scoped to the requesting user and operation, never globally unique across
   unrelated users or endpoints (corrected in this revision).
 
+## Change log for BC-005
+
+Added `otp_challenges` (see its table specification under "Identity") via a new, forward-only
+migration — the only schema change BC-005 required. No existing table, constraint, or MVP/deferred
+classification was changed. See
+[ADR-0013](../03-decisions/ADR-0013-phone-otp-auth-opaque-refresh-tokens.md) and
+[`AUTHENTICATION-DESIGN.md`](AUTHENTICATION-DESIGN.md) for the design this table supports.
+
 ## Change log for this revision (BC-003.4 — final)
 
 A comprehensive, final review of the complete BC-003.3 design (not just its three headline
@@ -115,6 +123,7 @@ merchant-owned inventory at launch, still COD-first, still no microservices.
 | Identity      | `users`                         | MVP-required                   | One row per person                                   |
 | Identity      | `user_roles`                    | MVP-required                   | A user may hold more than one role                   |
 | Identity      | `user_sessions`                 | MVP-required                   | Refresh-token sessions, revocable                    |
+| Identity      | `otp_challenges`                | MVP-required                   | OTP codes for login/registration (added BC-005)      |
 | Identity      | `user_addresses`                | MVP-required                   | Saved delivery addresses                             |
 | Merchant      | `merchants`                     | MVP-required                   | A business entity owning stores                      |
 | Merchant      | `merchant_staff`                | MVP-required                   | Which users act for a merchant                       |
@@ -278,6 +287,33 @@ PK: `(user_id, role)`.
 | `ip_address`         | INET        | NULL     | —                   |                                      |
 
 Index: `(user_id)`. Business rule: FR-AUTH-003.
+
+#### `otp_challenges` — MVP-required (added BC-005)
+
+| Column          | Type        | Null     | Default             | Notes                                         |
+| --------------- | ----------- | -------- | ------------------- | --------------------------------------------- |
+| `id`            | UUID        | NOT NULL | `gen_random_uuid()` | PK                                            |
+| `phone`         | VARCHAR(20) | NOT NULL | —                   | E.164; **not** FK'd to `users` — see below    |
+| `purpose`       | VARCHAR(20) | NOT NULL | `'AUTH'`            | reserved for future non-login OTP purposes    |
+| `code_hash`     | TEXT        | NOT NULL | —                   | HMAC-SHA256, never the raw code               |
+| `status`        | VARCHAR(20) | NOT NULL | `'PENDING'`         | `PENDING` / `VERIFIED` / `EXPIRED` / `FAILED` |
+| `attempt_count` | INTEGER     | NOT NULL | `0`                 | CHECK `>= 0`                                  |
+| `max_attempts`  | INTEGER     | NOT NULL | `5`                 | CHECK `> 0`                                   |
+| `expires_at`    | TIMESTAMPTZ | NOT NULL | —                   |                                               |
+| `verified_at`   | TIMESTAMPTZ | NULL     | —                   |                                               |
+| `ip_address`    | INET        | NULL     | —                   | for the per-IP rate limit                     |
+| `created_at`    | TIMESTAMPTZ | NOT NULL | `NOW()`             |                                               |
+
+Index: `(phone, created_at)` — supports the cooldown/rate-limit lookups and the
+"most recent challenge for this phone" query, both ordered by `created_at DESC`.
+
+**Deliberately not FK'd to `users.id`**: at OTP-request time, the phone may not have an account yet
+(this table serves both registration and login — see
+[`AUTHENTICATION-DESIGN.md`](AUTHENTICATION-DESIGN.md)). Business rule: FR-AUTH-001, FR-AUTH-002.
+Added in its own forward-only migration
+(`apps/api/prisma/migrations/20261107140000_bc005_otp_challenges/`), never by editing the BC-004
+init migration; `dropzo_app` is explicitly `GRANT`ed access to this table, since BC-004's blanket
+grant only covered tables that existed when it ran.
 
 #### `user_addresses` — MVP-required
 

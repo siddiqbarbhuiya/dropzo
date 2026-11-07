@@ -62,11 +62,17 @@ jobs:
                   NODE_ENV=development
                   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dropzo
                   APP_DATABASE_URL=postgresql://dropzo_app:dropzo_app_dev_only@localhost:5432/dropzo
+                  JWT_ACCESS_SECRET=ci-only-jwt-access-secret-not-a-real-secret-00000
+                  OTP_HASH_SECRET=ci-only-otp-hash-secret-not-a-real-secret-000000
+                  OTP_PROVIDER=dev
                   EOF
                   cat > .env.test <<EOF
                   NODE_ENV=test
                   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/dropzo_test
                   APP_DATABASE_URL=postgresql://dropzo_app:dropzo_app_dev_only@localhost:5432/dropzo_test
+                  JWT_ACCESS_SECRET=ci-only-jwt-access-secret-not-a-real-secret-00000
+                  OTP_HASH_SECRET=ci-only-otp-hash-secret-not-a-real-secret-000000
+                  OTP_PROVIDER=dev
                   EOF
 
             - name: Formatting

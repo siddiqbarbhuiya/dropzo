@@ -58,6 +58,17 @@ points at a separate `dropzo_test` database so tests can never accidentally run 
 development data. The web app still runs with a safe default even without a `.env` file (its API
 base URL defaults to `http://localhost:3000/api/v1`).
 
+Since BC-005, `JWT_ACCESS_SECRET` and `OTP_HASH_SECRET` are also required (min 32 characters,
+never defaulted - see `apps/api/src/config/env.validation.ts`). Generate real random values for
+`.env` (never reuse `.env.test.example`'s fixed test-only values for anything real):
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+See [`../04-design/AUTHENTICATION-DESIGN.md`](../04-design/AUTHENTICATION-DESIGN.md) for every
+auth-related environment variable and what it controls.
+
 ## Database setup (BC-004)
 
 A clean clone needs these one-time and per-session steps before the API will start successfully -

@@ -6,15 +6,33 @@ from this document.
 
 ## Levels of testing
 
-| Level                     | Tool                                       | Status                                                                           |
-| ------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------- |
-| Unit (backend)            | Jest, via `ts-jest` (ESM)                  | Implemented — 1 test (`HealthController`)                                        |
-| Unit/component (frontend) | Vitest + Testing Library                   | Implemented — 1 test (`App` smoke test)                                          |
-| Unit (shared packages)    | Vitest                                     | Implemented — `@dropzo/validation` (3 tests)                                     |
-| Integration (API)         | Jest + Supertest                           | Planned, not yet used                                                            |
-| End-to-end                | Playwright                                 | Planned, not yet introduced                                                      |
-| Regression                | Re-run the full suite before merging       | Accepted practice, not yet automated in CI                                       |
-| Security testing          | Manual + dependency scanning (`npm audit`) | Partial — see [`../08-quality/RISK-REGISTER.md`](../08-quality/RISK-REGISTER.md) |
+| Level                     | Tool                                                  | Status                                                                                                                                                     |
+| ------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit (backend)            | Jest, via `ts-jest` (ESM)                             | Implemented — 7 suites / 37 tests (`HealthController`, BC-005 auth: OTP, tokens, phone normalization, guards)                                              |
+| Unit/component (frontend) | Vitest + Testing Library                              | Implemented — 1 test (`App` smoke test)                                                                                                                    |
+| Unit (shared packages)    | Vitest                                                | Implemented — `@dropzo/validation` (3 tests)                                                                                                               |
+| Integration (API, DB)     | Jest + real PostgreSQL (`apps/api/test/integration/`) | Implemented — inventory concurrency/FEFO, ledger (BC-004); auth/session/RBAC/merchant-isolation (BC-005). CI-verified; see note below on local execution.  |
+| Integration (API, HTTP)   | Jest + Supertest, real Nest DI graph                  | Implemented for auth (`auth.integration-spec.ts`'s "HTTP wiring" block) — registration, validation, 401/403 paths. Not yet used for other endpoint groups. |
+| End-to-end                | Playwright                                            | Planned, not yet introduced                                                                                                                                |
+| Regression                | Re-run the full suite before merging                  | Accepted practice, not yet automated in CI                                                                                                                 |
+| Security testing          | Manual + dependency scanning (`npm audit`)            | Partial — see [`../08-quality/RISK-REGISTER.md`](../08-quality/RISK-REGISTER.md)                                                                           |
+
+## Known local-only limitations
+
+- **The integration suite needs a real `dropzo_test` PostgreSQL+PostGIS database.** This repository
+  currently cannot provision one locally (Docker requires firmware virtualization this machine has
+  disabled; the native Postgres 17 service lacks PostGIS) — see `DEVELOPMENT-SETUP.md`. CI
+  provisions a real Postgres service container and is the actual verification path for
+  `npm run test:integration`; `npm run verify --skip-db` runs everything that doesn't need it.
+- **`apps/api/test/integration/auth.integration-spec.ts` deliberately does not import the real
+  `AppModule`/`AuthModule`.** `@nestjs/throttler@6.7.1` ships a CommonJS build that `require()`s the
+  now ESM-only `@nestjs/common`; real Node resolves this via CJS/ESM interop (verified directly:
+  both `node -e "require('@nestjs/throttler')"` and `node -e "import('@nestjs/throttler')"` succeed
+  under this project's Node version), but Jest's own module registry under
+  `--experimental-vm-modules` does not, and crashes the whole test file the moment anything imports
+  it. The spec instead builds a small test module that mirrors `AuthModule` exactly, minus
+  `ThrottlerModule`/`ThrottlerGuard` — see the in-file comment on `TestAuthAppModule` for the full
+  reasoning. The real application is unaffected; this is purely a Jest/ts-jest limitation.
 
 ## Verified working commands
 

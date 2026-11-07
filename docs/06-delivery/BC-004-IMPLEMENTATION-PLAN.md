@@ -1,17 +1,16 @@
 # BC-004 implementation plan: PostgreSQL, Docker Compose, Prisma, and unified dev environment
 
-**Status: Implemented; CI remediation in progress, live verification not yet passed.** Stages 1-8
-below are implemented exactly as planned (see [`PROGRESS.md`](PROGRESS.md)'s BC-004 entry for the
-full report, including every defect found and fixed). The first two CI runs
-(`264eebc`, `8e5e561`) both **failed** at the "Prisma schema validation" step — root cause: an npm
-bin-name collision between `dotenv-cli` and a transitive `dotenv` dependency, not a schema problem
-— see `PROGRESS.md` for the full diagnosis and fix. Stage 9's test suite is written, type-checks,
-and has been reviewed line-by-line against the schema it exercises, but has not yet been run
-successfully against a real Postgres: this repository's own CI (`.github/workflows/ci.yml`) is the
-environment that will actually prove it, once the current remediation is pushed; the build
-machine's own Docker (needs hardware virtualization enabled in firmware) and its separate native
-PostgreSQL 17 service (missing the PostGIS extension) both remain unavailable for local
-verification.
+**Status: Implemented and verified.** All 9 stages below are complete, and CI run #4 on commit
+`b80ce34` (https://github.com/siddiqbarbhuiya/dropzo/actions/runs/42363253263) passed in full
+against real PostgreSQL + PostGIS: 5/5 test suites, 21/21 tests, migrations applied cleanly to both
+the development and test databases, and the deterministic seed ran twice successfully. The first
+three CI runs failed first on an npm bin-name collision between `dotenv-cli` and a transitive
+`dotenv` dependency (not a schema problem), then on a test-fixture bug (an inventory row not kept
+in sync with its batches, not a schema or application-logic defect) — see
+[`PROGRESS.md`](PROGRESS.md)'s BC-004 entries for the full diagnosis of each. The build machine's
+own Docker (needs hardware virtualization enabled in firmware) and its separate native PostgreSQL
+17 service (missing the PostGIS extension) remain unavailable for _local_ verification, but this is
+no longer a gap: CI is the environment that proves this work, and it has now done so.
 
 Prepared in BC-003.1; revised in BC-003.2 after the database design
 review's open questions were resolved by product-owner decisions; revised in BC-003.3 after a

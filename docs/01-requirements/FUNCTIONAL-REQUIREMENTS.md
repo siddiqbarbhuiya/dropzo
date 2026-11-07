@@ -19,13 +19,13 @@ For traceability from requirement to task to test, see
 | FR-SYS-001 | The backend exposes a health check endpoint.                  | `GET /api/v1/health` returns HTTP 200 with `{status, timestamp, uptimeSeconds}`. | **Implemented** |
 | FR-SYS-002 | The backend exposes machine-readable API docs in development. | `GET /api/docs` returns Swagger UI, HTTP 200, when `NODE_ENV != production`.     | **Implemented** |
 
-## Authentication (Planned)
+## Authentication (Implemented)
 
-| ID          | Requirement                                                      | Acceptance criteria                                                                         | Status  |
-| ----------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------- |
-| FR-AUTH-001 | Customers register/log in using an Indian mobile number and OTP. | OTP is sent, verified server-side; a session is issued only after verification.             | Planned |
-| FR-AUTH-002 | OTP expires after a configurable period and cannot be reused.    | A second verification attempt with the same OTP after expiry/use fails.                     | Planned |
-| FR-AUTH-003 | Sessions use short-lived access tokens with refresh.             | A request with an expired access token is rejected; a valid refresh token issues a new one. | Planned |
+| ID          | Requirement                                                      | Acceptance criteria                                                                         | Status          |
+| ----------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------- |
+| FR-AUTH-001 | Customers register/log in using an Indian mobile number and OTP. | OTP is sent, verified server-side; a session is issued only after verification.             | **Implemented** |
+| FR-AUTH-002 | OTP expires after a configurable period and cannot be reused.    | A second verification attempt with the same OTP after expiry/use fails.                     | **Implemented** |
+| FR-AUTH-003 | Sessions use short-lived access tokens with refresh.             | A request with an expired access token is rejected; a valid refresh token issues a new one. | **Implemented** |
 
 ## Location and serviceability (Planned)
 

@@ -1148,3 +1148,104 @@ inconsistency. Fixed with a new `receiveBatch()` test helper that creates a batc
 parent inventory row in one transaction, mirroring `DATABASE-DESIGN.md`'s "Receiving stock"
 procedure exactly; all three affected tests now use it. Re-verified locally (type-checks, full
 check suite passes) - not yet re-confirmed by another live run as of this entry.
+
+## BC-004 — Confirmed complete (CI run #4, commit `b80ce34`)
+
+The fix above was pushed and re-run. CI run #4
+(`https://github.com/siddiqbarbhuiya/dropzo/actions/runs/42363253263`, job
+`128375838874`) shows **completed successfully**, confirmed by reading the actual job log (not the
+badge alone): `Test Suites: 5 passed, 5 total`, `Tests: 21 passed, 21 total`. Both seed executions
+logged a successful `Seed complete` with identical output. Migrations applied cleanly to both
+`dropzo` and `dropzo_test`. The Postgres server log for that run shows a long list of `ERROR:` lines
+(unbalanced-ledger rejection, permission-denied on the ledger tables, negative/over-reserved
+inventory CHECK rejections, duplicate-key rejections for every unique/partial-unique constraint) -
+every one of these is a test **deliberately** causing a rejection to prove a constraint works, not
+a job failure; none of them appear as a `##[error]` annotation or a non-zero step exit.
+
+**BC-004 is genuinely done** - not just implemented, but verified end-to-end against real
+PostgreSQL + PostGIS in CI: all 41 tables, every custom SQL invariant (CHECK constraints, partial
+unique indexes, the ledger balance trigger, the ledger immutability triggers, the `dropzo_app`
+least-privilege role), the deterministic seed (twice, confirming idempotency), and the full
+integration/concurrency suite (FEFO ordering, the last-unit concurrency race, scoped idempotency,
+webhook dedup, `SKIP LOCKED` claiming, the worked settlement example). `TASK-TRACKER.md` updated to
+**Done**; `TD-006` and `RISK-005`/`RISK-007` moved to Resolved in `TECHNICAL-DEBT.md`/
+`RISK-REGISTER.md`; `ROADMAP.md`'s "BC-004 follow-up" item removed (nothing left to follow up on).
+Local verification on the build machine itself (Docker needs firmware virtualization; the native
+Postgres 17 service needs PostGIS) remains unavailable, but is no longer required - CI is the
+environment that proves this work, and it now does, on every push.
+
+## BC-005 — Authentication, session management, and authorization foundation
+
+Phase 0 gate check (re-verified, not assumed): the latest CI run on the pushed `main` branch at the
+time this task started was CI run #4 on `b80ce34` (see above), genuinely green against real
+PostgreSQL+PostGIS. BC-005 proceeded on that basis.
+
+**Built:** phone+OTP registration/login as one shared flow (`AuthService`,
+`OtpService`), a new `otp_challenges` table (own forward-only migration, not FK'd to `users` - see
+`DATABASE-DESIGN.md`), short-lived JWT access tokens and opaque SHA-256-hashed refresh tokens with
+rotation and reuse detection (`TokenService`), deny-by-default global RBAC
+(`JwtAuthGuard`+`RolesGuard` as global guards, `@Public()` for the handful of unauthenticated
+routes), an audited admin role-assignment endpoint with a SUPER_ADMIN-only guard against granting
+SUPER_ADMIN, and a merchant/store ownership authorization guard foundation
+(`MerchantAccessGuard` - no routes of its own yet). Full design and the rationale behind every
+token/security decision: [ADR-0013](../03-decisions/ADR-0013-phone-otp-auth-opaque-refresh-tokens.md)
+and [`AUTHENTICATION-DESIGN.md`](../04-design/AUTHENTICATION-DESIGN.md).
+
+**Bugs found and fixed by actually running the code, not assumed:**
+
+- A genuine TOCTOU concurrency bug in `OtpService.verifyOtp`: the original implementation did a
+  plain `findFirst` then a separate `update`, so two concurrent verification attempts for the same
+  phone could both read the same still-valid, still-`PENDING` challenge and both pass the hash
+  check before either write committed. Fixed by locking the candidate row
+  (`SELECT ... FOR UPDATE`) inside one transaction before any check or write, mirroring the
+  row-locking pattern `DATABASE-DESIGN.md` already establishes for inventory/FEFO.
+- A real Jest/ts-jest-only module-resolution failure: `@nestjs/throttler@6.7.1`'s CommonJS build
+  `require()`s the now ESM-only `@nestjs/common`. Real Node resolves this fine (verified directly
+  with both `node -e "require(...)"` and a native `import()`), but Jest's module registry under
+  `--experimental-vm-modules` crashes the whole test file the instant anything imports it. Not a
+  defect in the real application - worked around in the integration suite only, by building a test
+  module that mirrors `AuthModule` minus `ThrottlerModule`/`ThrottlerGuard` (documented in-file).
+- A `libphonenumber-js` Jest-only metadata-resolution bug (bare and `/max` imports both fail under
+  ts-jest's ESM transform specifically); fixed by importing `libphonenumber-js/core` plus its
+  metadata JSON explicitly and passing it as an explicit argument.
+- Several ESM-Jest-specific test-authoring bugs (`jest` not auto-injected into ESM module scope
+  without `import { jest } from '@jest/globals'`; `jest.fn()` + chained `.mockResolvedValue()`
+  inferring `never` parameter types) - all fixed by actually running the new unit tests, not by
+  inspection alone.
+
+**Verified, with each claim distinguished by how it was checked:**
+
+- Typecheck (`tsc --noEmit`, both the main and `test/` tsconfigs): clean, 0 errors.
+- Lint (`nx eslint:lint`, every workspace): clean, 0 errors.
+- Unit tests: **37/37 passing**, 7 suites (`OtpService`, `TokenService`, phone normalization,
+  `JwtAuthGuard`, `RolesGuard`, `MerchantAccessGuard`, plus the pre-existing `HealthController`).
+- Build (`nest build`): succeeds.
+- Prisma schema validation and the seed-UUID validator: both pass (DB-free checks).
+- A new real-database integration suite
+  (`apps/api/test/integration/auth.integration-spec.ts`) was written, covering registration, login,
+  concurrent-registration safety, OTP replay/expiry/lockout/rate-limiting, refresh rotation/reuse
+  detection, logout/logout-all, session listing/revocation, suspended-account rejection (both at
+  refresh and at login), admin role grants and the SUPER_ADMIN-escalation guard, and merchant
+  cross-tenant isolation. **It could not be run to completion locally** - the same Docker
+  (firmware virtualization disabled) / native-PostGIS blocker documented for BC-004 - confirmed
+  by the exact failure changing from a Jest/module-loading error (now fixed) to
+  `PrismaClientInitializationError: ... database credentials for "dropzo_app" are not valid"` once
+  the Jest issue was resolved, i.e. the suite itself now runs correctly up to the point of needing
+  a real database that isn't available here. **This has not yet been confirmed by a CI run** - BC-005
+  is not committed or pushed as of this entry, per the task's explicit instruction not to do so
+  without authorization.
+
+**Documentation updated:** `AUTHENTICATION-DESIGN.md` (new),
+[ADR-0013](../03-decisions/ADR-0013-phone-otp-auth-opaque-refresh-tokens.md) (new),
+`API-SPECIFICATION.md` (auth/admin endpoints moved from Planned to Implemented),
+`DATABASE-DESIGN.md` (`otp_challenges` table spec + change log entry),
+`FUNCTIONAL-REQUIREMENTS.md` (FR-AUTH-001/002/003 to Implemented), `SECURITY-STANDARDS.md`
+(authentication/RBAC/OTP sections updated with what's actually implemented vs. still planned),
+`TESTING-STRATEGY.md` (new test counts, the Jest/throttler limitation documented),
+`DEVELOPMENT-SETUP.md` (new required env vars), `TASK-TRACKER.md`/`ROADMAP.md` (this entry),
+`RISK-REGISTER.md`/`TECHNICAL-DEBT.md` (new entries for the honestly-deferred items - see those
+files).
+
+**Explicitly not done, by design (BC-005's own scope boundary):** no frontend, no merchant
+onboarding/store CRUD, no production SMS provider, no Redis/microservices, no changes to BC-004's
+applied migration history or approved architecture.
