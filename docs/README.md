@@ -43,6 +43,13 @@ Never assume a document describes implemented behaviour unless it says **Impleme
 - One frontend page: a home page that shows the Dropzo name and a live backend health check.
 - No authentication, no database, no business features yet. Those are future tasks.
 
+## AI engineering toolkit
+
+Dropzo ships a set of repository-managed Claude Code skills under `.claude/skills/` — see
+[`05-engineering/AI-ENGINEERING-TOOLKIT.md`](05-engineering/AI-ENGINEERING-TOOLKIT.md) for what
+they cover, how to invoke them, how to add a new one, and the licensing/governance rules for
+anything third-party.
+
 ## Consolidation notes
 
 A few documents proposed in early planning were deliberately merged to avoid duplication for a

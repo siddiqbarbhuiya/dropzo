@@ -5,6 +5,24 @@
                 "source": "github",
                 "repo": "nrwl/nx-ai-agents-config"
             }
+        },
+        "anthropic-skills": {
+            "source": {
+                "source": "github",
+                "repo": "anthropics/skills"
+            }
+        },
+        "superpowers-marketplace": {
+            "source": {
+                "source": "github",
+                "repo": "obra/superpowers-marketplace"
+            }
+        },
+        "trailofbits-skills": {
+            "source": {
+                "source": "github",
+                "repo": "trailofbits/skills"
+            }
         }
     },
     "enabledPlugins": {

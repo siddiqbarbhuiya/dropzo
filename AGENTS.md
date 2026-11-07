@@ -125,8 +125,21 @@ controls, or test procedures.
 ## 9. Tool-specific entry points
 
 - **Claude Code**: see [`CLAUDE.md`](CLAUDE.md) — it points back here and preserves the official
-  Nx integration.
+  Nx integration. Claude Code also loads the repository-managed skills under `.claude/skills/` —
+  see section 10.
 - **GitHub Copilot**: see
   [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — short, points back here.
 - Any other assistant should be directed to read this file and `docs/README.md` first. Do not
   create a separate, duplicated full instruction system per tool.
+
+## 10. Repository-managed Claude Code skills
+
+`.claude/skills/dropzo-*/SKILL.md` encode the most load-bearing parts of this file and
+`docs/05-engineering/` as skills Claude Code loads automatically when relevant (test-driven
+development, code review, security review, debugging, NestJS development, database/Prisma changes,
+frontend/E2E testing, documentation/ADR governance, release readiness). They do not replace this
+file or the detailed standards — they operationalize them. Full reference, including third-party
+skill evaluation and governance rules for changing `.claude/`:
+[`docs/05-engineering/AI-ENGINEERING-TOOLKIT.md`](docs/05-engineering/AI-ENGINEERING-TOOLKIT.md).
+This toolkit must work from a fresh clone alone — do not assume any personally-installed skill or
+plugin is present.
