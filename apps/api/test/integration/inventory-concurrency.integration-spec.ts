@@ -50,6 +50,38 @@ async function createCart(userId: string, storeId: string) {
     return adminPrisma.cart.create({ data: { user_id: userId, store_id: storeId } });
 }
 
+// Mirrors DATABASE-DESIGN.md's "Receiving stock" procedure: a RECEIVED movement creates a
+// stock_batches row and increases both its own and the parent inventory row's on_hand_quantity by
+// the same amount, in one transaction - inventory.on_hand_quantity must always equal
+// SUM(stock_batches.on_hand_quantity) for a batch-tracked listing (see "Inventory and FEFO
+// allocation"). Creating a batch without also topping up the parent row violates the
+// chk_inventory_reserved_blocked_le_on_hand CHECK the moment any of that stock is reserved.
+async function receiveBatch(
+    inventoryId: string,
+    onHandQuantity: number,
+    options?: { reservedQuantity?: number; expiryDate?: Date | null },
+) {
+    return adminPrisma.$transaction(async (tx) => {
+        const batch = await tx.stockBatch.create({
+            data: {
+                inventory_id: inventoryId,
+                received_quantity: onHandQuantity,
+                on_hand_quantity: onHandQuantity,
+                reserved_quantity: options?.reservedQuantity ?? 0,
+                expiry_date: options?.expiryDate,
+            },
+        });
+        await tx.inventory.update({
+            where: { id: inventoryId },
+            data: {
+                on_hand_quantity: { increment: onHandQuantity },
+                reserved_quantity: { increment: options?.reservedQuantity ?? 0 },
+            },
+        });
+        return batch;
+    });
+}
+
 describe('inventory concurrency', () => {
     afterAll(async () => {
         await disconnectAll();
@@ -72,30 +104,9 @@ describe('inventory concurrency', () => {
     it('allocates the earliest-expiring batch first (FEFO), id as tiebreaker', async () => {
         const { inventory, storeId, ownerUserId } = await createStoreProduct(true);
         const cart = await createCart(ownerUserId, storeId);
-        const soon = await adminPrisma.stockBatch.create({
-            data: {
-                inventory_id: inventory.id,
-                received_quantity: 10,
-                on_hand_quantity: 10,
-                expiry_date: new Date('2026-12-01'),
-            },
-        });
-        await adminPrisma.stockBatch.create({
-            data: {
-                inventory_id: inventory.id,
-                received_quantity: 10,
-                on_hand_quantity: 10,
-                expiry_date: new Date('2026-12-31'),
-            },
-        });
-        await adminPrisma.stockBatch.create({
-            data: {
-                inventory_id: inventory.id,
-                received_quantity: 10,
-                on_hand_quantity: 10,
-                expiry_date: null, // no expiry - allocated last, per NULLS LAST
-            },
-        });
+        const soon = await receiveBatch(inventory.id, 10, { expiryDate: new Date('2026-12-01') });
+        await receiveBatch(inventory.id, 10, { expiryDate: new Date('2026-12-31') });
+        await receiveBatch(inventory.id, 10, { expiryDate: null }); // no expiry - allocated last, per NULLS LAST
 
         const result = await reserveFefo(
             adminPrisma,
@@ -112,23 +123,12 @@ describe('inventory concurrency', () => {
     it('excludes a fully-depleted batch and falls through to the next in FEFO order', async () => {
         const { inventory, storeId, ownerUserId } = await createStoreProduct(true);
         const cart = await createCart(ownerUserId, storeId);
-        await adminPrisma.stockBatch.create({
-            data: {
-                inventory_id: inventory.id,
-                received_quantity: 5,
-                on_hand_quantity: 5,
-                reserved_quantity: 5, // fully reserved already - nothing available
-                expiry_date: new Date('2026-12-01'),
-            },
+        // Fully reserved already - nothing available from this batch.
+        await receiveBatch(inventory.id, 5, {
+            reservedQuantity: 5,
+            expiryDate: new Date('2026-12-01'),
         });
-        const second = await adminPrisma.stockBatch.create({
-            data: {
-                inventory_id: inventory.id,
-                received_quantity: 10,
-                on_hand_quantity: 10,
-                expiry_date: new Date('2026-12-31'),
-            },
-        });
+        const second = await receiveBatch(inventory.id, 10, { expiryDate: new Date('2026-12-31') });
 
         const result = await reserveFefo(
             adminPrisma,
@@ -142,9 +142,7 @@ describe('inventory concurrency', () => {
 
     it('never allows two concurrent requests to both reserve the last unit', async () => {
         const { inventory, storeId, ownerUserId } = await createStoreProduct(true);
-        await adminPrisma.stockBatch.create({
-            data: { inventory_id: inventory.id, received_quantity: 1, on_hand_quantity: 1 },
-        });
+        await receiveBatch(inventory.id, 1);
         // Two different carts (two different customers) racing for the same last unit - using
         // the same cart for both would also hit the "one ACTIVE reservation per cart" partial
         // unique index, masking whether the stock-availability constraint is what actually won.

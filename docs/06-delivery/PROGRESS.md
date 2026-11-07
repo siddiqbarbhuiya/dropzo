@@ -1117,3 +1117,34 @@ on both ledger tables make the design document's own stated invariant - a posted
 have `settlement_id` changed (the one sanctioned exception, for settlement tagging) - a hard
 database rule, not just application discipline or the `dropzo_app` REVOKE (which only restricts
 the application's own role, not whatever process performs settlement tagging).
+
+## BC-004 — First real CI run against live PostgreSQL (`bdc07cb`, run #3)
+
+**This is the first time any of BC-004's migration, seed, or integration tests actually ran
+against a real database.** Result: run #3
+(`https://github.com/siddiqbarbhuiya/dropzo/actions/runs/42362478400`) got all the way through
+formatting, lint, typecheck, unit tests, Prisma validation, migrations against **both** `dropzo`
+and `dropzo_test`, the `dropzo_app` role password, and two seed executions (idempotency confirmed:
+identical `Seed complete` output both times) - every fix from the remediation pass worked. It
+failed only at the integration test suite itself: **Test Suites: 1 failed, 4 passed, 5 total;
+Tests: 3 failed, 18 passed, 21 total.**
+
+`ledger.integration-spec.ts`, `schema-integrity.integration-spec.ts`,
+`orders-payments.integration-spec.ts`, and `outbox-notifications.integration-spec.ts` **all passed
+in full** - the deferred balance trigger, the platform-account partial unique index, the
+`dropzo_app` UPDATE/DELETE revocation, scoped idempotency, webhook dedup, and `SKIP LOCKED`
+claiming all behaved exactly as designed, against real PostgreSQL, for the first time.
+
+The 3 failures were all in `inventory-concurrency.integration-spec.ts`, all the same root cause,
+read from the actual Postgres error in the job log (not guessed): `new row for relation
+"inventory" violates check constraint "chk_inventory_reserved_blocked_le_on_hand"`. This was a bug
+in the test fixture, not the schema or the application logic it exercises -
+`createStoreProduct()`'s helper created the parent `inventory` row with `on_hand_quantity: 0` and
+then added `stock_batches` separately without ever topping up the parent row to match, exactly the
+invariant `DATABASE-DESIGN.md`'s "Inventory and FEFO allocation" section requires
+(`inventory.on_hand_quantity` must equal `SUM(stock_batches.on_hand_quantity)`). The moment
+`reserveFefo()` incremented `inventory.reserved_quantity`, the CHECK correctly caught the
+inconsistency. Fixed with a new `receiveBatch()` test helper that creates a batch and tops up the
+parent inventory row in one transaction, mirroring `DATABASE-DESIGN.md`'s "Receiving stock"
+procedure exactly; all three affected tests now use it. Re-verified locally (type-checks, full
+check suite passes) - not yet re-confirmed by another live run as of this entry.
