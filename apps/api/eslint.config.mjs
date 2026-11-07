@@ -10,7 +10,7 @@ export default tseslint.config(
             sourceType: 'commonjs',
             parserOptions: {
                 projectService: {
-                    allowDefaultProject: ['eslint.config.mjs'],
+                    allowDefaultProject: ['eslint.config.mjs', 'jest.integration.config.cjs'],
                 },
                 tsconfigRootDir: import.meta.dirname,
             },

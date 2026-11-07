@@ -1,6 +1,15 @@
 # BC-004 implementation plan: PostgreSQL, Docker Compose, Prisma, and unified dev environment
 
-**Status: Ready to begin.** Prepared in BC-003.1; revised in BC-003.2 after the database design
+**Status: Implemented, live verification pending.** Stages 1-8 below are implemented exactly as
+planned (see [`PROGRESS.md`](PROGRESS.md)'s BC-004 entry for the full report). Stage 9's test
+suite is written and type-checks, but could not be run against a real Postgres on the machine this
+was built on - Docker Desktop's Linux engine needs WSL2, which wasn't installed, and a separate
+native PostgreSQL 17 service already running on that machine couldn't be used without credentials
+that weren't available. This repository's own CI (`.github/workflows/ci.yml`) runs the full
+migration + integration-test suite against a real `postgis/postgis` service container on every
+push, so the first push of this work is also its first live verification.
+
+Prepared in BC-003.1; revised in BC-003.2 after the database design
 review's open questions were resolved by product-owner decisions; revised in BC-003.3 after a
 second, independent schema review; finalized in BC-003.4 after a third, comprehensive review
 closed the remaining defects (platform-account uniqueness, settlement reconciliation, outbox

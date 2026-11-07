@@ -1,0 +1,29 @@
+{
+    "$schema": "../node_modules/nx/schemas/project-schema.json",
+    "name": "infrastructure",
+    "root": "infrastructure",
+    "projectType": "application",
+    "targets": {
+        "dev": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "infrastructure/docker",
+                "command": "docker compose up -d --wait --wait-timeout 90"
+            }
+        },
+        "down": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "infrastructure/docker",
+                "command": "docker compose down"
+            }
+        },
+        "status": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "infrastructure/docker",
+                "command": "docker compose ps"
+            }
+        }
+    }
+}

@@ -1,0 +1,894 @@
+// Dropzo Prisma schema.
+//
+// Authoritative source: ../../../docs/04-design/DATABASE-DESIGN.md (BC-003.4, closed for review).
+// Every model below corresponds column-for-column to that document's MVP-required table
+// specifications. Constraints Prisma's schema language cannot express (partial unique indexes,
+// CHECK constraints, the ledger balance trigger, GIN/GIST indexes, extension enablement, and the
+// UPDATE/DELETE privilege revocation on the ledger tables) are added by hand in the generated
+// migration SQL - see that document's "Prisma Implementation Readiness Checklist" and the comment
+// block at the top of prisma/migrations/*_init/migration.sql.
+//
+// coupons/coupon_redemptions are an explicit future extension - not modelled here.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums (the only columns the design document types as a real Postgres ENUM -
+// every other "status"-like column is a plain VARCHAR with documented values,
+// and is kept as String here to match the design document's type column exactly)
+// ---------------------------------------------------------------------------
+
+enum UserRoleName {
+  CUSTOMER
+  MERCHANT_OWNER
+  MERCHANT_STAFF
+  DELIVERY_PARTNER
+  ADMIN
+  SUPER_ADMIN
+  SUPPORT_AGENT
+
+  @@map("user_role")
+}
+
+enum StoreStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  SUSPENDED
+  CLOSED
+
+  @@map("store_status")
+}
+
+enum InventoryOwnerType {
+  MERCHANT
+  PLATFORM
+
+  @@map("inventory_owner_type")
+}
+
+enum FulfilmentType {
+  PICKUP
+  DELIVERY
+
+  @@map("fulfilment_type")
+}
+
+enum OrderStatus {
+  CREATED
+  PAYMENT_PENDING
+  CONFIRMED
+  ACCEPTED
+  PREPARING
+  READY
+  PICKED_UP
+  ASSIGNED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  REJECTED
+  CANCELLED
+  PAYMENT_FAILED
+  REFUND_PENDING
+  REFUNDED
+  DELIVERY_FAILED
+
+  @@map("order_status")
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUND_PENDING
+  PARTIALLY_REFUNDED
+  REFUNDED
+
+  @@map("payment_status")
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone      String   @unique @db.VarChar(20)
+  email      String?  @db.VarChar(255)
+  full_name  String?  @db.VarChar(150)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  roles                   UserRole[]
+  sessions                UserSession[]
+  addresses               UserAddress[]
+  merchants_owned         Merchant[]
+  merchant_staff_of       MerchantStaff[]
+  delivery_partner        DeliveryPartner?
+  orders_placed           Order[]
+  order_status_changes    OrderStatusHistory[]
+  payment_status_changes  PaymentStatusHistory[]
+  refunds_initiated       Refund[]
+  ledger_transactions     LedgerTransaction[]
+  stock_movements_created StockMovement[]
+  notification_devices    NotificationDevice[]
+  notifications           Notification[]
+  complaints              Complaint[]
+  audit_logs              AuditLog[]
+  idempotency_records     IdempotencyRecord[]
+
+  @@map("users")
+}
+
+model UserRole {
+  user_id String       @db.Uuid
+  role    UserRoleName
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@id([user_id, role])
+  @@map("user_roles")
+}
+
+model UserSession {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String    @db.Uuid
+  refresh_token_hash String    @db.Text
+  issued_at          DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at         DateTime  @db.Timestamptz(6)
+  revoked_at         DateTime? @db.Timestamptz(6)
+  user_agent         String?   @db.Text
+  ip_address         String?   @db.Inet
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id])
+  @@map("user_sessions")
+}
+
+model UserAddress {
+  id              String                                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String                                 @db.Uuid
+  label           String?                                @db.VarChar(50)
+  recipient_name  String?                                @db.VarChar(150)
+  recipient_phone String?                                @db.VarChar(20)
+  address_line1   String                                 @db.Text
+  address_line2   String?                                @db.Text
+  landmark        String?                                @db.Text
+  locality        String?                                @db.VarChar(150)
+  city            String?                                @db.VarChar(100)
+  district        String?                                @db.VarChar(100)
+  state           String                                 @default("Assam") @db.VarChar(100)
+  postal_code     String?                                @db.VarChar(10)
+  location        Unsupported("geography(Point, 4326)")?
+  is_default      Boolean                                @default(false)
+  created_at      DateTime                               @default(now()) @db.Timestamptz(6)
+
+  user   User    @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  orders Order[]
+
+  @@index([user_id])
+  @@map("user_addresses")
+}
+
+// ---------------------------------------------------------------------------
+// Merchant
+// ---------------------------------------------------------------------------
+
+model Merchant {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_user_id       String   @db.Uuid
+  legal_name          String   @db.VarChar(200)
+  display_name        String   @db.VarChar(200)
+  contact_phone       String   @db.VarChar(20)
+  business_address    String   @db.Text
+  verification_status String   @default("PENDING") @db.VarChar(30)
+  commission_percent  Decimal  @default(8.00) @db.Decimal(5, 2)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  owner              User               @relation(fields: [owner_user_id], references: [id], onDelete: Restrict)
+  staff              MerchantStaff[]
+  stores             Store[]
+  settlements        Settlement[]
+  financial_accounts FinancialAccount[]
+
+  @@map("merchants")
+}
+
+model MerchantStaff {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchant_id String   @db.Uuid
+  user_id     String   @db.Uuid
+  role        String   @default("STAFF") @db.VarChar(30)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  merchant Merchant @relation(fields: [merchant_id], references: [id], onDelete: Restrict)
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@unique([merchant_id, user_id])
+  @@map("merchant_staff")
+}
+
+model Store {
+  id                  String                                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchant_id         String                                @db.Uuid
+  name                String                                @db.VarChar(200)
+  description         String?                               @db.Text
+  address             String                                @db.Text
+  district            String                                @db.VarChar(100)
+  city                String                                @db.VarChar(100)
+  postal_code         String?                               @db.VarChar(10)
+  location            Unsupported("geography(Point, 4326)")
+  status              StoreStatus                           @default(PENDING)
+  supports_pickup     Boolean                               @default(true)
+  supports_delivery   Boolean                               @default(false)
+  preparation_minutes Int                                   @default(20)
+  opening_hours       Json                                  @default("{}") @db.JsonB
+  created_at          DateTime                              @default(now()) @db.Timestamptz(6)
+
+  merchant       Merchant       @relation(fields: [merchant_id], references: [id], onDelete: Restrict)
+  store_products StoreProduct[]
+  carts          Cart[]
+  orders         Order[]
+
+  @@index([merchant_id])
+  @@map("stores")
+}
+
+// ---------------------------------------------------------------------------
+// Location
+// ---------------------------------------------------------------------------
+
+model ServiceZone {
+  id                     String                                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String                                   @db.VarChar(150)
+  city                   String                                   @db.VarChar(100)
+  state                  String                                   @default("Assam") @db.VarChar(100)
+  boundary               Unsupported("geography(Polygon, 4326)")?
+  max_delivery_radius_km Decimal?                                 @db.Decimal(5, 2)
+  is_active              Boolean                                  @default(true)
+  created_at             DateTime                                 @default(now()) @db.Timestamptz(6)
+
+  // No foreign-key relationship to any other table, by design - see
+  // DATABASE-DESIGN.md's "Service zones and delivery eligibility".
+  @@map("service_zones")
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue
+// ---------------------------------------------------------------------------
+
+model Category {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_id  String? @db.Uuid
+  name       String  @db.VarChar(120)
+  slug       String  @unique @db.VarChar(140)
+  is_active  Boolean @default(true)
+  sort_order Int     @default(0)
+
+  parent        Category?  @relation("CategoryParent", fields: [parent_id], references: [id], onDelete: Restrict)
+  subcategories Category[] @relation("CategoryParent")
+  products      Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id  String?  @db.Uuid
+  name         String   @db.VarChar(250)
+  brand        String?  @db.VarChar(150)
+  description  String?  @db.Text
+  is_food      Boolean  @default(false)
+  storage_type String?  @db.VarChar(40)
+  attributes   Json     @default("{}") @db.JsonB
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  category Category?        @relation(fields: [category_id], references: [id], onDelete: Restrict)
+  variants ProductVariant[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id   String   @db.Uuid
+  sku          String?  @unique @db.VarChar(100)
+  variant_name String   @db.VarChar(150)
+  unit         String   @db.VarChar(30)
+  pack_size    Decimal? @db.Decimal(12, 3)
+  barcode      String?  @db.VarChar(100)
+  is_active    Boolean  @default(true)
+
+  product        Product        @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  store_products StoreProduct[]
+
+  @@map("product_variants")
+}
+
+model StoreProduct {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  store_id            String             @db.Uuid
+  variant_id          String             @db.Uuid
+  owner_type          InventoryOwnerType @default(MERCHANT)
+  uses_batch_tracking Boolean            @default(false)
+  selling_price       Decimal            @db.Decimal(12, 2)
+  mrp                 Decimal?           @db.Decimal(12, 2)
+  is_available        Boolean            @default(true)
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+
+  store       Store          @relation(fields: [store_id], references: [id], onDelete: Restrict)
+  variant     ProductVariant @relation(fields: [variant_id], references: [id], onDelete: Restrict)
+  inventory   Inventory?
+  cart_items  CartItem[]
+  order_items OrderItem[]
+
+  @@unique([store_id, variant_id])
+  @@index([store_id, is_available])
+  @@map("store_products")
+}
+
+// ---------------------------------------------------------------------------
+// Inventory
+// ---------------------------------------------------------------------------
+
+model Inventory {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  store_product_id    String   @unique @db.Uuid
+  on_hand_quantity    Decimal  @default(0) @db.Decimal(12, 3)
+  reserved_quantity   Decimal  @default(0) @db.Decimal(12, 3)
+  blocked_quantity    Decimal  @default(0) @db.Decimal(12, 3)
+  low_stock_threshold Decimal  @default(0) @db.Decimal(12, 3)
+  updated_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  store_product           StoreProduct           @relation(fields: [store_product_id], references: [id], onDelete: Restrict)
+  stock_batches           StockBatch[]
+  stock_movements         StockMovement[]
+  stock_reservation_items StockReservationItem[]
+
+  @@map("inventory")
+}
+
+model StockBatch {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inventory_id      String    @db.Uuid
+  batch_code        String?   @db.VarChar(100)
+  received_quantity Decimal   @db.Decimal(12, 3)
+  on_hand_quantity  Decimal   @db.Decimal(12, 3)
+  reserved_quantity Decimal   @default(0) @db.Decimal(12, 3)
+  received_at       DateTime  @default(now()) @db.Timestamptz(6)
+  manufacture_date  DateTime? @db.Date
+  expiry_date       DateTime? @db.Date
+  cost_price        Decimal?  @db.Decimal(12, 2)
+  storage_notes     String?   @db.Text
+
+  inventory               Inventory              @relation(fields: [inventory_id], references: [id], onDelete: Restrict)
+  stock_movements         StockMovement[]
+  stock_reservation_items StockReservationItem[]
+
+  @@index([inventory_id, expiry_date])
+  @@map("stock_batches")
+}
+
+model StockMovement {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inventory_id   String   @db.Uuid
+  batch_id       String?  @db.Uuid
+  movement_type  String   @db.VarChar(30)
+  quantity       Decimal  @db.Decimal(12, 3)
+  reference_type String?  @db.VarChar(50)
+  reference_id   String?  @db.Uuid
+  notes          String?  @db.Text
+  created_by     String?  @db.Uuid
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  inventory       Inventory   @relation(fields: [inventory_id], references: [id], onDelete: Restrict)
+  batch           StockBatch? @relation(fields: [batch_id], references: [id], onDelete: Restrict)
+  created_by_user User?       @relation(fields: [created_by], references: [id], onDelete: Restrict)
+
+  @@index([inventory_id, created_at])
+  @@index([batch_id, created_at])
+  @@map("stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// Commerce - cart and reservation
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  store_id   String   @db.Uuid
+  status     String   @default("ACTIVE") @db.VarChar(20)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  store              Store              @relation(fields: [store_id], references: [id], onDelete: Restrict)
+  items              CartItem[]
+  stock_reservations StockReservation[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cart_id          String  @db.Uuid
+  store_product_id String  @db.Uuid
+  quantity         Decimal @db.Decimal(12, 3)
+
+  cart          Cart         @relation(fields: [cart_id], references: [id], onDelete: Cascade)
+  store_product StoreProduct @relation(fields: [store_product_id], references: [id], onDelete: Restrict)
+
+  @@unique([cart_id, store_product_id])
+  @@map("cart_items")
+}
+
+model StockReservation {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cart_id     String?   @db.Uuid
+  order_id    String?   @db.Uuid
+  status      String    @default("ACTIVE") @db.VarChar(20)
+  expires_at  DateTime  @db.Timestamptz(6)
+  consumed_at DateTime? @db.Timestamptz(6)
+  released_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  cart  Cart?                  @relation(fields: [cart_id], references: [id], onDelete: Restrict)
+  order Order?                 @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  items StockReservationItem[]
+
+  @@map("stock_reservations")
+}
+
+model StockReservationItem {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reservation_id String  @db.Uuid
+  inventory_id   String  @db.Uuid
+  batch_id       String? @db.Uuid
+  quantity       Decimal @db.Decimal(12, 3)
+
+  reservation StockReservation @relation(fields: [reservation_id], references: [id], onDelete: Cascade)
+  inventory   Inventory        @relation(fields: [inventory_id], references: [id], onDelete: Restrict)
+  batch       StockBatch?      @relation(fields: [batch_id], references: [id], onDelete: Restrict)
+
+  @@unique([reservation_id, inventory_id, batch_id])
+  @@map("stock_reservation_items")
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+model Order {
+  id                                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_number                      String         @unique @db.VarChar(40)
+  customer_id                       String         @db.Uuid
+  store_id                          String         @db.Uuid
+  store_name_snapshot               String         @db.VarChar(200)
+  store_address_snapshot            String         @db.Text
+  fulfilment_type                   FulfilmentType
+  status                            OrderStatus    @default(CREATED)
+  delivery_address_id               String?        @db.Uuid
+  delivery_recipient_name_snapshot  String?        @db.VarChar(150)
+  delivery_recipient_phone_snapshot String?        @db.VarChar(20)
+  delivery_address_snapshot         Json?          @db.JsonB
+  subtotal                          Decimal        @db.Decimal(12, 2)
+  discount_amount                   Decimal        @default(0) @db.Decimal(12, 2)
+  delivery_fee                      Decimal        @default(0) @db.Decimal(12, 2)
+  convenience_fee                   Decimal        @default(0) @db.Decimal(12, 2)
+  tax_amount                        Decimal        @default(0) @db.Decimal(12, 2)
+  total_amount                      Decimal        @db.Decimal(12, 2)
+  payment_method                    String         @db.VarChar(30)
+  idempotency_key                   String         @db.VarChar(150)
+  customer_notes                    String?        @db.Text
+  pickup_code_hash                  String?        @db.Text
+  estimated_ready_at                DateTime?      @db.Timestamptz(6)
+  placed_at                         DateTime       @default(now()) @db.Timestamptz(6)
+  completed_at                      DateTime?      @db.Timestamptz(6)
+  created_at                        DateTime       @default(now()) @db.Timestamptz(6)
+
+  customer            User                 @relation(fields: [customer_id], references: [id], onDelete: Restrict)
+  store               Store                @relation(fields: [store_id], references: [id], onDelete: Restrict)
+  delivery_address    UserAddress?         @relation(fields: [delivery_address_id], references: [id], onDelete: Restrict)
+  items               OrderItem[]
+  status_history      OrderStatusHistory[]
+  payments            Payment[]
+  stock_reservations  StockReservation[]
+  pickup_verification PickupVerification?
+  delivery_assignment DeliveryAssignment?
+  settlement_item     SettlementItem?
+  complaints          Complaint[]
+  notifications       Notification[]
+  refunds             Refund[]
+
+  @@unique([customer_id, idempotency_key])
+  @@index([customer_id, created_at(sort: Desc)])
+  @@index([store_id, status, created_at(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                    String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id              String  @db.Uuid
+  store_product_id      String  @db.Uuid
+  product_name_snapshot String  @db.VarChar(250)
+  variant_snapshot      String  @db.VarChar(150)
+  sku_snapshot          String? @db.VarChar(100)
+  unit_price            Decimal @db.Decimal(12, 2)
+  quantity              Decimal @db.Decimal(12, 3)
+  tax_amount            Decimal @default(0) @db.Decimal(12, 2)
+  line_total            Decimal @db.Decimal(12, 2)
+
+  order         Order        @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  store_product StoreProduct @relation(fields: [store_product_id], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id   String       @db.Uuid
+  old_status OrderStatus?
+  new_status OrderStatus
+  changed_by String?      @db.Uuid
+  reason     String?      @db.Text
+  created_at DateTime     @default(now()) @db.Timestamptz(6)
+
+  order           Order @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  changed_by_user User? @relation(fields: [changed_by], references: [id], onDelete: Restrict)
+
+  @@map("order_status_history")
+}
+
+// ---------------------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id                  String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id            String        @db.Uuid
+  provider            String        @default("COD") @db.VarChar(50)
+  provider_payment_id String?       @db.VarChar(150)
+  amount              Decimal       @db.Decimal(12, 2)
+  status              PaymentStatus @default(PENDING)
+  idempotency_key     String?       @unique @db.VarChar(150)
+  created_at          DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime      @default(now()) @db.Timestamptz(6)
+
+  order          Order                  @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  status_history PaymentStatusHistory[]
+  refunds        Refund[]
+
+  @@map("payments")
+}
+
+model PaymentStatusHistory {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id    String         @db.Uuid
+  old_status    PaymentStatus?
+  new_status    PaymentStatus
+  actor_user_id String?        @db.Uuid
+  source        String         @db.VarChar(20)
+  reason        String?        @db.Text
+  created_at    DateTime       @default(now()) @db.Timestamptz(6)
+
+  payment    Payment @relation(fields: [payment_id], references: [id], onDelete: Restrict)
+  actor_user User?   @relation(fields: [actor_user_id], references: [id], onDelete: Restrict)
+
+  @@index([payment_id, created_at])
+  @@map("payment_status_history")
+}
+
+model PaymentWebhookEvent {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider          String    @db.VarChar(50)
+  provider_event_id String    @db.VarChar(150)
+  payload           Json      @db.JsonB
+  processed_at      DateTime? @db.Timestamptz(6)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([provider, provider_event_id])
+  @@map("payment_webhook_events")
+}
+
+model Refund {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id   String    @db.Uuid
+  order_id     String    @db.Uuid
+  refund_type  String    @db.VarChar(10)
+  amount       Decimal   @db.Decimal(12, 2)
+  reason       String    @db.Text
+  status       String    @default("PENDING") @db.VarChar(20)
+  initiated_by String?   @db.Uuid
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  completed_at DateTime? @db.Timestamptz(6)
+
+  payment           Payment @relation(fields: [payment_id], references: [id], onDelete: Restrict)
+  order             Order   @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  initiated_by_user User?   @relation(fields: [initiated_by], references: [id], onDelete: Restrict)
+
+  @@map("refunds")
+}
+
+// ---------------------------------------------------------------------------
+// Fulfilment
+// ---------------------------------------------------------------------------
+
+model PickupVerification {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id      String    @unique @db.Uuid
+  code_hash     String    @db.Text
+  expires_at    DateTime  @db.Timestamptz(6)
+  verified_at   DateTime? @db.Timestamptz(6)
+  attempt_count Int       @default(0)
+  max_attempts  Int       @default(5)
+
+  order Order @relation(fields: [order_id], references: [id], onDelete: Restrict)
+
+  @@map("pickup_verifications")
+}
+
+model DeliveryPartner {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String   @unique @db.Uuid
+  vehicle_type String?  @db.VarChar(50)
+  is_approved  Boolean  @default(false)
+  is_available Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  user        User                 @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  assignments DeliveryAssignment[]
+
+  @@map("delivery_partners")
+}
+
+model DeliveryAssignment {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id            String    @unique @db.Uuid
+  delivery_partner_id String    @db.Uuid
+  assigned_at         DateTime  @default(now()) @db.Timestamptz(6)
+  picked_up_at        DateTime? @db.Timestamptz(6)
+  delivered_at        DateTime? @db.Timestamptz(6)
+  delivery_status     String    @default("ASSIGNED") @db.VarChar(30)
+
+  order            Order           @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  delivery_partner DeliveryPartner @relation(fields: [delivery_partner_id], references: [id], onDelete: Restrict)
+  events           DeliveryEvent[]
+
+  @@map("delivery_assignments")
+}
+
+model DeliveryEvent {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  delivery_assignment_id String   @db.Uuid
+  event_type             String   @db.VarChar(40)
+  notes                  String?  @db.Text
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+
+  delivery_assignment DeliveryAssignment @relation(fields: [delivery_assignment_id], references: [id], onDelete: Restrict)
+
+  @@map("delivery_events")
+}
+
+// ---------------------------------------------------------------------------
+// Finance - see DATABASE-DESIGN.md's "Financial accounting model" for the full
+// reasoning; this is the table specification only.
+// ---------------------------------------------------------------------------
+
+model FinancialAccount {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  account_type String   @db.VarChar(40)
+  owner_type   String   @db.VarChar(20)
+  merchant_id  String?  @db.Uuid
+  currency     String   @default("INR") @db.VarChar(3)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  merchant Merchant?     @relation(fields: [merchant_id], references: [id], onDelete: Restrict)
+  entries  LedgerEntry[]
+
+  // UNIQUE (account_type, merchant_id) below correctly handles merchant-owned accounts.
+  // The partial unique index for platform-owned accounts (WHERE merchant_id IS NULL) cannot
+  // be expressed here - see the hand-written migration SQL.
+  @@unique([account_type, merchant_id])
+  @@map("financial_accounts")
+}
+
+model LedgerTransaction {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transaction_type        String   @db.VarChar(40)
+  reference_type          String?  @db.VarChar(50)
+  reference_id            String?  @db.Uuid
+  reversed_transaction_id String?  @db.Uuid
+  description             String?  @db.Text
+  created_by              String?  @db.Uuid
+  created_at              DateTime @default(now()) @db.Timestamptz(6)
+
+  reversed_transaction LedgerTransaction?  @relation("LedgerTransactionReversal", fields: [reversed_transaction_id], references: [id], onDelete: Restrict)
+  reversals            LedgerTransaction[] @relation("LedgerTransactionReversal")
+  created_by_user      User?               @relation(fields: [created_by], references: [id], onDelete: Restrict)
+  entries              LedgerEntry[]
+
+  @@index([reference_type, reference_id])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transaction_id String   @db.Uuid
+  account_id     String   @db.Uuid
+  direction      String   @db.VarChar(10)
+  amount         Decimal  @db.Decimal(12, 2)
+  settlement_id  String?  @db.Uuid
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  transaction LedgerTransaction @relation(fields: [transaction_id], references: [id], onDelete: Restrict)
+  account     FinancialAccount  @relation(fields: [account_id], references: [id], onDelete: Restrict)
+  settlement  Settlement?       @relation(fields: [settlement_id], references: [id], onDelete: Restrict)
+
+  // The partial index `(account_id) WHERE settlement_id IS NULL` cannot be expressed here -
+  // see the hand-written migration SQL. The balance-check deferred constraint trigger and the
+  // UPDATE/DELETE privilege revocation are also hand-written migration SQL, not Prisma.
+  @@index([account_id, created_at])
+  @@index([transaction_id])
+  @@map("ledger_entries")
+}
+
+model Settlement {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  merchant_id       String    @db.Uuid
+  period_start      DateTime  @db.Date
+  period_end        DateTime  @db.Date
+  gross_amount      Decimal   @db.Decimal(12, 2)
+  commission_amount Decimal   @db.Decimal(12, 2)
+  deductions        Decimal   @default(0) @db.Decimal(12, 2)
+  net_amount        Decimal   @db.Decimal(12, 2)
+  status            String    @default("PENDING") @db.VarChar(30)
+  paid_at           DateTime? @db.Timestamptz(6)
+  failed_at         DateTime? @db.Timestamptz(6)
+  reference_number  String?   @db.VarChar(150)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+
+  merchant Merchant         @relation(fields: [merchant_id], references: [id], onDelete: Restrict)
+  items    SettlementItem[]
+  entries  LedgerEntry[]
+
+  @@map("settlements")
+}
+
+model SettlementItem {
+  id                      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  settlement_id           String  @db.Uuid
+  order_id                String  @unique @db.Uuid
+  gross_amount            Decimal @db.Decimal(12, 2)
+  commission_rate_applied Decimal @db.Decimal(5, 2)
+  commission_amount       Decimal @db.Decimal(12, 2)
+  net_amount              Decimal @db.Decimal(12, 2)
+
+  settlement Settlement @relation(fields: [settlement_id], references: [id], onDelete: Restrict)
+  order      Order      @relation(fields: [order_id], references: [id], onDelete: Restrict)
+
+  @@map("settlement_items")
+}
+
+// ---------------------------------------------------------------------------
+// Communication
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String    @db.Uuid
+  channel                String    @db.VarChar(20)
+  title                  String    @db.VarChar(200)
+  body                   String    @db.Text
+  related_order_id       String?   @db.Uuid
+  source_outbox_event_id String?   @unique @db.Uuid
+  status                 String    @default("PENDING") @db.VarChar(20)
+  sent_at                DateTime? @db.Timestamptz(6)
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+
+  user                User         @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  related_order       Order?       @relation(fields: [related_order_id], references: [id], onDelete: Restrict)
+  source_outbox_event OutboxEvent? @relation(fields: [source_outbox_event_id], references: [id], onDelete: Restrict)
+
+  @@map("notifications")
+}
+
+model NotificationDevice {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String   @db.Uuid
+  device_token String   @unique @db.Text
+  platform     String   @db.VarChar(20)
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@map("notification_devices")
+}
+
+// ---------------------------------------------------------------------------
+// Support
+// ---------------------------------------------------------------------------
+
+model Complaint {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id    String?   @db.Uuid
+  user_id     String    @db.Uuid
+  subject     String    @db.VarChar(200)
+  description String    @db.Text
+  status      String    @default("OPEN") @db.VarChar(20)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  resolved_at DateTime? @db.Timestamptz(6)
+
+  order Order? @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  user  User   @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@map("complaints")
+}
+
+// ---------------------------------------------------------------------------
+// Audit and reliability
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_user_id String?  @db.Uuid
+  action        String   @db.VarChar(100)
+  entity_type   String   @db.VarChar(50)
+  entity_id     String   @db.Uuid
+  before_state  Json?    @db.JsonB
+  after_state   Json?    @db.JsonB
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  actor_user User? @relation(fields: [actor_user_id], references: [id], onDelete: Restrict)
+
+  @@index([entity_type, entity_id, created_at])
+  @@map("audit_logs")
+}
+
+model IdempotencyRecord {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope             String   @db.VarChar(50)
+  user_id           String?  @db.Uuid
+  idempotency_key   String   @db.VarChar(150)
+  request_hash      String   @db.Text
+  response_snapshot Json?    @db.JsonB
+  status            String   @default("IN_PROGRESS") @db.VarChar(20)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  expires_at        DateTime @db.Timestamptz(6)
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@unique([scope, user_id, idempotency_key])
+  @@map("idempotency_records")
+}
+
+model OutboxEvent {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aggregate_type  String    @db.VarChar(50)
+  aggregate_id    String    @db.Uuid
+  event_type      String    @db.VarChar(100)
+  payload         Json      @db.JsonB
+  status          String    @default("PENDING") @db.VarChar(20)
+  attempt_count   Int       @default(0)
+  max_attempts    Int       @default(5)
+  next_attempt_at DateTime? @db.Timestamptz(6)
+  claimed_by      String?   @db.VarChar(100)
+  locked_until    DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  processed_at    DateTime? @db.Timestamptz(6)
+
+  notification Notification?
+
+  @@index([status, next_attempt_at])
+  @@map("outbox_events")
+}

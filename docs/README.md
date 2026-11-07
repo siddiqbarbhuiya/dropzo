@@ -35,13 +35,19 @@ with one of:
 
 Never assume a document describes implemented behaviour unless it says **Implemented**.
 
-## What's actually implemented today (as of BC-003)
+## What's actually implemented today (as of BC-004)
 
 - The repository foundation, tooling (TypeScript/ESLint/Prettier/Jest/Vitest) and Nx integration
   (see [`06-delivery/PROGRESS.md`](06-delivery/PROGRESS.md)).
 - One backend endpoint: `GET /api/v1/health`, with Swagger docs at `/api/docs`.
 - One frontend page: a home page that shows the Dropzo name and a live backend health check.
-- No authentication, no database, no business features yet. Those are future tasks.
+- The full database schema (41 MVP-required tables), local PostgreSQL + PostGIS via Docker
+  Compose, Prisma, the unified `nx run-many -t dev` startup, and a GitHub Actions CI pipeline -
+  see [`07-operations/DEVELOPMENT-SETUP.md`](07-operations/DEVELOPMENT-SETUP.md). Migration/seed/
+  integration-test execution against a live database could not be verified on the machine this was
+  built on (Docker's Linux engine needs WSL2) - see that page's "Known issues" section for the
+  exact blocker and `06-delivery/PROGRESS.md`'s BC-004 entry.
+- No authentication, no business features (cart, checkout, orders) yet. Those are future tasks.
 
 ## AI engineering toolkit
 
@@ -62,5 +68,6 @@ for the full reasoning):
   `02-architecture/SYSTEM-ARCHITECTURE.md`.
 - No separate `04-design/DATABASE-DESIGN.md` vs `02-architecture/DATABASE-ARCHITECTURE.md` split —
   one proposed-database doc lives at `04-design/DATABASE-DESIGN.md`.
-- No `06-delivery/RELEASE-PLAN.md` and no `07-operations/BACKUP-RESTORE.md` yet — there is nothing
-  to release and no database to back up. Adding either now would be an empty placeholder.
+- No `06-delivery/RELEASE-PLAN.md` yet — there is nothing to release.
+  [`07-operations/DATABASE-BACKUP-RESTORE.md`](07-operations/DATABASE-BACKUP-RESTORE.md) was added
+  in BC-004, once there was an actual local database to back up.

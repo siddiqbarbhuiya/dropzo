@@ -11,8 +11,19 @@
         "lint:fix": "nx eslint:lint --fix",
         "typecheck": "nx tsc:typecheck",
         "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+        "test:integration": "dotenv -e ../../.env.test -- cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.cjs --runInBand",
         "format": "prettier --write \"src/**/*.ts\"",
-        "format:check": "prettier --check \"src/**/*.ts\""
+        "format:check": "prettier --check \"src/**/*.ts\"",
+        "prisma:generate": "prisma generate",
+        "prisma:migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
+        "prisma:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+        "prisma:migrate:deploy:test": "dotenv -e ../../.env.test -- prisma migrate deploy",
+        "prisma:migrate:status": "dotenv -e ../../.env -- prisma migrate status",
+        "prisma:validate": "dotenv -e ../../.env -- prisma validate",
+        "prisma:studio": "dotenv -e ../../.env -- prisma studio",
+        "prisma:set-app-password": "dotenv -e ../../.env -- node ../../scripts/set-app-role-password.mjs",
+        "prisma:set-app-password:test": "dotenv -e ../../.env.test -- node ../../scripts/set-app-role-password.mjs",
+        "db:seed": "dotenv -e ../../.env -- node --loader ts-node/esm prisma/seed.ts"
     },
     "dependencies": {
         "@dropzo/shared-types": "0.1.0",
@@ -21,6 +32,7 @@
         "@nestjs/core": "^12.4.0",
         "@nestjs/platform-express": "^12.4.0",
         "@nestjs/swagger": "^12.1.1",
+        "@prisma/client": "^6.2.1",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.14.1",
         "joi": "^17.13.3",
@@ -36,9 +48,11 @@
         "@types/jest": "^29.5.14",
         "@types/node": "^22.10.1",
         "cross-env": "^7.0.3",
+        "dotenv-cli": "^8.0.0",
         "eslint": "^9.15.0",
         "jest": "^29.7.0",
         "prettier": "^3.3.3",
+        "prisma": "^6.2.1",
         "source-map-support": "^0.5.21",
         "supertest": "^7.0.0",
         "ts-jest": "^29.2.5",
@@ -75,5 +89,19 @@
         ],
         "coverageDirectory": "../coverage",
         "testEnvironment": "node"
+    },
+    "nx": {
+        "targets": {
+            "dev": {
+                "dependsOn": [
+                    {
+                        "target": "dev",
+                        "projects": [
+                            "infrastructure"
+                        ]
+                    }
+                ]
+            }
+        }
     }
 }

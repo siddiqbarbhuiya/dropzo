@@ -1,9 +1,10 @@
 # ADR-0005: PostgreSQL as the relational database
 
-- **Status:** Accepted (decision made; **not yet implemented** — no database exists in the
-  repository as of BC-003)
+- **Status:** Accepted; **implemented in BC-004** (schema and local Docker infrastructure - see
+  [`../06-delivery/BC-004-IMPLEMENTATION-PLAN.md`](../06-delivery/BC-004-IMPLEMENTATION-PLAN.md)).
+  Live verification against a real Postgres is still pending - see that plan's status note.
 - **Date:** 2026-11-07
-- **Related requirements/tasks:** Future database task (not BC-003)
+- **Related requirements/tasks:** BC-004
 
 ## Context
 

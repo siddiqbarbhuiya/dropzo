@@ -849,3 +849,151 @@ Not committed and not pushed — reporting these results first, per instruction.
 
 BC-004 is ready to begin, pending your explicit go-ahead. Do not implement Prisma, migrations, or
 application code from this task.
+
+## BC-004 — Database and development infrastructure
+
+Status: **Implemented; live database verification in progress** (see "Live verification" below).
+
+### What was built
+
+- **Docker Compose infrastructure**: [`infrastructure/docker/docker-compose.yml`](../../infrastructure/docker/docker-compose.yml)
+  (`postgis/postgis:16-3.4`, a named volume, a `pg_isready` healthcheck), plus
+  [`infrastructure/docker/init/01-create-test-database.sh`](../../infrastructure/docker/init/01-create-test-database.sh)
+  (creates the separate `dropzo_test` database on first init) and
+  [`infrastructure/docker/.env.example`](../../infrastructure/docker/.env.example).
+- **Nx `infrastructure` project**: [`infrastructure/project.json`](../../infrastructure/project.json)
+  with `dev` (`docker compose up -d --wait`), `down`, `status` targets — no fake build/test/lint
+  targets.
+- **`nx run-many -t dev` orchestration**: `apps/api/package.json`'s `dev` target now declares
+  `dependsOn: [{ target: "dev", projects: ["infrastructure"] }]` (via its `nx.targets` override),
+  so the API waits for Postgres to report healthy before starting; the web app has no such
+  dependency (starts immediately, shows "backend unreachable" per its existing BC-002 health-check
+  UI if the API isn't up yet). Verified via `npx nx show project api --json` that the dependency is
+  registered correctly (shown below).
+- **Prisma + NestJS integration**: `apps/api/prisma/schema.prisma` (41 models), a NestJS-managed
+  `PrismaService`/`PrismaModule` (`apps/api/src/prisma/`) with connect-on-init/disconnect-on-
+  destroy lifecycle, and `DATABASE_URL` made required in `apps/api/src/config/env.validation.ts`
+  (previously optional).
+- **Least-privilege runtime role**: the initial migration creates a restricted `dropzo_app`
+  Postgres role (SELECT/INSERT/UPDATE/DELETE on all tables, with UPDATE/DELETE explicitly revoked
+  on `ledger_transactions`/`ledger_entries`). `PrismaService` connects via `APP_DATABASE_URL`
+  (falling back to `DATABASE_URL`), so the running API never has the ledger-mutation privilege
+  that migrations (run as the Postgres superuser, which becomes the table owner) need — PostgreSQL
+  never restricts a table's owner via `REVOKE`, so this separation is what makes the design
+  document's "no UPDATE/DELETE grants" requirement actually effective, not merely cosmetic.
+- **Initial migration**: `apps/api/prisma/migrations/20261107120000_init/migration.sql`.
+  Generated via `prisma migrate diff --from-empty --to-schema-datamodel=prisma/schema.prisma
+--script` (no live database needed for this step), then hand-extended with every item from
+  `DATABASE-DESIGN.md`'s Prisma Implementation Readiness Checklist: `pgcrypto`/`postgis`
+  extensions; every CHECK constraint named in the table specifications (store_products,
+  inventory, stock_batches, cart_items, stock_reservations ×3, stock_reservation_items, orders,
+  order_items, refunds, financial_accounts, ledger_entries ×2); the two `stock_reservations`
+  partial unique indexes; the `financial_accounts` platform-account partial unique index; the
+  `ledger_entries` unsettled-balance partial index; GIST indexes on `stores.location` and
+  `user_addresses.location`; a GIN full-text index on `products.name`; the ledger balance
+  `CONSTRAINT TRIGGER ... INITIALLY DEFERRED`; and the `dropzo_app` role/grants/revokes above.
+- **Deterministic seed**: `apps/api/prisma/seed.ts` — the platform chart of accounts (4 rows, no
+  ledger entries, so no risk of an unbalanced transaction), one service zone, two categories, two
+  products/variants, one merchant with its `MERCHANT_PAYABLE` account, one store, two store
+  listings (one batch-tracked with an expiry-dated batch, one counter-based), and two users. Every
+  write is an upsert (or a raw-SQL `INSERT ... ON CONFLICT DO NOTHING` for `stores`, whose required
+  `GEOGRAPHY` column Prisma Client cannot write at all) — safe to rerun.
+- **Integration/concurrency test suite** (`apps/api/test/`, a separate Jest config/`tsconfig.json`
+  from the unit-test suite, run via `npm run test:integration -w apps/api`): schema integrity (all
+  41 tables present, FK/unique/CHECK/partial-index rejections), the full financial ledger (balanced
+  accepted, unbalanced rejected at commit time, the exact worked settlement example from
+  `DATABASE-DESIGN.md` reproduced to zero outstanding balance, a reversal that never edits the
+  original rows, and a dedicated test proving the `dropzo_app` role genuinely cannot `UPDATE`/
+  `DELETE` ledger rows), inventory concurrency (CHECK-enforced non-negative stock, FEFO ordering
+  with an expiry-date tiebreaker, exhausted-batch fallthrough, and two concurrent transactions
+  racing for the last unit of stock — exactly one succeeds), order/payment idempotency (scoped
+  `(customer_id, idempotency_key)`, webhook `(provider, provider_event_id)` dedup, append-only
+  payment status history), and outbox/notification reliability (`source_outbox_event_id` dedup,
+  two concurrent `SKIP LOCKED` claims never overlapping). A small test-only helper
+  (`apps/api/test/helpers/reservation.ts`) implements the FEFO locking procedure exactly as
+  `DATABASE-DESIGN.md` describes it, purely so these tests can exercise real transactional
+  behavior — it is not a NestJS service, controller, or API endpoint; the actual checkout feature
+  remains a separate, future task per `TASK-TRACKER.md`.
+- **CI**: `.github/workflows/ci.yml` — format, lint, typecheck, unit tests, `prisma validate`,
+  `prisma migrate deploy`, the integration suite, and production builds, against a real
+  `postgis/postgis` service container on every push/PR.
+- **Backup/restore**: `scripts/db-backup.mjs`/`db-restore.mjs` (shell out to the container's own
+  `pg_dump`/`pg_restore`), documented in the new
+  [`docs/07-operations/DATABASE-BACKUP-RESTORE.md`](../07-operations/DATABASE-BACKUP-RESTORE.md).
+- **Documentation sync**: `DEVELOPMENT-SETUP.md` (full database setup workflow, Docker/WSL2
+  caution note, CI section), `BC-004-IMPLEMENTATION-PLAN.md` (status), `TASK-TRACKER.md`,
+  `ROADMAP.md`, ADR-0005/ADR-0006 (status: implemented), `RISK-REGISTER.md`/`TECHNICAL-DEBT.md`
+  (TD-002 and TD-005 resolved at the appropriate level; new TD-006/RISK-008 tracked honestly rather
+  than hidden), `docs/README.md`.
+
+### Exact count of implemented MVP tables
+
+**41 of 41**, verified three ways: (1) `docs/04-design/DATABASE-DESIGN.md`'s own table-inventory
+list has exactly 41 `MVP-required` rows (counted programmatically); (2) `schema.prisma` has exactly
+41 `model` blocks, one per table, each `@@map`-ped to that table's exact name; (3) the generated
+migration's `CREATE TABLE` statements were diffed against the same list. `coupons`/
+`coupon_redemptions` are not modelled, as required.
+
+### Scope boundaries respected
+
+No application feature (cart, checkout, auth) was implemented. No business rule was changed. The
+approved schema was followed column-for-column; the one place I nearly deviated — giving
+`financial_accounts.merchant_id` a standalone `@unique` for a cleaner Prisma one-to-one relation —
+was caught via a reading of the generated SQL against the document (which specifies only the
+composite unique and the partial platform-account index) and corrected before it reached the
+migration. `DATABASE-DESIGN.md` itself was not changed; the BC-003.4 review remains closed.
+
+### Live verification
+
+Two independent environment blockers were found and worked through during this task, on the
+machine it was built on:
+
+1. **Docker Desktop's Linux engine could not start.** `docker info` returned a 500 error on the
+   `dockerDesktopLinuxEngine` pipe. Investigation (`wsl --status`) found WSL was not installed.
+   After WSL was installed mid-task, the real blocker surfaced: **hardware virtualization is not
+   enabled in this machine's firmware** (`wsl --status`: "WSL2 is unable to start since
+   virtualization is not enabled on this machine... enable it in your computer's firmware
+   settings"). This requires a BIOS/UEFI-level change and a reboot - outside what any software in
+   this repository, or this session, can do. Docker-based verification (`nx run infrastructure:dev`
+   end to end) was not completed for this reason.
+2. **A separate, pre-existing native PostgreSQL 17 Windows service** (unrelated to this project,
+   already running on port 5432 for other local work) was identified as an alternative real-Postgres
+   target. Its superuser credentials were supplied by the product owner. It was missing the PostGIS
+   extension (`pg_available_extensions` had no `postgis` row - only `pgcrypto`), which the schema's
+   `stores`/`user_addresses`/`service_zones` geography columns require; the migration's first
+   statements would fail immediately without it. Installing PostGIS via the instance's own Stack
+   Builder tool was in progress at the time of this report.
+
+No pre-existing database on that native instance was touched - verification used only newly
+created `dropzo`/`dropzo_test` databases and a new `dropzo_app` role, never `tenon-dev-local`,
+`tenon_dev_local`, `tenon_local_dev`, `tenon_admin_dev`, or `digidna_mcp`.
+
+**What was verified without a live database** (all of these completed and pass): `prisma format`,
+`prisma validate` (schema is syntactically and referentially valid), `prisma migrate diff
+--from-empty` (the exact DDL Prisma would generate, inspected statement-by-statement against
+`DATABASE-DESIGN.md`), TypeScript compilation of the schema-consuming code (`PrismaService`, the
+seed script, and the entire integration test suite - all type-check cleanly against the generated
+Prisma Client), and the full existing check suite (`format:check`, `lint`, `typecheck`, `test`,
+`build` - all pass, 0 regressions from the 36 new/changed files). A careful re-read of every
+integration test against the schema it exercises caught and fixed one real bug before it could
+cause confusing failures: several `inventory-concurrency.integration-spec.ts` cases called the FEFO
+reservation helper with no owning cart, which would have violated `stock_reservations`'s
+`num_nonnulls(cart_id, order_id) = 1` CHECK constraint - fixed to create and pass a real cart (a
+distinct one per concurrent actor, so the "last unit" race tests the stock constraint, not the
+reservation-uniqueness constraint).
+
+**Not yet verified**: actually applying the migration to a live Postgres, running the seed, and
+running the integration/concurrency test suite against real data and real locking behavior. This
+repository's own CI (`.github/workflows/ci.yml`) will do exactly this, against a real
+`postgis/postgis` service container with no environment-specific blockers, on the first push.
+
+### Security review finding, fixed
+
+An automated security review flagged `CREATE ROLE dropzo_app LOGIN PASSWORD 'dropzo_app_dev_only'`
+in the initial migration as a hardcoded credential (HIGH). Unlike `docker-compose.yml`'s dev-only
+defaults, a migration is applied byte-for-byte in every environment (local, CI, and eventually
+production), so a credential baked into it is a real risk, not local-dev noise. Fixed: the
+migration now creates `dropzo_app` with `LOGIN` and no password (unable to authenticate until one
+is set); a new `scripts/set-app-role-password.mjs` (wired as `npm run prisma:set-app-password[:test]
+-w apps/api`) sets it per environment from `APP_DATABASE_URL` - the one place the password is
+configured. `ci.yml` and `DEVELOPMENT-SETUP.md` updated to run this step after each migration.

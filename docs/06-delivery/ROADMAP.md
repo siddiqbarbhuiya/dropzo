@@ -8,16 +8,17 @@ the roadmap and the implementation plan are the same document; see
 
 ## Completed
 
-| Task     | What it delivered                                                                                                                                                                                                                      |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BC-001   | Repository foundation: monorepo structure, `README.md`, `AGENTS.md`, `.env.example`                                                                                                                                                    |
-| BC-002   | Development tooling: TypeScript/ESLint/Prettier/Jest/Vitest, NestJS health endpoint + Swagger, React shell with a live backend check                                                                                                   |
-| BC-002.1 | Nx integration (task orchestration + local caching) and a full dependency security audit                                                                                                                                               |
-| BC-003   | This documentation governance system                                                                                                                                                                                                   |
-| BC-003.1 | Final BC-003 verification, a critical database design review, and a BC-004 implementation plan                                                                                                                                         |
-| BC-003.2 | Database design corrections: an implementation-ready `DATABASE-DESIGN.md` incorporating the review's approved corrections                                                                                                              |
-| BC-003.3 | Database design corrections and final review: balanced financial ledger, batch-level FEFO, reservation integrity, payment history, order snapshots, idempotency scoping, settlement precision, outbox reliability                      |
-| BC-003.4 | Final database finalization: fixed platform-account NULL-uniqueness bug, worked settlement-reconciliation example, outbox/FCM delivery guarantee, deadlock-safe lock ordering, complete ERD. **Database design review is now closed.** |
+| Task     | What it delivered                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BC-001   | Repository foundation: monorepo structure, `README.md`, `AGENTS.md`, `.env.example`                                                                                                                                                                                                                                                                                                                                                                 |
+| BC-002   | Development tooling: TypeScript/ESLint/Prettier/Jest/Vitest, NestJS health endpoint + Swagger, React shell with a live backend check                                                                                                                                                                                                                                                                                                                |
+| BC-002.1 | Nx integration (task orchestration + local caching) and a full dependency security audit                                                                                                                                                                                                                                                                                                                                                            |
+| BC-003   | This documentation governance system                                                                                                                                                                                                                                                                                                                                                                                                                |
+| BC-003.1 | Final BC-003 verification, a critical database design review, and a BC-004 implementation plan                                                                                                                                                                                                                                                                                                                                                      |
+| BC-003.2 | Database design corrections: an implementation-ready `DATABASE-DESIGN.md` incorporating the review's approved corrections                                                                                                                                                                                                                                                                                                                           |
+| BC-003.3 | Database design corrections and final review: balanced financial ledger, batch-level FEFO, reservation integrity, payment history, order snapshots, idempotency scoping, settlement precision, outbox reliability                                                                                                                                                                                                                                   |
+| BC-003.4 | Final database finalization: fixed platform-account NULL-uniqueness bug, worked settlement-reconciliation example, outbox/FCM delivery guarantee, deadlock-safe lock ordering, complete ERD. **Database design review is now closed.**                                                                                                                                                                                                              |
+| BC-004   | Database and development infrastructure: all 41 MVP tables implemented via Prisma, the hand-written custom SQL from the Prisma Implementation Readiness Checklist, local PostgreSQL + PostGIS via Docker Compose, the unified `nx run-many -t dev` startup, a deterministic seed, backup/restore scripts, and GitHub Actions CI. Live Postgres verification (migrations/seed/integration tests) is not yet done - see `PROGRESS.md`'s BC-004 entry. |
 
 Full detail: [`PROGRESS.md`](PROGRESS.md).
 
@@ -26,13 +27,10 @@ Full detail: [`PROGRESS.md`](PROGRESS.md).
 1. **Business validation** — confirm merchant and customer interest in Badarpur before more
    engineering (see [`../00-project/PRODUCT-VISION.md`](../00-project/PRODUCT-VISION.md)). This is
    a business task, not a coding task, and can run in parallel with the items below.
-2. **BC-004 — Database and Prisma implementation** — introduce PostgreSQL, Prisma, and a unified
-   `nx run-many -t dev` startup. A detailed stage-by-stage plan already exists:
-   [`BC-004-IMPLEMENTATION-PLAN.md`](BC-004-IMPLEMENTATION-PLAN.md), status **Ready**. The design
-   is finalized and closed after three review rounds (`DATABASE-DESIGN.md`, BC-003.2 through
-   BC-003.4) — the only remaining gate before writing code is working through
-   `DATABASE-DESIGN.md`'s own "Prisma Implementation Readiness Checklist" during implementation,
-   not another review cycle.
+2. **BC-004 follow-up: live database verification** — run the migration, seed, and integration
+   test suite BC-004 produced against a real Postgres (on a machine with Docker/WSL2 working, or
+   via this repository's own CI) and close out anything it finds. Not a redesign - the schema
+   itself is unchanged and closed for review.
 3. **Authentication module** — phone OTP login, sessions, RBAC (FR-AUTH-001 through FR-AUTH-003).
 4. **Merchant/store module** — onboarding, store profile, operating hours (FR-MER-001 onward).
 5. **Catalogue and inventory modules** — products, variants, store listings, stock (FR-CAT-_,

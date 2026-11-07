@@ -1,9 +1,12 @@
 # ADR-0006: Prisma as the intended ORM
 
-- **Status:** Accepted (decision made; **implementation planned**, not started — Prisma is not in
-  `apps/api`'s dependencies as of BC-003)
+- **Status:** Accepted; **implemented in BC-004** (Prisma is now `apps/api`'s ORM - schema, initial
+  migration, and a NestJS-managed `PrismaService` all exist). Live verification against a real
+  Postgres is still pending - see
+  [`../06-delivery/BC-004-IMPLEMENTATION-PLAN.md`](../06-delivery/BC-004-IMPLEMENTATION-PLAN.md)'s
+  status note.
 - **Date:** 2026-11-07
-- **Related requirements/tasks:** Future database task (explicitly not BC-003)
+- **Related requirements/tasks:** BC-004
 
 ## Context
 
