@@ -9,13 +9,18 @@ import { OTP_PROVIDER } from './otp.constants.js';
 type OtpTx = Prisma.TransactionClient;
 
 export type OtpRequestResult =
-    { outcome: 'sent' } | { outcome: 'cooldown'; retryAfterSeconds: number };
+    | { outcome: 'sent'; challengeId: string }
+    | { outcome: 'cooldown'; retryAfterSeconds: number; challengeId: string };
 
+// Every outcome but 'not_found' refers to a real otp_challenges row, so carries its id - callers
+// (AuthService) use this as audit_logs.entity_id, which is a UUID column: there is no challenge
+// row to reference for 'not_found' (nothing was ever created for a phone that never requested an
+// OTP), so that outcome alone carries none.
 export type OtpVerifyResult =
-    | { outcome: 'verified' }
-    | { outcome: 'invalid'; attemptsRemaining: number }
-    | { outcome: 'expired' }
-    | { outcome: 'locked' }
+    | { outcome: 'verified'; challengeId: string }
+    | { outcome: 'invalid'; attemptsRemaining: number; challengeId: string }
+    | { outcome: 'expired'; challengeId: string }
+    | { outcome: 'locked'; challengeId: string }
     | { outcome: 'not_found' };
 
 /**
@@ -65,13 +70,14 @@ export class OtpService {
                     return {
                         outcome: 'cooldown' as const,
                         retryAfterSeconds: Math.ceil(cooldownSeconds - elapsedSeconds),
+                        challengeId: mostRecent.id,
                     };
                 }
             }
 
             await this.enforceRateLimits(tx, phone, ipAddress);
 
-            await tx.otpChallenge.create({
+            const created = await tx.otpChallenge.create({
                 data: {
                     phone,
                     code_hash: codeHash,
@@ -80,7 +86,7 @@ export class OtpService {
                     ip_address: ipAddress ?? undefined,
                 },
             });
-            return { outcome: 'sent' as const };
+            return { outcome: 'sent' as const, challengeId: created.id };
         });
 
         if (result.outcome === 'sent') {
@@ -127,10 +133,10 @@ export class OtpService {
                     where: { id: challenge.id },
                     data: { status: 'EXPIRED' },
                 });
-                return { outcome: 'expired' };
+                return { outcome: 'expired', challengeId: challenge.id };
             }
             if (challenge.attempt_count >= challenge.max_attempts) {
-                return { outcome: 'locked' };
+                return { outcome: 'locked', challengeId: challenge.id };
             }
 
             const matches = this.compareHash(code, challenge.code_hash);
@@ -145,16 +151,16 @@ export class OtpService {
                         where: { id: challenge.id },
                         data: { status: 'FAILED' },
                     });
-                    return { outcome: 'locked' };
+                    return { outcome: 'locked', challengeId: challenge.id };
                 }
-                return { outcome: 'invalid', attemptsRemaining };
+                return { outcome: 'invalid', attemptsRemaining, challengeId: challenge.id };
             }
 
             await tx.otpChallenge.update({
                 where: { id: challenge.id },
                 data: { status: 'VERIFIED', verified_at: new Date() },
             });
-            return { outcome: 'verified' };
+            return { outcome: 'verified', challengeId: challenge.id };
         });
     }
 

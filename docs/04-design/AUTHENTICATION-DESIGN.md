@@ -164,6 +164,14 @@ failure is caught and logged locally rather than propagated — an audit-trail g
 harmful than an outage caused by the audit trail itself. **Raw OTP codes, access tokens, and
 refresh tokens are never written to an audit log entry or any other log line.**
 
+`audit_logs.entity_id` is a UUID column (pre-existing BC-004 schema), so every event references a
+real row's id, never a phone number or token value directly: `AUTH_OTP_REQUESTED` and
+`AUTH_OTP_VERIFICATION_FAILED` reference the `otp_challenges` row the event concerns;
+`AUTH_REFRESH_TOKEN_REUSE_DETECTED` references the `user_sessions` row. The one case with no row to
+reference — a verification attempt against a phone number with no live challenge at all (`'not
+found'`) — is logged via the application logger instead of `audit_logs`, since there is no UUID
+entity for the schema's entity-keyed audit trail to point at.
+
 ## Environment variables
 
 | Variable                      | Required | Default | Purpose                                                      |

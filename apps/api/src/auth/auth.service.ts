@@ -1,7 +1,7 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../common/audit/audit.service.js';
-import { OtpService } from './otp/otp.service.js';
+import { OtpService, type OtpRequestResult } from './otp/otp.service.js';
 import { TokenService, type IssuedTokens } from './token.service.js';
 import { normalizePhoneNumber } from './phone.util.js';
 
@@ -10,8 +10,7 @@ export interface RequestContext {
     userAgent: string | null;
 }
 
-export type RequestOtpOutcome =
-    { outcome: 'sent' } | { outcome: 'cooldown'; retryAfterSeconds: number };
+export type RequestOtpOutcome = OtpRequestResult;
 
 export type VerifyOtpOutcome =
     | { outcome: 'verified'; tokens: IssuedTokens; isNewAccount: boolean }
@@ -22,6 +21,8 @@ export type VerifyOtpOutcome =
 
 @Injectable()
 export class AuthService {
+    private readonly logger = new Logger(AuthService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly otp: OtpService,
@@ -32,10 +33,13 @@ export class AuthService {
     async requestOtp(rawPhone: string, context: RequestContext): Promise<RequestOtpOutcome> {
         const phone = normalizePhoneNumber(rawPhone);
         const result = await this.otp.requestOtp(phone, context.ipAddress);
+        // audit_logs.entity_id is a UUID column - a phone number isn't one, so this references the
+        // real otp_challenges row the request concerns (always present: 'sent' just created one,
+        // 'cooldown' refers to the existing one that triggered it), not the phone number itself.
         await this.audit.record({
             action: 'AUTH_OTP_REQUESTED',
-            entityType: 'phone',
-            entityId: phone,
+            entityType: 'otp_challenge',
+            entityId: result.challengeId,
             afterState: { outcome: result.outcome },
         });
         return result;
@@ -57,18 +61,22 @@ export class AuthService {
         const result = await this.otp.verifyOtp(phone, code);
 
         if (result.outcome !== 'verified') {
-            await this.audit.record({
-                action: 'AUTH_OTP_VERIFICATION_FAILED',
-                entityType: 'phone',
-                entityId: phone,
-                afterState: { outcome: result.outcome },
-            });
-            // 'not_found' and 'invalid' are both reported as the same outcome to the caller - see
-            // the controller - so a client can never distinguish "wrong code" from "no OTP was
-            // ever requested for this phone," which would otherwise leak account/request state.
             if (result.outcome === 'not_found') {
+                // No otp_challenges row ever existed for this phone - there is no UUID entity to
+                // reference (audit_logs.entity_id is a UUID column), so this is logged, not
+                // DB-audited. Still useful signal (a guess against a phone with no live OTP), just
+                // not the kind of event the audit trail's entity-keyed schema is built to record.
+                this.logger.warn(
+                    'OTP verification attempted with no live challenge for this phone.',
+                );
                 return { outcome: 'invalid' };
             }
+            await this.audit.record({
+                action: 'AUTH_OTP_VERIFICATION_FAILED',
+                entityType: 'otp_challenge',
+                entityId: result.challengeId,
+                afterState: { outcome: result.outcome },
+            });
             return result;
         }
 
@@ -107,8 +115,8 @@ export class AuthService {
         if (result.outcome === 'reused') {
             await this.audit.record({
                 action: 'AUTH_REFRESH_TOKEN_REUSE_DETECTED',
-                entityType: 'refresh_token',
-                entityId: 'redacted',
+                entityType: 'user_session',
+                entityId: result.sessionId,
             });
             throw new UnauthorizedException('This session has been revoked.');
         }

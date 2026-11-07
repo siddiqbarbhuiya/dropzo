@@ -75,9 +75,12 @@ const repoRootEnvPath = resolve(__dirname, '..', '..', '..', '..', '.env');
 class TestAuthAppModule {}
 
 function freshPhone(): string {
-    // Indian mobile numbers are 10 digits starting 6-9; a fresh one per scenario sidesteps the
-    // 30s resend cooldown rather than fighting it.
-    return `9${randomUUID().replace(/\D/g, '').slice(0, 9).padEnd(9, '1')}`;
+    // Already in the exact E.164 form normalizePhoneNumber() produces (+91, 10 digits starting
+    // 6-9) - AuthService normalizes every phone it's given before using it as the OTP/session key,
+    // so a test phone not already in that form would mismatch DevOtpProvider's lookup key (it
+    // stores/retrieves by the *normalized* phone). A fresh one per scenario sidesteps the 30s
+    // resend cooldown rather than fighting it.
+    return `+919${randomUUID().replace(/\D/g, '').slice(0, 9).padEnd(9, '1')}`;
 }
 
 let app: INestApplication;
@@ -293,12 +296,15 @@ describe('OTP security (service + real DB)', () => {
     it('rejects further OTP requests once the per-phone hourly limit is reached', async () => {
         const phone = freshPhone();
         // OTP_PER_PHONE_HOURLY_LIMIT=5 (.env.test.example) counts rows in the last hour - insert
-        // 5 directly rather than fighting the 30s resend cooldown five times over.
+        // 5 directly rather than fighting the 30s resend cooldown five times over. created_at must
+        // be past OTP_RESEND_COOLDOWN_SECONDS (30s) so the cooldown check doesn't short-circuit
+        // before the rate-limit check this test actually targets, but still within the hourly
+        // window the rate limit counts against.
         await prisma.otpChallenge.createMany({
             data: Array.from({ length: 5 }, () => ({
                 phone,
                 code_hash: 'irrelevant',
-                created_at: new Date(Date.now() - 10_000),
+                created_at: new Date(Date.now() - 45_000),
                 expires_at: new Date(Date.now() - 1000),
                 status: 'EXPIRED',
             })),
@@ -598,7 +604,7 @@ describe('Merchant cross-tenant isolation (MerchantAccessGuard + real DB)', () =
         const { merchant, storeId } = await makeMerchantWithOwner();
         const staffUser = await prisma.user.create({ data: { phone: freshPhone() } });
         await prisma.merchantStaff.create({
-            data: { merchant_id: merchant.id, user_id: staffUser.id, role_title: 'picker' },
+            data: { merchant_id: merchant.id, user_id: staffUser.id, role: 'STAFF' },
         });
 
         await expect(

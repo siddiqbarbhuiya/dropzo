@@ -91,8 +91,8 @@ export class TokenService {
     ): Promise<
         | { outcome: 'rotated'; tokens: IssuedTokens; userId: string }
         | { outcome: 'invalid' }
-        | { outcome: 'expired' }
-        | { outcome: 'reused' }
+        | { outcome: 'expired'; sessionId: string }
+        | { outcome: 'reused'; sessionId: string }
     > {
         const presentedHash = this.hashRefreshToken(presentedToken);
 
@@ -109,14 +109,14 @@ export class TokenService {
                 // A revoked session's hash should never match a *newly* presented token under
                 // normal operation (rotation always changes the hash), so this branch means the
                 // same token is being replayed after the session was already revoked - reuse.
-                return { outcome: 'reused' as const };
+                return { outcome: 'reused' as const, sessionId: matching.id };
             }
             if (matching.expires_at.getTime() < Date.now()) {
                 await tx.userSession.update({
                     where: { id: matching.id },
                     data: { revoked_at: new Date() },
                 });
-                return { outcome: 'expired' as const };
+                return { outcome: 'expired' as const, sessionId: matching.id };
             }
 
             const user = await tx.user.findUniqueOrThrow({
