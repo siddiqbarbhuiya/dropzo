@@ -200,10 +200,17 @@ validation split). Summary:
 - Known dependency vulnerabilities are tracked, not fixed — see the risk register, not this file,
   for current status.
 - Live Postgres verification of BC-004's migration/seed/integration tests could not be completed
-  on the machine this task was implemented on (Docker Desktop's Linux engine needs WSL2, which
-  wasn't installed, and the machine's separate native PostgreSQL 17 service's credentials were not
-  available) - see [`PROGRESS.md`](../06-delivery/PROGRESS.md)'s BC-004 entry for the exact
-  blocker and what remains to verify on a machine with a working Docker/Postgres setup.
+  on the machine this task was implemented on: Docker Desktop's Linux engine needs hardware
+  virtualization enabled in the machine's BIOS/UEFI firmware (a one-time, per-machine change
+  outside any software fix), and a separate native PostgreSQL 17 service on that machine - whose
+  credentials were obtained - is missing the PostGIS extension. See
+  [`PROGRESS.md`](../06-delivery/PROGRESS.md)'s BC-004 entry for the exact blockers and what
+  remains to verify on a machine with a working Docker/Postgres+PostGIS setup.
+- The first two CI runs failed at "Prisma schema validation" due to an npm bin-name collision
+  between `dotenv-cli` and a transitive `dotenv` dependency (both provide a `dotenv` binary) - fixed
+  by invoking `dotenv-cli` via its exact file path in every `apps/api/package.json` script, rather
+  than relying on the ambiguous `dotenv` command name. See `PROGRESS.md`'s BC-004 entry for the
+  full diagnosis.
 
 ## CI
 

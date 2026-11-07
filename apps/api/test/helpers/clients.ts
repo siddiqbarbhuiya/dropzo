@@ -17,6 +17,19 @@ if (!process.env.DATABASE_URL) {
     );
 }
 
+// Defence in depth against ever running this suite's TRUNCATE-heavy resetDatabase() against a
+// real development database: fail loudly at startup, before any connection is made, unless the
+// target database name is unambiguously the test one.
+const targetDatabase = new URL(process.env.DATABASE_URL).pathname.replace(/^\//, '');
+if (!targetDatabase.endsWith('_test')) {
+    throw new Error(
+        `Refusing to run the integration suite against database "${targetDatabase}" - its name ` +
+            'does not end in "_test". This suite truncates every table on every test; it must ' +
+            'only ever run via `npm run test:integration`, which loads .env.test (dropzo_test), ' +
+            'never .env (dropzo).',
+    );
+}
+
 export const adminPrisma = new PrismaClient({
     datasources: { db: { url: process.env.DATABASE_URL } },
 });

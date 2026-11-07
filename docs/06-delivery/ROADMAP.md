@@ -27,10 +27,12 @@ Full detail: [`PROGRESS.md`](PROGRESS.md).
 1. **Business validation** — confirm merchant and customer interest in Badarpur before more
    engineering (see [`../00-project/PRODUCT-VISION.md`](../00-project/PRODUCT-VISION.md)). This is
    a business task, not a coding task, and can run in parallel with the items below.
-2. **BC-004 follow-up: live database verification** — run the migration, seed, and integration
-   test suite BC-004 produced against a real Postgres (on a machine with Docker/WSL2 working, or
-   via this repository's own CI) and close out anything it finds. Not a redesign - the schema
-   itself is unchanged and closed for review.
+2. **BC-004 follow-up: live database verification** — confirm CI actually passes every database
+   step on the next push (the first two runs failed on an unrelated npm bug, now fixed - see
+   `PROGRESS.md`), or run the migration, seed, and integration test suite against a real Postgres
+   locally once the build machine's Docker (needs hardware virtualization enabled in firmware) or
+   its native PostgreSQL 17 service (needs the PostGIS extension) is usable. Not a redesign - the
+   schema itself is unchanged and closed for review.
 3. **Authentication module** — phone OTP login, sessions, RBAC (FR-AUTH-001 through FR-AUTH-003).
 4. **Merchant/store module** — onboarding, store profile, operating hours (FR-MER-001 onward).
 5. **Catalogue and inventory modules** — products, variants, store listings, stock (FR-CAT-_,

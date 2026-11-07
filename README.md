@@ -38,9 +38,12 @@ scripts/          developer utility scripts
 
 ## Status
 
-Project foundation and tooling only (repository setup, dev tooling, Nx orchestration, and this
-documentation system). No business features are implemented yet. See
-[`docs/06-delivery/PROGRESS.md`](docs/06-delivery/PROGRESS.md) for exactly what's done.
+Foundation, tooling, and the database/development infrastructure are in place: repository setup,
+dev tooling, Nx orchestration, this documentation system, the full database schema (41 MVP-required
+tables) with local PostgreSQL + PostGIS via Docker Compose, Prisma, a deterministic seed, and CI.
+**No customer-facing, merchant-facing, or admin business features are implemented yet** — those are
+future tasks. See [`docs/06-delivery/PROGRESS.md`](docs/06-delivery/PROGRESS.md) for exactly what's
+done and what remains to be verified.
 
 ## Documentation
 

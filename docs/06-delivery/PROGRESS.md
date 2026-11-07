@@ -998,6 +998,113 @@ is set); a new `scripts/set-app-role-password.mjs` (wired as `npm run prisma:set
 -w apps/api`) sets it per environment from `APP_DATABASE_URL` - the one place the password is
 configured. `ci.yml` and `DEVELOPMENT-SETUP.md` updated to run this step after each migration.
 
+## BC-004 — Final verification, CI remediation and closure (remediation pass)
+
+Status: **Defects fixed; live CI verification not yet re-run (not committed/pushed per this
+task's own instruction).**
+
+### Git and CI state at the start of this task
+
+- Branch `main`, HEAD `8e5e561`, working tree clean, `origin/main` in sync.
+- Both published CI runs had **failed**:
+    - Run #1 (`264eebc`, `https://github.com/siddiqbarbhuiya/dropzo/actions/runs/42359532048`):
+      failed at "Prisma schema validation".
+    - Run #2 (`8e5e561`, `https://github.com/siddiqbarbhuiya/dropzo/actions/runs/42360302835`):
+      **also failed**, at the same step - confirmed by reading its actual log, not assumed.
+- The user signed in to GitHub in the session's browser pane so the actual step logs (not just the
+  "Process completed with exit code 1" annotation) could be read.
+
+### Root cause of the CI failure (from the actual log, not guessed)
+
+Run #1's "Prisma schema validation" log showed `dotenv`'s own usage text
+(`Usage: dotenv run [...] -f|--file <paths> [--] <command>`), not `dotenv-cli`'s
+(`Usage: dotenv [...] [-e <path>] [...]`) - meaning the `dotenv` command every
+`apps/api/package.json` script invoked (`dotenv -e ../../.env -- prisma validate`) was **not**
+resolving to the intended `dotenv-cli` package. `npm ls dotenv` explained why: `@nestjs/config`
+depends directly on `dotenv@18.0.3`, which (as of its own CLI rewrite) also ships a binary
+literally named `dotenv` - the exact same name `dotenv-cli@8.0.0` registers. Both packages are
+legitimate, necessary dependencies; this is a genuine npm bin-name collision, and which one wins
+the `node_modules/.bin/dotenv` symlink is install-order-dependent - it happened to resolve
+differently in CI's clean `npm ci` than in prior local testing.
+
+### Defects fixed
+
+1. **The dotenv bin collision** (root cause above): every `apps/api/package.json` script changed
+   from `dotenv -e <file> -- <command>` to `node ../../node_modules/dotenv-cli/cli.js -e <file> --
+<command>` - invoking the intended package by its exact file path, never by the ambiguous
+   `dotenv` command name. Reproduced locally (a clean reinstall briefly hit the exact same
+   collision after an unrelated `npm ci` interruption) and confirmed the fix resolves it.
+2. **Invalid seed UUIDs.** Every hardcoded ID in `apps/api/prisma/seed.ts`
+   (`...z001`, `...p001`, `...p002`, `...m001`, `...s001`, `...b001`) contained non-hex characters
+   invalid for PostgreSQL's `uuid` type. Replaced with pure-hex, deterministic, distinct IDs
+   (`...0001`, `...0101`, `...0102`, `...0201`, `...0301`, `...0401`). All natural-key-based upserts
+   (phone numbers, category slugs, product SKUs) were already valid and untouched. Added
+   `scripts/validate-seed-uuids.mjs` - a small, DB-free, fast check that regex-extracts every
+   UUID-shaped literal from `seed.ts` and rejects any non-hex character; wired into CI as an early
+   step, right after Prisma schema validation.
+3. **CI's `.env`/`.env.test` accidentally shared one database.** The published workflow set
+   `DATABASE_URL` to `dropzo_test` in `.env`, then created `.env.test` as a literal copy of `.env` -
+   meaning both "development" and "test" contexts in CI pointed at the same `dropzo_test` database.
+   Fixed: the Postgres service now only auto-creates `dropzo` (via `POSTGRES_DB`); a new step
+   creates `dropzo_test` explicitly via `psql`; `.env` and `.env.test` are now written
+   independently, each with its own correct `DATABASE_URL`/`APP_DATABASE_URL`. A new defence-in-depth
+   check (`apps/api/test/helpers/clients.ts`) now refuses to run the integration suite at all unless
+   its `DATABASE_URL` resolves to a database name ending in `_test`; CI also independently verifies
+   this with its own explicit step before running the suite.
+4. **Missing `prisma generate` step.** Not previously a dedicated CI step (relied on
+   `@prisma/client`'s own postinstall hook). Found to be load-bearing: a forced local dependency
+   reinstall (below) reproduced ten `implicitly has an 'any' type` TypeScript errors across the
+   entire integration test suite until `prisma generate` was run explicitly - the generated
+   client's types are what give those queries their real return types. Added as its own explicit
+   CI step, before typecheck.
+5. Migrations are now applied to **both** `dropzo` and `dropzo_test` in CI (previously only the
+   test database), and the deterministic seed now runs **twice** in CI against the development
+   database specifically, to verify idempotency as the task requires.
+
+### How the dotenv fix and others were verified without a live database
+
+A clean `npm ci` was attempted locally to mirror CI's install behavior exactly; it was interrupted
+mid-run by an OS-level file lock (`EPERM` unlinking `esbuild.exe`, unrelated to this task - likely
+antivirus or another process briefly holding the file), leaving `node_modules` partially deleted.
+Recovered via `npm install` (811 packages reinstalled, dependency tree unchanged, same 45
+`npm audit` findings as before - nothing regressed). This incident is exactly what reproduced the
+missing-`prisma generate` defect above. After recovery, the fixed `prisma:validate` script was run
+directly and succeeded; the full existing check suite (`format:check`, `lint`, `typecheck`, `test`,
+`build`) was re-run and passed; `prisma format`/`validate` were re-run;
+`scripts/validate-seed-uuids.mjs` was run and confirmed all 6 unique seed IDs are now valid.
+
+### What remains genuinely unverified
+
+The build machine's two live-database options are both still unavailable, unchanged from the
+previous session: Docker Desktop's Linux engine cannot start because hardware virtualization is
+not enabled in this machine's firmware (`wsl --status` confirms this precisely, re-checked during
+this task); the separate native PostgreSQL 17 service (credentials now known: `postgres`/`postgres`
+on `localhost:5432`) is still missing the PostGIS extension (`pg_available_extensions` has no
+`postgis` row), so even that path cannot run the migration's very first statements. Attempting
+`docker compose up` and `nx run-many -t dev` both hang (not a clean fast failure) rather than
+erroring, consistent with a non-functional Docker backend; no orphaned processes were left behind
+(verified). **Backup/restore and the full Nx dev-orchestration flow could not be executed for the
+same reason and remain unverified** - this task's own instruction permits relying on CI for
+container-level verification in this situation, and explicitly forbids claiming local runtime
+verification that didn't happen, so none is claimed here.
+
+### BC-004 completion decision
+
+**Not marked Done.** Per this task's own acceptance criteria, BC-004 can only close once CI
+actually passes on a real run. The defects that caused the first two failures are fixed and
+locally re-verified as far as possible without a database connection, but **no run has yet
+confirmed the fix against a real Postgres** - the next push's CI run is what will. TD-006 is left
+open for the same reason. `BC-004` stays **In Review** in `TASK-TRACKER.md`.
+
+### Git status
+
+Nothing committed or pushed from this remediation pass, per this task's explicit instruction.
+Changed files: `apps/api/package.json` (dotenv-cli invocation), `apps/api/prisma/seed.ts` (UUIDs),
+`apps/api/test/helpers/clients.ts` (test-database guard), `.github/workflows/ci.yml` (full
+rewrite), new `scripts/validate-seed-uuids.mjs`, and documentation
+(`BC-004-IMPLEMENTATION-PLAN.md`, `DATABASE-DESIGN.md`, `README.md`, `DEVELOPMENT-SETUP.md`,
+`TASK-TRACKER.md`, `ROADMAP.md`, `RISK-REGISTER.md`, `TECHNICAL-DEBT.md`, this entry).
+
 ### Second security review finding, fixed
 
 A follow-up automated review of the pushed migration flagged (MEDIUM) that the balance trigger's

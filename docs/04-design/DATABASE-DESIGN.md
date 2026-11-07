@@ -1,14 +1,19 @@
 # Database design
 
-**Status: Finalized for BC-004 (BC-003.4).** No database, Prisma schema, or migration exists in
-this repository yet (see [ADR-0005](../03-decisions/ADR-0005-postgresql-database.md) and
-[ADR-0006](../03-decisions/ADR-0006-prisma-orm-planned.md): the technology is decided, the schema
-is not implemented). This document has now been through three correction rounds (BC-003.2,
-BC-003.3, BC-003.4) and is considered **closed** for database-design review — see
+**Status: Finalized (BC-003.4); implemented in BC-004, live verification pending.** This document
+remains the single canonical schema specification — every rule below is authoritative, and nothing
+here changes to accommodate an implementation detail. The implementation itself lives in
+[`../../apps/api/prisma/schema.prisma`](../../apps/api/prisma/schema.prisma) (all 41 MVP-required
+tables) and [`../../apps/api/prisma/migrations/`](../../apps/api/prisma/migrations/) (the initial
+migration, including every hand-written addition this document's own Prisma Implementation
+Readiness Checklist requires). See
+[`../06-delivery/BC-004-IMPLEMENTATION-PLAN.md`](../06-delivery/BC-004-IMPLEMENTATION-PLAN.md) and
+[`../06-delivery/PROGRESS.md`](../06-delivery/PROGRESS.md)'s BC-004 entry for what has and has not
+been verified against a live database so far. This document has now been through three correction
+rounds (BC-003.2, BC-003.3, BC-003.4) and is considered **closed** for database-design review — see
 [`DATABASE-DESIGN-REVIEW.md`](DATABASE-DESIGN-REVIEW.md) for the full history. Further changes
-should only happen if BC-004 implementation discovers an actual, demonstrable defect, not as
-another round of preliminary review. **Prisma schema work must not begin until this document's own
-"Prisma Implementation Readiness Checklist" is satisfied.**
+should only happen if implementation work discovers an actual, demonstrable defect, not as another
+round of preliminary review.
 
 This remains one canonical file, by decision (BC-003.2) — not split across `02-architecture/` and
 `04-design/`, and not split per module.
@@ -1381,6 +1386,13 @@ flagged for manual review instead of retried indefinitely.
 
 Use this checklist before writing `schema.prisma`. **Do not generate the schema until every item
 is either checked or explicitly deferred with a reason.**
+
+**BC-004 implementation note:** every item below has been addressed in
+[`../../apps/api/prisma/schema.prisma`](../../apps/api/prisma/schema.prisma) and the initial
+migration under [`../../apps/api/prisma/migrations/`](../../apps/api/prisma/migrations/) - this
+section is left as originally written (a pre-work gate), not retroactively checked off, since live
+execution against a real database is still pending (see `PROGRESS.md`'s BC-004 entry) and this
+checklist's own instruction is about generating the schema, not about final sign-off.
 
 - [ ] **Schema completeness**: every MVP-required table above has a corresponding Prisma `model`,
       with no table silently dropped or merged.

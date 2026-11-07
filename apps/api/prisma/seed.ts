@@ -33,10 +33,10 @@ async function main(): Promise<void> {
 
     // --- Location
     const zone = await prisma.serviceZone.upsert({
-        where: { id: '00000000-0000-0000-0000-00000000z001' },
+        where: { id: '00000000-0000-0000-0000-000000000001' },
         update: {},
         create: {
-            id: '00000000-0000-0000-0000-00000000z001',
+            id: '00000000-0000-0000-0000-000000000001',
             name: 'Badarpur',
             city: 'Badarpur',
             state: 'Assam',
@@ -57,10 +57,10 @@ async function main(): Promise<void> {
     });
 
     const milk = await prisma.product.upsert({
-        where: { id: '00000000-0000-0000-0000-00000000p001' },
+        where: { id: '00000000-0000-0000-0000-000000000101' },
         update: {},
         create: {
-            id: '00000000-0000-0000-0000-00000000p001',
+            id: '00000000-0000-0000-0000-000000000101',
             category_id: dairyBakery.id,
             name: 'Amul Toned Milk',
             brand: 'Amul',
@@ -81,10 +81,10 @@ async function main(): Promise<void> {
     });
 
     const biscuit = await prisma.product.upsert({
-        where: { id: '00000000-0000-0000-0000-00000000p002' },
+        where: { id: '00000000-0000-0000-0000-000000000102' },
         update: {},
         create: {
-            id: '00000000-0000-0000-0000-00000000p002',
+            id: '00000000-0000-0000-0000-000000000102',
             category_id: groceries.id,
             name: 'Parle-G Biscuits',
             brand: 'Parle',
@@ -129,10 +129,10 @@ async function main(): Promise<void> {
 
     // --- Merchant and its financial account
     const merchant = await prisma.merchant.upsert({
-        where: { id: '00000000-0000-0000-0000-00000000m001' },
+        where: { id: '00000000-0000-0000-0000-000000000201' },
         update: {},
         create: {
-            id: '00000000-0000-0000-0000-00000000m001',
+            id: '00000000-0000-0000-0000-000000000201',
             owner_user_id: merchantOwner.id,
             legal_name: 'Badarpur Kirana Stores Pvt Ltd',
             display_name: 'Badarpur Kirana',
@@ -160,7 +160,7 @@ async function main(): Promise<void> {
     // stores.location is NOT NULL, and Prisma Client cannot write an Unsupported("geography")
     // column at all (it is excluded from the generated create/update input entirely, not merely
     // defaulted) - the whole row is inserted via raw SQL instead of prisma.store.upsert().
-    const storeId = '00000000-0000-0000-0000-00000000s001';
+    const storeId = '00000000-0000-0000-0000-000000000301';
     await prisma.$executeRaw`
         INSERT INTO "stores" (
             "id", "merchant_id", "name", "address", "district", "city",
@@ -198,10 +198,10 @@ async function main(): Promise<void> {
         },
     });
     await prisma.stockBatch.upsert({
-        where: { id: '00000000-0000-0000-0000-00000000b001' },
+        where: { id: '00000000-0000-0000-0000-000000000401' },
         update: {},
         create: {
-            id: '00000000-0000-0000-0000-00000000b001',
+            id: '00000000-0000-0000-0000-000000000401',
             inventory_id: milkInventory.id,
             batch_code: 'SEED-BATCH-001',
             received_quantity: 50,

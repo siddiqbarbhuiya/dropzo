@@ -1,13 +1,17 @@
 # BC-004 implementation plan: PostgreSQL, Docker Compose, Prisma, and unified dev environment
 
-**Status: Implemented, live verification pending.** Stages 1-8 below are implemented exactly as
-planned (see [`PROGRESS.md`](PROGRESS.md)'s BC-004 entry for the full report). Stage 9's test
-suite is written and type-checks, but could not be run against a real Postgres on the machine this
-was built on - Docker Desktop's Linux engine needs WSL2, which wasn't installed, and a separate
-native PostgreSQL 17 service already running on that machine couldn't be used without credentials
-that weren't available. This repository's own CI (`.github/workflows/ci.yml`) runs the full
-migration + integration-test suite against a real `postgis/postgis` service container on every
-push, so the first push of this work is also its first live verification.
+**Status: Implemented; CI remediation in progress, live verification not yet passed.** Stages 1-8
+below are implemented exactly as planned (see [`PROGRESS.md`](PROGRESS.md)'s BC-004 entry for the
+full report, including every defect found and fixed). The first two CI runs
+(`264eebc`, `8e5e561`) both **failed** at the "Prisma schema validation" step — root cause: an npm
+bin-name collision between `dotenv-cli` and a transitive `dotenv` dependency, not a schema problem
+— see `PROGRESS.md` for the full diagnosis and fix. Stage 9's test suite is written, type-checks,
+and has been reviewed line-by-line against the schema it exercises, but has not yet been run
+successfully against a real Postgres: this repository's own CI (`.github/workflows/ci.yml`) is the
+environment that will actually prove it, once the current remediation is pushed; the build
+machine's own Docker (needs hardware virtualization enabled in firmware) and its separate native
+PostgreSQL 17 service (missing the PostGIS extension) both remain unavailable for local
+verification.
 
 Prepared in BC-003.1; revised in BC-003.2 after the database design
 review's open questions were resolved by product-owner decisions; revised in BC-003.3 after a
@@ -17,8 +21,7 @@ delivery guarantees, lock ordering, ERD completeness — see
 [`../04-design/DATABASE-DESIGN.md`](../04-design/DATABASE-DESIGN.md)'s change-log sections).
 **Database design review is now closed** — further changes should only happen if BC-004
 implementation itself discovers an actual, demonstrable defect, not from another preliminary
-review pass. Execution (i.e. actually writing code) is still a separate, future task — nothing in
-this plan has been implemented.
+review pass.
 
 **Prisma schema implementation (Stage 4) must not begin until `DATABASE-DESIGN.md`'s own "Prisma
 Implementation Readiness Checklist" is satisfied** — work through it item by item before the first
