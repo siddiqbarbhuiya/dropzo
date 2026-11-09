@@ -123,6 +123,15 @@ export class MerchantApplicationService {
         dto: UpdateMerchantApplicationDto,
     ): Promise<Merchant> {
         const merchant = await this.getByOwnerOrThrow(userId);
+        // Editing is only safe before or between reviews - once APPROVED, silently letting the
+        // owner change legal_name/business_address/etc. would let vetted details drift without
+        // ever being re-reviewed. SUSPENDED is blocked for the same reason PENDING isn't: nothing
+        // about a suspension should be editable away by the suspended party.
+        if (merchant.verification_status === 'APPROVED' || merchant.verification_status === 'SUSPENDED') {
+            throw new ConflictException(
+                `Cannot edit an application that is already ${merchant.verification_status} - contact an administrator.`,
+            );
+        }
         const updated = await this.prisma.merchant.update({
             where: { id: merchant.id },
             data: toColumns(dto),

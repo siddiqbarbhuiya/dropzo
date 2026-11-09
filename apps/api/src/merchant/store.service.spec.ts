@@ -56,6 +56,10 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
         merchant: {
             findUnique: jest.fn(async () => ({ id: 'merchant-1' })),
         },
+        serviceZone: {
+            findUnique: jest.fn(async () => ({ id: 'zone-1', is_active: true })),
+            ...((overrides.serviceZone as object) ?? {}),
+        },
     } as never;
 }
 
@@ -101,6 +105,26 @@ describe('StoreService', () => {
                 }),
             ).rejects.toThrow(BadRequestException);
         });
+
+        it('rejects an inactive service zone', async () => {
+            const prisma = makePrisma({
+                serviceZone: { findUnique: jest.fn(async () => ({ id: 'zone-1', is_active: false })) },
+            });
+            const service = new StoreService(prisma, makeAudit(), makeMerchantApplications());
+
+            await expect(
+                service.createStore('user-1', { ...dto, serviceZoneId: 'zone-1' }),
+            ).rejects.toThrow(BadRequestException);
+        });
+
+        it('rejects a service zone that does not exist', async () => {
+            const prisma = makePrisma({ serviceZone: { findUnique: jest.fn(async () => null) } });
+            const service = new StoreService(prisma, makeAudit(), makeMerchantApplications());
+
+            await expect(
+                service.createStore('user-1', { ...dto, serviceZoneId: 'does-not-exist' }),
+            ).rejects.toThrow(BadRequestException);
+        });
     });
 
     describe('getOwnStore', () => {
@@ -113,6 +137,42 @@ describe('StoreService', () => {
             await expect(service.getOwnStore('user-1', 'someone-elses-store')).rejects.toThrow(
                 NotFoundException,
             );
+        });
+    });
+
+    describe('suspension blocks ordinary store edits', () => {
+        const merchantApplications = makeMerchantApplications({
+            getMerchantForOwner: jest.fn(async () => ({
+                id: 'merchant-1',
+                verification_status: 'SUSPENDED',
+            })),
+        });
+
+        it('rejects updateStore for a suspended merchant', async () => {
+            const prisma = makePrisma();
+            const service = new StoreService(prisma, makeAudit(), merchantApplications);
+
+            await expect(
+                service.updateStore('user-1', 'store-1', { name: 'New Name' }),
+            ).rejects.toThrow(ForbiddenException);
+        });
+
+        it('rejects updateHours for a suspended merchant', async () => {
+            const prisma = makePrisma();
+            const service = new StoreService(prisma, makeAudit(), merchantApplications);
+
+            await expect(
+                service.updateHours('user-1', 'store-1', { mon: { open: '09:00', close: '18:00' } }),
+            ).rejects.toThrow(ForbiddenException);
+        });
+
+        it('rejects updateAvailability for a suspended merchant', async () => {
+            const prisma = makePrisma();
+            const service = new StoreService(prisma, makeAudit(), merchantApplications);
+
+            await expect(
+                service.updateAvailability('user-1', 'store-1', { supportsPickup: false }),
+            ).rejects.toThrow(ForbiddenException);
         });
     });
 

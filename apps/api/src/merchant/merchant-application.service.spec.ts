@@ -116,6 +116,56 @@ describe('MerchantApplicationService', () => {
         });
     });
 
+    describe('updateOwnApplication', () => {
+        it('allows editing while PENDING', async () => {
+            const prisma = makePrisma({
+                merchant: {
+                    findUnique: jest.fn(async () => ({
+                        id: 'merchant-1',
+                        verification_status: 'PENDING',
+                    })),
+                },
+            });
+            const service = new MerchantApplicationService(prisma, makeAudit());
+
+            await expect(
+                service.updateOwnApplication('user-1', { displayName: 'New Name' }),
+            ).resolves.toBeDefined();
+        });
+
+        it('rejects editing an APPROVED application (no silent drift of vetted details)', async () => {
+            const prisma = makePrisma({
+                merchant: {
+                    findUnique: jest.fn(async () => ({
+                        id: 'merchant-1',
+                        verification_status: 'APPROVED',
+                    })),
+                },
+            });
+            const service = new MerchantApplicationService(prisma, makeAudit());
+
+            await expect(
+                service.updateOwnApplication('user-1', { displayName: 'New Name' }),
+            ).rejects.toThrow(ConflictException);
+        });
+
+        it('rejects editing a SUSPENDED application', async () => {
+            const prisma = makePrisma({
+                merchant: {
+                    findUnique: jest.fn(async () => ({
+                        id: 'merchant-1',
+                        verification_status: 'SUSPENDED',
+                    })),
+                },
+            });
+            const service = new MerchantApplicationService(prisma, makeAudit());
+
+            await expect(
+                service.updateOwnApplication('user-1', { displayName: 'New Name' }),
+            ).rejects.toThrow(ConflictException);
+        });
+    });
+
     describe('requireApprovedMerchantForOwner', () => {
         it('throws when the merchant has not been approved yet', async () => {
             const prisma = makePrisma({

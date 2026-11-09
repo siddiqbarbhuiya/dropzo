@@ -11,6 +11,7 @@ import {
     IsUUID,
     Length,
     MaxLength,
+    ValidateNested,
 } from 'class-validator';
 import { StoreOperatingHoursDto } from './store-operating-hours.dto.js';
 
@@ -101,6 +102,7 @@ export class CreateStoreDto {
 
     @ApiPropertyOptional({ type: StoreOperatingHoursDto })
     @IsOptional()
+    @ValidateNested()
     @Type(() => StoreOperatingHoursDto)
     openingHours?: StoreOperatingHoursDto;
 }

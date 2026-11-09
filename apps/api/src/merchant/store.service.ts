@@ -47,6 +47,26 @@ function validateHours(hours: StoreOperatingHoursDto): void {
     }
 }
 
+// Re-exported so Prisma's Merchant type (private to merchant-application.service.ts) isn't
+// imported here just for this one field's type.
+interface SuspendableMerchant {
+    verification_status: string;
+}
+
+/**
+ * Blocks ordinary store edits (details/hours/availability) while the owning merchant is
+ * SUSPENDED - a suspension that only ever blocked store *creation* and *reactivation* left every
+ * other store-mutating endpoint reachable, which defeats the point of suspending the merchant in
+ * the first place. Status transitions are handled separately (`updateStatusByMerchant`), which
+ * already has its own narrower check: a suspended merchant may still pause/close a store, just
+ * never reactivate one.
+ */
+function assertNotSuspended(merchant: SuspendableMerchant): void {
+    if (merchant.verification_status === 'SUSPENDED') {
+        throw new ForbiddenException('Your merchant account is suspended.');
+    }
+}
+
 @Injectable()
 export class StoreService {
     constructor(
@@ -59,6 +79,9 @@ export class StoreService {
         const merchant = await this.merchantApplications.requireApprovedMerchantForOwner(userId);
         if (dto.openingHours) {
             validateHours(dto.openingHours);
+        }
+        if (dto.serviceZoneId) {
+            await this.assertServiceZoneActive(dto.serviceZoneId);
         }
 
         const storeId = randomUUID();
@@ -107,7 +130,11 @@ export class StoreService {
 
     async updateStore(userId: string, storeId: string, dto: UpdateStoreDto): Promise<Store> {
         const merchant = await this.merchantApplications.getMerchantForOwner(userId);
+        assertNotSuspended(merchant);
         const store = await this.getOwnedOrThrow(merchant.id, storeId);
+        if (dto.serviceZoneId) {
+            await this.assertServiceZoneActive(dto.serviceZoneId);
+        }
 
         const hasLatLng = dto.latitude !== undefined || dto.longitude !== undefined;
         if (hasLatLng && (dto.latitude === undefined || dto.longitude === undefined)) {
@@ -154,6 +181,7 @@ export class StoreService {
         hours: StoreOperatingHoursDto,
     ): Promise<Store> {
         const merchant = await this.merchantApplications.getMerchantForOwner(userId);
+        assertNotSuspended(merchant);
         const store = await this.getOwnedOrThrow(merchant.id, storeId);
         validateHours(hours);
 
@@ -176,6 +204,7 @@ export class StoreService {
         availability: { supportsPickup?: boolean; supportsDelivery?: boolean },
     ): Promise<Store> {
         const merchant = await this.merchantApplications.getMerchantForOwner(userId);
+        assertNotSuspended(merchant);
         const store = await this.getOwnedOrThrow(merchant.id, storeId);
 
         const updated = await this.prisma.store.update({
@@ -297,6 +326,25 @@ export class StoreService {
                 totalPages: Math.max(1, Math.ceil(total / pagination.limit)),
             },
         };
+    }
+
+    /**
+     * A store's `service_zone_id` is merchant-supplied, so it must be checked server-side rather
+     * than trusted outright: the foreign key alone only stops a reference to a zone that doesn't
+     * exist at all, not one that exists but has since been decommissioned (`is_active = false`).
+     * Geographic containment (the store's location actually falling inside the zone) is
+     * deliberately not checked here - per `DATABASE-DESIGN.md`'s "Service zones and delivery
+     * eligibility", zone membership plus `max_delivery_radius_km`/`boundary` governs *customer
+     * address* eligibility for a given store, not a constraint on where the store itself may sit;
+     * inventing one here would be a real behaviour change beyond this task's scope, not a fix.
+     */
+    private async assertServiceZoneActive(serviceZoneId: string): Promise<void> {
+        const zone = await this.prisma.serviceZone.findUnique({ where: { id: serviceZoneId } });
+        if (!zone || !zone.is_active) {
+            throw new BadRequestException(
+                'The selected service zone does not exist or is not active.',
+            );
+        }
     }
 
     /** Never trusts storeId alone - always re-checked against the resolved owner's merchant_id. */
