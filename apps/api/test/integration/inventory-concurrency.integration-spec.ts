@@ -141,13 +141,21 @@ describe('inventory concurrency', () => {
     });
 
     it('never allows two concurrent requests to both reserve the last unit', async () => {
-        const { inventory, storeId, ownerUserId } = await createStoreProduct(true);
+        const { inventory, storeId } = await createStoreProduct(true);
         await receiveBatch(inventory.id, 1);
-        // Two different carts (two different customers) racing for the same last unit - using
-        // the same cart for both would also hit the "one ACTIVE reservation per cart" partial
-        // unique index, masking whether the stock-availability constraint is what actually won.
-        const cartA = await createCart(ownerUserId, storeId);
-        const cartB = await createCart(ownerUserId, storeId);
+        // Two different carts belonging to two different customers racing for the same last unit
+        // - the same user for both would now hit BC-008's "uq_carts_active_per_user" (at most one
+        // ACTIVE cart per user), and even before that constraint existed, the same cart for both
+        // would hit the "one ACTIVE reservation per cart" partial unique index - either way masking
+        // whether the stock-availability constraint is what actually won, not cart/user identity.
+        const customerA = await adminPrisma.user.create({
+            data: { phone: `+91${randomUUID().slice(0, 9)}` },
+        });
+        const customerB = await adminPrisma.user.create({
+            data: { phone: `+91${randomUUID().slice(0, 9)}` },
+        });
+        const cartA = await createCart(customerA.id, storeId);
+        const cartB = await createCart(customerB.id, storeId);
 
         // Two independent connections, each trying to reserve the single remaining unit.
         const clientA = new PrismaClient({

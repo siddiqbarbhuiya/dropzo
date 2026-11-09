@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Headers, Post } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { RequestUser } from '../auth/auth.types.js';
@@ -26,6 +27,11 @@ export class CheckoutController {
     }
 
     @Post()
+    // Stricter than the app-wide default (30/60s, see AuthModule) - order creation reserves real
+    // stock for 24h (see ORDER_ACCEPTANCE_WINDOW_MS in CheckoutService), so rapid repeated calls
+    // are a more direct inventory-hoarding vector than most endpoints. Defence in depth alongside
+    // idempotency (which stops *duplicate* orders, not a flood of *distinct* ones).
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
     @ApiOperation({ summary: 'Create an order from the active cart. Idempotent.' })
     @ApiHeader({ name: 'Idempotency-Key', required: true })
     @ApiOkResponse({ description: 'The created (or, on retry, the original) order.' })

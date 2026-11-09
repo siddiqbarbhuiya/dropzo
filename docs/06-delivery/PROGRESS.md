@@ -1751,4 +1751,49 @@ either - a deliberate scope choice, not a gap (see "Reservation design decision"
 customer-initiated order cancellation endpoint (FR-ORD-003 stays Planned) - only the automatic
 reservation-expiry cancellation path exists this milestone.
 
-**Not committed or pushed**, per the task's explicit instruction.
+**Committed as `aa825c8` and pushed.**
+
+## BC-008 follow-up — CI run #16 failures (real bugs, root-caused and fixed) and a security review
+
+CI run #16 on `aa825c8` **failed at the "Database integration and concurrency tests" step** -
+confirmed from the actual job log (`total_count: 1` job, step 21 `conclusion: "failure"`), not
+assumed from the badge. Lint, typecheck, unit tests, migrations, and seed all passed; 4 of 113
+integration tests failed, across 2 suites:
+
+1. **Real production bug, found and fixed**: `InventoryService.receiveStock` passed
+   `dto.manufactureDate`/`dto.expiryDate` straight through to Prisma as raw strings.
+   `ReceiveStockDto`'s own `@IsDateString()` validation (and its Swagger example, `'2027-05-09'`)
+   accepts a bare ISO date, but Prisma's `DateTime` fields require a full date-time string and
+   reject a bare date with `PrismaClientValidationError: ... premature end of input`. This is a
+   genuine bug any real client sending the documented request shape would hit in production, not
+   merely a test artifact - fixed with a `toDateOrUndefined` helper that parses the string into a
+   real `Date` before it reaches Prisma. Surfaced by this task's own new "allocates a batch-tracked
+   order via FEFO, excluding expired batches" integration test.
+2. **Pre-existing BC-004 test bug, fixed**: `inventory-concurrency.integration-spec.ts`'s "never
+   allows two concurrent requests to both reserve the last unit" test created two carts for the
+   _same_ user (`ownerUserId` twice) despite its own comment claiming "two different customers" -
+   this silently worked before BC-008's own migration existed, and started failing
+   (`Unique constraint failed on the fields: (user_id)`) once `uq_carts_active_per_user` correctly
+   enforced the rule the test's comment always claimed to test. Fixed by creating two genuinely
+   different customers, matching the test's own stated intent - not by weakening the new
+   constraint, which is correct.
+3. **Test-authoring bugs in this task's own new suite, fixed**: `makeStoreWithListing()` created a
+   category named literally `'Rice & Pulses'` on every call; two tests call it twice (once per
+   store) within the same test, colliding on `CategoryService`'s own unique-slug constraint - given
+   each call its own random name. Separately, the same bare-date-string issue as (1) above was also
+   present in the test's own `receive()` helper fixture before the real fix in (1) made it
+   unnecessary there.
+
+All four fixed; re-ran the full local verification suite (lint/typecheck/format/build/143 unit
+tests) clean, consistent with every check that doesn't require the local DB limitation already
+passing in CI run #16 itself.
+
+**Separately, an automated security review of the BC-008 commit** flagged unbounded cart-line
+quantity (no practical ceiling) and COD inventory-hoarding risk (no rate limit specific to order
+creation, no cap on open orders per customer). Addressed: `AddCartItemDto`/`UpdateCartItemDto` now
+cap quantity at 1000; `POST /checkout` carries its own stricter `@Throttle` (5/min/IP, reusing the
+`@nestjs/throttler` infrastructure already registered globally by `AuthModule`) on top of the
+app-wide 30/min/IP baseline. A genuine per-customer open-order cap is a product-policy decision
+this task has no basis to invent - tracked as `RISK-014`/`TD-017` for a follow-up once real order
+volume gives a basis for the number, documented in `ORDER-MANAGEMENT-DESIGN.md`'s new "Abuse
+resistance: COD hoarding" section.

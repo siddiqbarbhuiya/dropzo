@@ -132,7 +132,9 @@ async function makeStoreWithListing(
     const store = await stores.createStore(owner.id, storeDto);
     await stores.updateStatusByAdmin(store.id, 'ACTIVE', admin.id);
 
-    const category = await categories.create(admin.id, { name: 'Rice & Pulses' });
+    // A unique name per call - categories.create enforces a unique slug, and several tests call
+    // this helper twice (once per store) within the same test, which would otherwise collide.
+    const category = await categories.create(admin.id, { name: `Rice & Pulses ${randomUUID()}` });
     const product = await products.create(admin.id, {
         name: 'Basmati Rice',
         categoryId: category.id,
@@ -156,6 +158,10 @@ async function receive(
     quantity: number,
     expiryDate?: string,
 ) {
+    // A bare date string (e.g. '2020-01-01', matching ReceiveStockDto's own Swagger example) -
+    // InventoryService.receiveStock is responsible for converting this into a real Date before it
+    // ever reaches Prisma (see its toDateOrUndefined helper); this call deliberately exercises that
+    // conversion rather than pre-converting it here.
     return inventoryService.receiveStock(ownerId, storeId, listingId, { quantity, expiryDate });
 }
 

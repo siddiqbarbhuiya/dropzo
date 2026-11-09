@@ -21,7 +21,10 @@ level, not just application discipline - the same class of guarantee
   store `ACTIVE`, merchant `APPROVED`) before touching the cart. If no `ACTIVE` cart exists, one is
   created scoped to the listing's store. If an `ACTIVE` cart already exists for a **different**
   store, the add is rejected with a `409 Conflict` - **never** a silent merge or an automatic
-  clear, per the task's explicit requirement. Adding a listing already in the cart **increments**
+  clear, per the task's explicit requirement. Quantity is capped at 1000 (both `AddCartItemDto` and
+  `UpdateCartItemDto`) - a generous ceiling for any genuine grocery order, added after an automated
+  security review noted stock sufficiency alone doesn't otherwise bound how large a single line can
+  request. Adding a listing already in the cart **increments**
   its quantity (the common e-commerce convention); `PATCH .../items/:itemId` is the separate,
   explicit way to set an absolute quantity.
 - **Remove item**: scoped to the caller's own cart (`cart_id` + `id`, never `itemId` alone).

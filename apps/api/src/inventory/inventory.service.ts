@@ -34,6 +34,18 @@ interface BatchCandidate {
 type MovementType = 'RECEIVED' | 'ADJUSTED' | 'DAMAGED' | 'EXPIRED';
 
 /**
+ * ReceiveStockDto's manufactureDate/expiryDate are validated with @IsDateString(), which (per
+ * ISO-8601) accepts a bare date like "2026-11-09" - exactly the Swagger example format - but
+ * Prisma's DateTime fields require a full date-time string and reject a bare date with
+ * "premature end of input". Parsing into a real Date here (which Prisma always accepts,
+ * regardless of the underlying column being @db.Date) is what actually makes the documented
+ * request shape work, not just pass DTO validation.
+ */
+function toDateOrUndefined(value: string | undefined): Date | undefined {
+    return value === undefined ? undefined : new Date(value);
+}
+
+/**
  * Stock receiving, correction, and write-off for one store's listing. Mirrors
  * docs/04-design/DATABASE-DESIGN.md's "Receiving stock"/"Damage and expiry" procedures and the
  * exact FEFO lock order BC-004 established (lock inventory, then candidate batches in
@@ -71,8 +83,8 @@ export class InventoryService {
                             batch_code: dto.batchCode,
                             received_quantity: dto.quantity,
                             on_hand_quantity: dto.quantity,
-                            manufacture_date: dto.manufactureDate,
-                            expiry_date: dto.expiryDate,
+                            manufacture_date: toDateOrUndefined(dto.manufactureDate),
+                            expiry_date: toDateOrUndefined(dto.expiryDate),
                             cost_price: dto.costPrice,
                         },
                     });

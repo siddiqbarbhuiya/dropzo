@@ -9,6 +9,18 @@ price snapshots, COD handling, reservation expiry, and customer-facing order ret
 merchant acceptance/fulfilment flow, no delivery assignment, no online payment (all later
 milestones, per the task's explicit scope boundary).
 
+## Abuse resistance: COD hoarding
+
+COD needs no upfront payment, so nothing stops a customer from repeatedly creating orders against
+scarce stock and never collecting any of them - each one holds `reserved_quantity` for up to the
+24-hour acceptance window. An automated security review flagged this; two cheap, already-available
+mitigations are in place: `POST /checkout` carries its own stricter `@Throttle` (5 requests/minute/
+IP, reusing the `@nestjs/throttler` infrastructure `AuthModule` already registers globally at 30/
+minute/IP), and cart line quantity is capped at 1000 units (see `CART-CHECKOUT-DESIGN.md`). A
+genuine cap on how many `CREATED` orders one customer may hold open at once is a product-policy
+decision this task has no basis to invent (the right number depends on real usage patterns not yet
+observed) - tracked as `RISK-014`/`TD-017` for a follow-up once real order volume exists.
+
 ## Order creation sequence (`CheckoutService.doCreateOrder`)
 
 One transaction, in this order:
