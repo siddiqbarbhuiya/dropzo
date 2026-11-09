@@ -138,7 +138,10 @@ async function main(): Promise<void> {
             display_name: 'Badarpur Kirana',
             contact_phone: '+919000000001',
             business_address: 'Main Road, Badarpur, Sribhumi, Assam',
-            verification_status: 'VERIFIED',
+            // 'APPROVED' is the real lifecycle value (see BC-006's chk_merchants_verification_status
+            // CHECK constraint and docs/04-design/MERCHANT-STORE-DESIGN.md) - this seed merchant
+            // represents one that has already been through admin review.
+            verification_status: 'APPROVED',
         },
     });
     await prisma.financialAccount.upsert({
