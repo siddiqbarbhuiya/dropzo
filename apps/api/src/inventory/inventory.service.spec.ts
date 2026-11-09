@@ -182,6 +182,24 @@ describe('InventoryService', () => {
             );
         });
 
+        it('rejects a batchId on a non-batch-tracked listing (never recorded unchecked)', async () => {
+            const prisma = makePrisma();
+            const service = new InventoryService(
+                prisma,
+                makeAudit(),
+                makeMerchantApplications(),
+                makeStores(),
+            );
+
+            await expect(
+                service.adjustStock('user-1', 'store-1', 'listing-1', {
+                    quantityDelta: -1,
+                    reason: 'Attempted cross-inventory batch reference',
+                    batchId: 'batch-belonging-to-another-store',
+                }),
+            ).rejects.toThrow(BadRequestException);
+        });
+
         it('rejects a negative aggregate decrease below available (non-reserved) stock', async () => {
             const prisma = makePrisma({ inventory: { on_hand_quantity: 2, reserved_quantity: 0 } });
             const service = new InventoryService(
@@ -278,6 +296,25 @@ describe('InventoryService', () => {
     });
 
     describe('removeStock', () => {
+        it('rejects a batchId on a non-batch-tracked listing (never recorded unchecked)', async () => {
+            const prisma = makePrisma();
+            const service = new InventoryService(
+                prisma,
+                makeAudit(),
+                makeMerchantApplications(),
+                makeStores(),
+            );
+
+            await expect(
+                service.removeStock('user-1', 'store-1', 'listing-1', {
+                    type: 'DAMAGED',
+                    quantity: 1,
+                    reason: 'Attempted cross-inventory batch reference',
+                    batchId: 'batch-belonging-to-another-store',
+                }),
+            ).rejects.toThrow(BadRequestException);
+        });
+
         it('rejects marking a non-expired batch as EXPIRED', async () => {
             const prisma = makePrisma({
                 listing: { uses_batch_tracking: true },

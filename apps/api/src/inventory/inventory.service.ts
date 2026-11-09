@@ -118,6 +118,12 @@ export class InventoryService {
         return this.prisma.$transaction(async (tx) => {
             const inventory = await this.lockInventory(tx, listing.id);
 
+            // Only a batchId that this call itself verified (via lockBatchOwnedBy, scoped to this
+            // inventory) is ever recorded on the movement - dto.batchId is never trusted directly,
+            // so a client-supplied id for the wrong inventory, or any id at all on a non-batch-
+            // tracked listing, can never end up cross-referenced into stock_movements.batch_id.
+            let checkedBatchId: string | null = null;
+
             if (listing.uses_batch_tracking) {
                 if (increase) {
                     if (!dto.batchId) {
@@ -130,17 +136,26 @@ export class InventoryService {
                         where: { id: batch.id },
                         data: { on_hand_quantity: { increment: dto.quantityDelta } },
                     });
+                    checkedBatchId = batch.id;
                 } else if (dto.batchId) {
                     const batch = await this.lockBatchOwnedBy(tx, inventory.id, dto.batchId);
                     await tx.stockBatch.update({
                         where: { id: batch.id },
                         data: { on_hand_quantity: { decrement: -dto.quantityDelta } },
                     });
+                    checkedBatchId = batch.id;
                 } else {
                     await this.consumeFefo(tx, inventory.id, -dto.quantityDelta, 'AVAILABLE');
                 }
-            } else if (!increase) {
-                this.assertAvailable(inventory, -dto.quantityDelta);
+            } else {
+                if (dto.batchId) {
+                    throw new BadRequestException(
+                        'This listing is not batch-tracked - batchId must not be supplied.',
+                    );
+                }
+                if (!increase) {
+                    this.assertAvailable(inventory, -dto.quantityDelta);
+                }
             }
 
             await tx.inventory.update({
@@ -150,7 +165,7 @@ export class InventoryService {
 
             await this.recordMovement(tx, {
                 inventoryId: inventory.id,
-                batchId: dto.batchId ?? null,
+                batchId: checkedBatchId,
                 movementType: 'ADJUSTED',
                 quantity: dto.quantityDelta,
                 createdBy: userId,
@@ -175,6 +190,10 @@ export class InventoryService {
         return this.prisma.$transaction(async (tx) => {
             const inventory = await this.lockInventory(tx, listing.id);
 
+            // Same rule as adjustStock: only a batchId this call itself verified against this
+            // inventory is ever recorded - dto.batchId is never trusted directly.
+            let checkedBatchId: string | null = null;
+
             if (listing.uses_batch_tracking) {
                 if (dto.batchId) {
                     const batch = await this.lockBatchOwnedBy(tx, inventory.id, dto.batchId);
@@ -185,6 +204,7 @@ export class InventoryService {
                         where: { id: batch.id },
                         data: { on_hand_quantity: { decrement: dto.quantity } },
                     });
+                    checkedBatchId = batch.id;
                 } else {
                     await this.consumeFefo(
                         tx,
@@ -194,6 +214,11 @@ export class InventoryService {
                     );
                 }
             } else {
+                if (dto.batchId) {
+                    throw new BadRequestException(
+                        'This listing is not batch-tracked - batchId must not be supplied.',
+                    );
+                }
                 this.assertAvailable(inventory, dto.quantity);
             }
 
@@ -204,7 +229,7 @@ export class InventoryService {
 
             await this.recordMovement(tx, {
                 inventoryId: inventory.id,
-                batchId: dto.batchId ?? null,
+                batchId: checkedBatchId,
                 movementType: dto.type,
                 quantity: dto.quantity,
                 createdBy: userId,

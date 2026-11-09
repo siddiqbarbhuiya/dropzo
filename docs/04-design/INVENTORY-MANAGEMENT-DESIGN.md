@@ -42,7 +42,12 @@ Merchants can **never** change `on_hand_quantity` through the generic listing up
 `UpdateListingDto` has no quantity field at all. Every quantity change goes through one of three
 dedicated, transactional operations, each of which locks the inventory row (and any batch rows it
 touches) with `SELECT ... FOR UPDATE`, updates it, and writes a `stock_movements` row recording the
-actor and (for adjustments/removals) a mandatory reason, all inside one `$transaction`:
+actor and (for adjustments/removals) a mandatory reason, all inside one `$transaction`. A client-
+supplied `batchId` is never written to `stock_movements.batch_id` as-is: it is only ever recorded
+after `lockBatchOwnedBy` has confirmed it belongs to _this_ inventory, and supplying one at all on a
+non-batch-tracked listing is rejected outright (`400`) - otherwise an arbitrary (even another
+store's) batch id would pass straight through the foreign-key check and land in the movement row
+unverified, a cross-tenant data-integrity gap caught by review and fixed before CI ran:
 
 - **Receive** (`POST .../inventory/receive`) - initial or additional stock. For a batch-tracked
   listing, either tops up an existing batch (`batchId` given) or creates a new one; for a
