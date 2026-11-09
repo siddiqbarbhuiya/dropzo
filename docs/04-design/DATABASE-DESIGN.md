@@ -36,6 +36,19 @@ This remains one canonical file, by decision (BC-003.2) — not split across `02
 - Idempotency keys are scoped to the requesting user and operation, never globally unique across
   unrelated users or endpoints (corrected in this revision).
 
+## Change log for BC-007
+
+Added one forward-only migration (`20261109060000_bc007_stock_movement_type_check`): a `CHECK`
+restricting `stock_movements.movement_type` to its seven real values (`RECEIVED`, `RESERVED`,
+`RELEASED`, `SOLD`, `DAMAGED`, `EXPIRED`, `ADJUSTED`), previously an unconstrained `VARCHAR(30)` -
+the same class of gap BC-006 closed for `merchants.verification_status`. No new tables: `categories`,
+`products`, `product_variants`, `store_products`, `inventory`, `stock_batches`, and
+`stock_movements` were all already fully modeled by BC-004's init migration, including the relevant
+non-negative/consistency `CHECK` constraints listed below. No existing table, constraint, or
+MVP/deferred classification was otherwise changed. See
+[`PRODUCT-CATALOGUE-DESIGN.md`](PRODUCT-CATALOGUE-DESIGN.md) and
+[`INVENTORY-MANAGEMENT-DESIGN.md`](INVENTORY-MANAGEMENT-DESIGN.md) for the design this supports.
+
 ## Change log for BC-006
 
 Extended `merchants` and `stores` (no new tables) via a single forward-only migration
@@ -547,20 +560,22 @@ and to separate "physically present" from "available" (`on_hand_quantity - reser
 
 #### `stock_movements` — MVP-required
 
-| Column           | Type          | Null     | Default             | Notes                                                                                      |
-| ---------------- | ------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------ |
-| `id`             | UUID          | NOT NULL | `gen_random_uuid()` | PK                                                                                         |
-| `inventory_id`   | UUID          | NOT NULL | —                   | FK → `inventory.id` `ON DELETE RESTRICT`                                                   |
-| `batch_id`       | UUID          | NULL     | —                   | FK → `stock_batches.id` `ON DELETE RESTRICT`; NULL only when `uses_batch_tracking = FALSE` |
-| `movement_type`  | VARCHAR(30)   | NOT NULL | —                   | `RECEIVED`, `RESERVED`, `RELEASED`, `SOLD`, `DAMAGED`, `EXPIRED`, `ADJUSTED`               |
-| `quantity`       | NUMERIC(12,3) | NOT NULL | —                   | signed                                                                                     |
-| `reference_type` | VARCHAR(50)   | NULL     | —                   | `ORDER`, `RESERVATION`                                                                     |
-| `reference_id`   | UUID          | NULL     | —                   |                                                                                            |
-| `notes`          | TEXT          | NULL     | —                   |                                                                                            |
-| `created_by`     | UUID          | NULL     | —                   | FK → `users.id` `ON DELETE RESTRICT`                                                       |
-| `created_at`     | TIMESTAMPTZ   | NOT NULL | `NOW()`             |                                                                                            |
+| Column           | Type          | Null     | Default             | Notes                                                                                                    |
+| ---------------- | ------------- | -------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `id`             | UUID          | NOT NULL | `gen_random_uuid()` | PK                                                                                                       |
+| `inventory_id`   | UUID          | NOT NULL | —                   | FK → `inventory.id` `ON DELETE RESTRICT`                                                                 |
+| `batch_id`       | UUID          | NULL     | —                   | FK → `stock_batches.id` `ON DELETE RESTRICT`; NULL only when `uses_batch_tracking = FALSE`               |
+| `movement_type`  | VARCHAR(30)   | NOT NULL | —                   | CHECK restricts to `RECEIVED`, `RESERVED`, `RELEASED`, `SOLD`, `DAMAGED`, `EXPIRED`, `ADJUSTED` (BC-007) |
+| `quantity`       | NUMERIC(12,3) | NOT NULL | —                   | signed                                                                                                   |
+| `reference_type` | VARCHAR(50)   | NULL     | —                   | `ORDER`, `RESERVATION`                                                                                   |
+| `reference_id`   | UUID          | NULL     | —                   |                                                                                                          |
+| `notes`          | TEXT          | NULL     | —                   |                                                                                                          |
+| `created_by`     | UUID          | NULL     | —                   | FK → `users.id` `ON DELETE RESTRICT`                                                                     |
+| `created_at`     | TIMESTAMPTZ   | NOT NULL | `NOW()`             |                                                                                                          |
 
-Append-only. Index: `(inventory_id, created_at)`, `(batch_id, created_at)`.
+Append-only. Index: `(inventory_id, created_at)`, `(batch_id, created_at)`. `quantity` sign
+convention (BC-007, not previously specified): `RECEIVED`/`DAMAGED`/`EXPIRED` store a positive
+magnitude (direction implied by `movement_type`); `ADJUSTED` stores the signed delta.
 
 ### Commerce — cart and reservation
 

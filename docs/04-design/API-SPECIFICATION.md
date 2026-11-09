@@ -17,43 +17,65 @@ document explains the conventions and lists planned endpoint groups.
 
 ## Implemented endpoints
 
-| Method   | Path                                                | Auth                   | Purpose                                                                   |
-| -------- | --------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------- |
-| `GET`    | `/api/v1/health`                                    | Public                 | Returns `{status, timestamp, uptimeSeconds}`. Used for liveness checks.   |
-| `POST`   | `/api/v1/auth/send-otp`                             | Public                 | Request an OTP for a phone number (login or registration).                |
-| `POST`   | `/api/v1/auth/verify-otp`                           | Public                 | Verify an OTP; returns an access/refresh token pair.                      |
-| `POST`   | `/api/v1/auth/refresh`                              | Public (token in body) | Rotate a refresh token for a new access/refresh token pair.               |
-| `POST`   | `/api/v1/auth/logout`                               | Authenticated          | Revoke the session behind the given refresh token.                        |
-| `POST`   | `/api/v1/auth/logout-all`                           | Authenticated          | Revoke every active session for the current user.                         |
-| `GET`    | `/api/v1/auth/me`                                   | Authenticated          | Return the authenticated user and their roles.                            |
-| `GET`    | `/api/v1/auth/sessions`                             | Authenticated          | List the current user's active sessions.                                  |
-| `DELETE` | `/api/v1/auth/sessions/:id`                         | Authenticated          | Revoke one of the current user's own sessions by id.                      |
-| `PATCH`  | `/api/v1/admin/users/:id/roles`                     | ADMIN/SUPER_ADMIN      | Grant or revoke a role for a user. Audit-logged.                          |
-| `POST`   | `/api/v1/merchants/me`                              | Authenticated          | Submit (or resubmit, after rejection) a merchant application.             |
-| `GET`    | `/api/v1/merchants/me`                              | Authenticated          | Get the caller's own merchant profile/application.                        |
-| `PATCH`  | `/api/v1/merchants/me`                              | Authenticated          | Update the caller's own editable application details.                     |
-| `GET`    | `/api/v1/merchants/me/dashboard`                    | Authenticated          | Summary of the caller's own merchant account and stores.                  |
-| `POST`   | `/api/v1/merchants/me/stores`                       | MERCHANT_OWNER         | Create a store. Requires an APPROVED merchant application.                |
-| `GET`    | `/api/v1/merchants/me/stores`                       | MERCHANT_OWNER         | List the caller's own stores (paginated).                                 |
-| `GET`    | `/api/v1/merchants/me/stores/:storeId`              | MERCHANT_OWNER         | Get one of the caller's own stores.                                       |
-| `PATCH`  | `/api/v1/merchants/me/stores/:storeId`              | MERCHANT_OWNER         | Update store details.                                                     |
-| `PATCH`  | `/api/v1/merchants/me/stores/:storeId/hours`        | MERCHANT_OWNER         | Update a store's operating hours.                                         |
-| `PATCH`  | `/api/v1/merchants/me/stores/:storeId/availability` | MERCHANT_OWNER         | Update pickup/delivery availability.                                      |
-| `PATCH`  | `/api/v1/merchants/me/stores/:storeId/status`       | MERCHANT_OWNER         | Self-service status transitions (see MERCHANT-STORE-DESIGN.md).           |
-| `GET`    | `/api/v1/admin/merchants`                           | ADMIN/SUPER_ADMIN      | List merchant applications, optionally filtered by status (paginated).    |
-| `GET`    | `/api/v1/admin/merchants/:id`                       | ADMIN/SUPER_ADMIN      | Get one merchant application by id.                                       |
-| `PATCH`  | `/api/v1/admin/merchants/:id/approve`               | ADMIN/SUPER_ADMIN      | Approve a PENDING application. Grants MERCHANT_OWNER.                     |
-| `PATCH`  | `/api/v1/admin/merchants/:id/reject`                | ADMIN/SUPER_ADMIN      | Reject a PENDING application with a reason.                               |
-| `PATCH`  | `/api/v1/admin/merchants/:id/suspend`               | ADMIN/SUPER_ADMIN      | Suspend an APPROVED merchant with a reason.                               |
-| `PATCH`  | `/api/v1/admin/merchants/:id/reinstate`             | ADMIN/SUPER_ADMIN      | Reinstate a SUSPENDED merchant.                                           |
-| `GET`    | `/api/v1/admin/merchants/:id/stores`                | ADMIN/SUPER_ADMIN      | List a merchant's stores (paginated).                                     |
-| `PATCH`  | `/api/v1/admin/stores/:id/status`                   | ADMIN/SUPER_ADMIN      | Admin-side store status transitions (approve, suspend, reinstate, close). |
+| Method   | Path                                                       | Auth                   | Purpose                                                                       |
+| -------- | ---------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------- |
+| `GET`    | `/api/v1/health`                                           | Public                 | Returns `{status, timestamp, uptimeSeconds}`. Used for liveness checks.       |
+| `POST`   | `/api/v1/auth/send-otp`                                    | Public                 | Request an OTP for a phone number (login or registration).                    |
+| `POST`   | `/api/v1/auth/verify-otp`                                  | Public                 | Verify an OTP; returns an access/refresh token pair.                          |
+| `POST`   | `/api/v1/auth/refresh`                                     | Public (token in body) | Rotate a refresh token for a new access/refresh token pair.                   |
+| `POST`   | `/api/v1/auth/logout`                                      | Authenticated          | Revoke the session behind the given refresh token.                            |
+| `POST`   | `/api/v1/auth/logout-all`                                  | Authenticated          | Revoke every active session for the current user.                             |
+| `GET`    | `/api/v1/auth/me`                                          | Authenticated          | Return the authenticated user and their roles.                                |
+| `GET`    | `/api/v1/auth/sessions`                                    | Authenticated          | List the current user's active sessions.                                      |
+| `DELETE` | `/api/v1/auth/sessions/:id`                                | Authenticated          | Revoke one of the current user's own sessions by id.                          |
+| `PATCH`  | `/api/v1/admin/users/:id/roles`                            | ADMIN/SUPER_ADMIN      | Grant or revoke a role for a user. Audit-logged.                              |
+| `POST`   | `/api/v1/merchants/me`                                     | Authenticated          | Submit (or resubmit, after rejection) a merchant application.                 |
+| `GET`    | `/api/v1/merchants/me`                                     | Authenticated          | Get the caller's own merchant profile/application.                            |
+| `PATCH`  | `/api/v1/merchants/me`                                     | Authenticated          | Update the caller's own editable application details.                         |
+| `GET`    | `/api/v1/merchants/me/dashboard`                           | Authenticated          | Summary of the caller's own merchant account and stores.                      |
+| `POST`   | `/api/v1/merchants/me/stores`                              | MERCHANT_OWNER         | Create a store. Requires an APPROVED merchant application.                    |
+| `GET`    | `/api/v1/merchants/me/stores`                              | MERCHANT_OWNER         | List the caller's own stores (paginated).                                     |
+| `GET`    | `/api/v1/merchants/me/stores/:storeId`                     | MERCHANT_OWNER         | Get one of the caller's own stores.                                           |
+| `PATCH`  | `/api/v1/merchants/me/stores/:storeId`                     | MERCHANT_OWNER         | Update store details.                                                         |
+| `PATCH`  | `/api/v1/merchants/me/stores/:storeId/hours`               | MERCHANT_OWNER         | Update a store's operating hours.                                             |
+| `PATCH`  | `/api/v1/merchants/me/stores/:storeId/availability`        | MERCHANT_OWNER         | Update pickup/delivery availability.                                          |
+| `PATCH`  | `/api/v1/merchants/me/stores/:storeId/status`              | MERCHANT_OWNER         | Self-service status transitions (see MERCHANT-STORE-DESIGN.md).               |
+| `GET`    | `/api/v1/admin/merchants`                                  | ADMIN/SUPER_ADMIN      | List merchant applications, optionally filtered by status (paginated).        |
+| `GET`    | `/api/v1/admin/merchants/:id`                              | ADMIN/SUPER_ADMIN      | Get one merchant application by id.                                           |
+| `PATCH`  | `/api/v1/admin/merchants/:id/approve`                      | ADMIN/SUPER_ADMIN      | Approve a PENDING application. Grants MERCHANT_OWNER.                         |
+| `PATCH`  | `/api/v1/admin/merchants/:id/reject`                       | ADMIN/SUPER_ADMIN      | Reject a PENDING application with a reason.                                   |
+| `PATCH`  | `/api/v1/admin/merchants/:id/suspend`                      | ADMIN/SUPER_ADMIN      | Suspend an APPROVED merchant with a reason.                                   |
+| `PATCH`  | `/api/v1/admin/merchants/:id/reinstate`                    | ADMIN/SUPER_ADMIN      | Reinstate a SUSPENDED merchant.                                               |
+| `GET`    | `/api/v1/admin/merchants/:id/stores`                       | ADMIN/SUPER_ADMIN      | List a merchant's stores (paginated).                                         |
+| `PATCH`  | `/api/v1/admin/stores/:id/status`                          | ADMIN/SUPER_ADMIN      | Admin-side store status transitions (approve, suspend, reinstate, close).     |
+| `GET`    | `/api/v1/categories`                                       | Public                 | List categories (paginated, filterable by parent/search).                     |
+| `GET`    | `/api/v1/categories/:id`                                   | Public                 | Get one category.                                                             |
+| `POST`   | `/api/v1/admin/categories`                                 | ADMIN/SUPER_ADMIN      | Create a category.                                                            |
+| `PATCH`  | `/api/v1/admin/categories/:id`                             | ADMIN/SUPER_ADMIN      | Update a category.                                                            |
+| `GET`    | `/api/v1/products`                                         | Public                 | List products with variants (paginated, filterable by category/brand/search). |
+| `GET`    | `/api/v1/products/:id`                                     | Public                 | Get one product with its variants.                                            |
+| `POST`   | `/api/v1/admin/products`                                   | ADMIN/SUPER_ADMIN      | Create a product, optionally with initial variants.                           |
+| `PATCH`  | `/api/v1/admin/products/:id`                               | ADMIN/SUPER_ADMIN      | Update product details.                                                       |
+| `POST`   | `/api/v1/admin/products/:id/variants`                      | ADMIN/SUPER_ADMIN      | Add a variant to an existing product.                                         |
+| `PATCH`  | `/api/v1/admin/products/:id/variants/:variantId`           | ADMIN/SUPER_ADMIN      | Update a product variant.                                                     |
+| `POST`   | `/api/v1/merchants/me/stores/:storeId/listings`            | MERCHANT_OWNER         | List a product variant for sale at this store.                                |
+| `GET`    | `/api/v1/merchants/me/stores/:storeId/listings`            | MERCHANT_OWNER         | List this store's own listings (paginated).                                   |
+| `GET`    | `/api/v1/merchants/me/stores/:storeId/listings/:listingId` | MERCHANT_OWNER         | Get one listing, with inventory.                                              |
+| `PATCH`  | `/api/v1/merchants/me/stores/:storeId/listings/:listingId` | MERCHANT_OWNER         | Update price, MRP, availability, or low-stock threshold.                      |
+| `GET`    | `.../listings/:listingId/inventory`                        | MERCHANT_OWNER         | Get current on-hand/reserved quantity and batches.                            |
+| `POST`   | `.../listings/:listingId/inventory/receive`                | MERCHANT_OWNER         | Receive new stock (initial or additional).                                    |
+| `POST`   | `.../listings/:listingId/inventory/adjustments`            | MERCHANT_OWNER         | Apply a signed stocktake/correction. Reason mandatory.                        |
+| `POST`   | `.../listings/:listingId/inventory/removals`               | MERCHANT_OWNER         | Write off damaged or expired stock. Reason mandatory.                         |
+| `GET`    | `.../listings/:listingId/inventory/movements`              | MERCHANT_OWNER         | List this listing's stock movement history (paginated).                       |
 
 See [`AUTHENTICATION-DESIGN.md`](AUTHENTICATION-DESIGN.md) for the full OTP/token/session lifecycle,
 [ADR-0013](../03-decisions/ADR-0013-phone-otp-auth-opaque-refresh-tokens.md) for the design
-decisions behind it, and [`MERCHANT-STORE-DESIGN.md`](MERCHANT-STORE-DESIGN.md) for the merchant
-application and store lifecycle behind the BC-006 endpoints above. Every merchant-facing route
-resolves ownership from the authenticated user, never a client-supplied merchant/store id.
+decisions behind it, [`MERCHANT-STORE-DESIGN.md`](MERCHANT-STORE-DESIGN.md) for the merchant
+application and store lifecycle behind the BC-006 endpoints above, and
+[`PRODUCT-CATALOGUE-DESIGN.md`](PRODUCT-CATALOGUE-DESIGN.md) /
+[`INVENTORY-MANAGEMENT-DESIGN.md`](INVENTORY-MANAGEMENT-DESIGN.md) for the BC-007 endpoints. Every
+merchant-facing route resolves ownership from the authenticated user, never a client-supplied
+merchant/store/listing id.
 
 ## Planned endpoint groups
 
@@ -63,7 +85,6 @@ not as a commitment to exact paths.
 | Group             | Example planned endpoints                                                         |
 | ----------------- | --------------------------------------------------------------------------------- |
 | Customer/location | `GET /customers/profile`, `GET /customers/addresses`, `GET /serviceability/check` |
-| Catalogue         | `GET /categories`, `GET /products`, `GET /stores/:id/products`                    |
 | Cart/checkout     | `GET /cart`, `POST /cart/items`, `POST /checkout`                                 |
 | Orders            | `GET /orders`, `GET /orders/:id`, `POST /orders/:id/cancel`                       |
 | Delivery          | `GET /delivery/assignments`, `POST /delivery/assignments/:id/delivered`           |

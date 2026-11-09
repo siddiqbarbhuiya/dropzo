@@ -1524,3 +1524,111 @@ tool file this project has repeatedly been instructed to never stage or commit -
 included in `b66295b`. It is now part of the repository's history; this session did not re-format
 or otherwise touch it beyond reverting its own accidental reformat back to the committed version,
 consistent with "preserve it, don't modify it" even though it is technically tracked now.
+
+## BC-007 — Product catalogue and inventory management
+
+Built on BC-005 and BC-006 (accepted as complete per the task brief - not re-reviewed here).
+Inspected the actual schema first: `categories`, `products`, `product_variants`, `store_products`,
+`inventory`, `stock_batches`, and `stock_movements` were **all already fully modeled by BC-004's own
+init migration**, including the relevant non-negative/consistency `CHECK` constraints. This task
+was almost entirely an application-layer (NestJS services/controllers/DTOs) build, not a schema
+build - the one genuine gap found was `stock_movements.movement_type`, an unconstrained
+`VARCHAR(30)` with no `CHECK`, the same class of gap BC-006 found and fixed for
+`merchants.verification_status`.
+
+**Migration** (`20261109060000_bc007_stock_movement_type_check`, forward-only, additive, no new
+tables): adds `chk_stock_movements_movement_type`, constraining the column to the seven documented
+values (`RECEIVED`, `RESERVED`, `RELEASED`, `SOLD`, `DAMAGED`, `EXPIRED`, `ADJUSTED`). No change to
+any BC-004/005/006 migration; no `schema.prisma` model changes (the column stays a plain `String`).
+
+**Built**: `CatalogueModule` (`CategoryService`, `ProductService`, public read routes plus
+`@Roles('ADMIN', 'SUPER_ADMIN')`-gated admin write routes) and `InventoryModule`
+(`StoreProductService` for merchant-owned listings, `InventoryService` for stock receiving/
+adjustment/removal, both `@Roles('MERCHANT_OWNER')`-gated under `/merchants/me/stores/:storeId`).
+Every listing/inventory lookup is scoped through `StoreService.getOwnStore` and
+`MerchantApplicationService.getMerchantForOwner` (reusing BC-006's own services directly, not new
+guards), so a `storeId`/`listingId` is never trusted alone and a suspended merchant is blocked from
+every mutation. Every stock mutation and listing create/update is audited with a real UUID
+`entityId`, never a non-UUID value - the same convention BC-005's own audit-UUID fix established.
+
+**Variant modeling**: the same real-world product in multiple pack sizes (e.g. rice in 1 kg/5 kg/
+10 kg) is one `Product` with several `ProductVariant` rows, never separate unrelated products -
+`ProductService.create` creates a product and its initial variants in one transaction; `addVariant`
+maps a duplicate SKU to a `409`, never a raw DB error. `Product.attributes` stays a single open
+`Json` column, deliberately not a dedicated attribute-type/value framework, per the task's own
+instruction to avoid unnecessary complexity.
+
+**Store listings**: `@@unique([store_id, variant_id])` makes "one listing per store per variant" a
+database guarantee; `createListing` maps the violation to a `409`. The same variant may be listed
+by many different stores, each with independent price/availability. `usesBatchTracking` and
+`variantId` cannot be changed after creation (switching tracking mode after stock exists would
+desync `on_hand_quantity` from any `stock_batches` rows). Every listing's paired `Inventory` row is
+created in the same transaction, so a listing can never exist without one.
+
+**Inventory and FEFO**: merchants can never change `on_hand_quantity` through the generic listing
+update endpoint - only through `receive`/`adjustments`/`removals`. Adjustments and removals require
+a mandatory reason (`@Length(3, 2000)`); every mutation locks the inventory row (and any batch rows
+it touches) with `SELECT ... FOR UPDATE` inside one transaction, then writes a `stock_movements`
+row recording the actor and reason. FEFO batch selection (`InventoryService.consumeFefo`) reuses the
+exact lock order BC-004's own test helper (`test/helpers/reservation.ts`) already proved
+deadlock-free: inventory locked first, then candidate batches in `expiry_date ASC NULLS LAST, id
+ASC` order, consumed greedily until the requested quantity is covered. Two allocation filters cover
+the task's two distinct rules: `AVAILABLE` (adjustments, `DAMAGED` removal) excludes already-expired
+batches and never allocates more than `on_hand_quantity - reserved_quantity` per batch (no expired-
+batch allocation, no reservation bypass); `EXPIRED_ONLY` (`EXPIRED` removal) is the inverse -
+only genuinely expired batches, rejecting an attempt to mark a non-expired batch `EXPIRED` with a
+clean `409`. For non-batch-tracked (aggregate) listings, the same `on_hand_quantity -
+reserved_quantity` check runs directly against the locked inventory row before any decrease, so a
+negative-stock attempt surfaces as a clean `409 Conflict` rather than the database's own `CHECK`
+constraint violation reaching the client as an unhandled `500`.
+
+**`stock_movements.quantity` sign convention** (not dictated by the schema, so fixed here and in
+`INVENTORY-MANAGEMENT-DESIGN.md`): `RECEIVED`/`DAMAGED`/`EXPIRED` store a positive magnitude
+(direction implied by `movement_type`); `ADJUSTED` stores the signed delta, since one movement type
+covers both stocktake increases and decreases.
+
+**Verified, with each claim distinguished by how it was checked**:
+
+- Typecheck (`tsc --noEmit`, both the main and `test/` tsconfigs): clean.
+- Lint (`nx eslint:lint`, all workspaces): clean.
+- Format (`prettier --check .`): clean, after `prettier --write` on the new files.
+- Unit tests: **92/92 passing** (13 suites - the 9 pre-existing plus `category.service.spec.ts`,
+  `product.service.spec.ts`, `store-product.service.spec.ts`, and `inventory.service.spec.ts`, 25
+  new tests between them). Covers category/product/variant CRUD and duplicate-slug/SKU rejection,
+  listing creation/ownership/duplicate-prevention/suspension-blocking, aggregate and batch-tracked
+  receive/adjust/remove, FEFO allocation order across batches, the reservation-respecting available-
+  quantity guard (both aggregate and batch-tracked paths), the EXPIRED-removal-only-on-genuinely-
+  expired-batches check, and cross-store/unauthorized listing access denial.
+- Build (`nest build`): succeeds.
+- Prisma schema validation (`prisma validate`): passes.
+- A new real-database integration suite
+  (`apps/api/test/integration/catalogue-inventory.integration-spec.ts`, 20 tests) covers: category/
+  product/variant creation and duplicate rejection, cross-product variant-id scoping, listing
+  creation/duplicate-prevention/multi-store independence/cross-merchant denial, aggregate and
+  batch-tracked receiving, mandatory-reason adjustments with movement-history verification,
+  negative-stock prevention (aggregate), FEFO allocation across batches on a decrease, the
+  reservation-compatibility guard (a batch with its full quantity already reserved refuses a further
+  decrease), the EXPIRED-removal genuineness check (both the rejection and the success path),
+  DAMAGED removal, suspended-merchant denial, non-owning-merchant denial, and a concurrent-
+  adjustment race. **It could not be run to completion locally** - confirmed by reproducing the
+  identical `PrismaClientInitializationError: Authentication failed against database server ...
+dropzo_app` failure against the already-CI-passing `merchant.integration-spec.ts` run in the same
+  session, proving this is the same documented local-environment limitation as every integration
+  suite in this project since BC-004, not a defect in this suite's own code.
+
+**Documentation updated**: `PRODUCT-CATALOGUE-DESIGN.md` (new), `INVENTORY-MANAGEMENT-DESIGN.md`
+(new), `DATABASE-DESIGN.md` (new `chk_stock_movements_movement_type` constraint, change-log entry),
+`FUNCTIONAL-REQUIREMENTS.md` (FR-CAT-001..003, FR-INV-001, FR-INV-003 to Implemented; FR-INV-002
+left Planned, deferred to the cart/checkout milestone), `TASK-TRACKER.md`/`ROADMAP.md` (this entry),
+`TESTING-STRATEGY.md` (new test counts), `RISK-REGISTER.md`/`TECHNICAL-DEBT.md` (see those files for
+the specific items this task adds).
+
+**Explicitly not done, by design (BC-007's own scope boundary)**: no cart, checkout, orders,
+payments, delivery-partner management, multi-store checkout, loyalty, recommendations, AI features,
+advanced analytics, Redis/Kafka/microservices, or customer-facing shopping frontend - all deferred
+to later milestones, per the task's explicit exclusions. No public "reserve stock" endpoint either:
+FEFO is implemented as the internal batch-selection mechanism for `adjustments`/`removals`, not as a
+reservation API, since `carts`/`stock_reservations` remain out of scope; a future cart/checkout
+feature reuses the exact lock order documented here.
+
+**Not committed or pushed**, per the task's explicit instruction.

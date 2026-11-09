@@ -34,21 +34,21 @@ For traceability from requirement to task to test, see
 | FR-LOC-001 | Customers can save one or more addresses.                                                  | An address with line, locality, city, state, and geolocation can be created, listed, and deleted. | Planned |
 | FR-LOC-002 | The platform checks whether a location is in an active service zone before showing stores. | A location outside any service zone returns `serviceable: false`.                                 | Planned |
 
-## Catalogue (Planned)
+## Catalogue (Implemented)
 
-| ID         | Requirement                                                     | Acceptance criteria                                                                   | Status  |
-| ---------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------- |
-| FR-CAT-001 | Customers can browse stores and products by category.           | Category and product listing endpoints return paginated results.                      | Planned |
-| FR-CAT-002 | Products support variants and units (weight, volume, count).    | A product like "Rice" can have 1 kg / 5 kg / 10 kg variants with independent pricing. | Planned |
-| FR-CAT-003 | The same product can have different prices at different stores. | Price is a property of the store listing (`store_products`), not the global product.  | Planned |
+| ID         | Requirement                                                     | Acceptance criteria                                                                   | Status          |
+| ---------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- | --------------- |
+| FR-CAT-001 | Customers can browse stores and products by category.           | Category and product listing endpoints return paginated results.                      | **Implemented** |
+| FR-CAT-002 | Products support variants and units (weight, volume, count).    | A product like "Rice" can have 1 kg / 5 kg / 10 kg variants with independent pricing. | **Implemented** |
+| FR-CAT-003 | The same product can have different prices at different stores. | Price is a property of the store listing (`store_products`), not the global product.  | **Implemented** |
 
-## Inventory (Planned)
+## Inventory (Implemented, except reservation)
 
-| ID         | Requirement                                                               | Acceptance criteria                                                                          | Status  |
-| ---------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------- |
-| FR-INV-001 | Each store listing has its own stock record, independent of other stores. | Reducing Store A's stock for a product does not change Store B's stock for the same product. | Planned |
-| FR-INV-002 | Stock is reserved at checkout and released on cancellation or expiry.     | A successful checkout reduces available stock; a cancelled/expired order restores it.        | Planned |
-| FR-INV-003 | Every stock change creates an auditable movement record.                  | A stock adjustment is traceable to a user, a reason, and a timestamp.                        | Planned |
+| ID         | Requirement                                                               | Acceptance criteria                                                                          | Status                                                                                       |
+| ---------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| FR-INV-001 | Each store listing has its own stock record, independent of other stores. | Reducing Store A's stock for a product does not change Store B's stock for the same product. | **Implemented**                                                                              |
+| FR-INV-002 | Stock is reserved at checkout and released on cancellation or expiry.     | A successful checkout reduces available stock; a cancelled/expired order restores it.        | Planned (cart/checkout milestone; BC-007 stock operations already respect reserved_quantity) |
+| FR-INV-003 | Every stock change creates an auditable movement record.                  | A stock adjustment is traceable to a user, a reason, and a timestamp.                        | **Implemented**                                                                              |
 
 ## Cart and checkout (Planned)
 
@@ -91,10 +91,10 @@ For traceability from requirement to task to test, see
 
 ## Admin (Partially implemented, BC-006)
 
-| ID         | Requirement                                                                        | Acceptance criteria                                                | Status                                                                                                                |
-| ---------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| FR-ADM-001 | Admin can approve or suspend a merchant/store independently of the whole platform. | Suspending one store does not affect order flow for other stores.  | **Implemented** (no order flow exists yet to prove the independence claim against - revisit once BC-007 orders exist) |
-| FR-ADM-002 | Admin can configure commission and delivery-fee rules.                             | Commission percentage is configurable per merchant, not hardcoded. | Planned                                                                                                               |
+| ID         | Requirement                                                                        | Acceptance criteria                                                | Status                                                                                                                        |
+| ---------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| FR-ADM-001 | Admin can approve or suspend a merchant/store independently of the whole platform. | Suspending one store does not affect order flow for other stores.  | **Implemented** (no order flow exists yet to prove the independence claim against - revisit once the orders milestone exists) |
+| FR-ADM-002 | Admin can configure commission and delivery-fee rules.                             | Commission percentage is configurable per merchant, not hardcoded. | Planned                                                                                                                       |
 
 ## Support (Planned)
 
