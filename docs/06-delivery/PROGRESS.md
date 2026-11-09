@@ -1632,3 +1632,123 @@ reservation API, since `carts`/`stock_reservations` remain out of scope; a futur
 feature reuses the exact lock order documented here.
 
 **Not committed or pushed**, per the task's explicit instruction.
+
+## BC-008 — Customer cart, checkout, stock reservation, and COD order creation
+
+Built on BC-005/BC-006/BC-007 (accepted as complete per the task brief - not re-reviewed here; all
+three are now committed, pushed, and CI-verified - see their `TASK-TRACKER.md`/`ROADMAP.md` rows,
+updated in this task for accuracy). Inspected the actual schema first: `carts`, `cart_items`,
+`stock_reservations`, `stock_reservation_items`, `orders`, `order_items`, `order_status_history`,
+`payments`, and `idempotency_records` were **all already fully modeled by BC-004's own init
+migration**. The only genuine gaps: three documented-but-unconstrained `VARCHAR` status columns
+(`carts.status`, `stock_reservations.status`, `idempotency_records.status`) and a missing
+one-active-cart-per-user guarantee - the same class of gap BC-006/BC-007 found and fixed for
+`merchants.verification_status`/`stock_movements.movement_type`.
+
+**Migration** (`20261109120000_bc008_cart_checkout_order_checks`, forward-only, additive, no new
+tables): three `CHECK` constraints restricting each status column to its documented values, and
+`uq_carts_active_per_user` (a partial unique index, `ON carts (user_id) WHERE status = 'ACTIVE'`),
+mirroring the init migration's own `uq_stock_reservations_active_cart`/`_active_order` pattern.
+
+**Built**: `CartModule` (`CartPricingService` - the single, authoritative source of cart
+pricing/validation, reused by both the cart-summary endpoint and checkout; `CartService` - cart
+CRUD, cross-store rejection via `409`, duplicate-add increments quantity, last-item removal deletes
+the now-meaningless empty cart), `CheckoutModule` (`FulfilmentValidationService` - pickup/delivery
+eligibility via the documented `ST_DWithin` radius rule; `CheckoutService` - read-only preview plus
+the one mutating, fully transactional order-creation operation), a new `ReservationService` added to
+the existing `InventoryModule` (stock reservation - deliberately separate from BC-007's
+`InventoryService`, which only ever touches `on_hand_quantity`; this only ever touches
+`reserved_quantity`), `OrdersModule` (customer-facing retrieval only), and a new
+`IdempotencyService`/`IdempotencyModule` under `common/` (generic, reusable by any future
+idempotent-sensitive endpoint, not cart/checkout-specific).
+
+**Reservation design decision**: BC-008 reserves stock **only at order-creation time, directly
+order-held** (`cart_id` left `NULL`, `order_id` set immediately) - there is no cart-side "hold while
+browsing" reservation in this implementation, a deliberate scope choice documented in
+`CART-CHECKOUT-DESIGN.md`'s "Reservation lifecycle - what BC-008 actually does". `
+ReservationService.reserveForOrder` locks every inventory row an order touches **first**, in
+ascending `id` order across the whole order (not just within one listing) - extending BC-007's own
+single-inventory lock-order rule to cover an order with several different listings at once, so two
+concurrent orders can never request these locks in opposite orders.
+
+**Idempotency**: `IdempotencyService` implements `DATABASE-DESIGN.md`'s three-state
+(`IN_PROGRESS`/`COMPLETED`/`FAILED`) request-handling protocol exactly, scoped to
+`(scope, user_id, idempotency_key)`. The `IN_PROGRESS` insert happens before, and the
+`COMPLETED`/`FAILED` write happens after, the main order-creation transaction - deliberately outside
+it, so a rolled-back order-creation transaction never also rolls back the `FAILED` marker that needs
+to survive it. `orders.idempotency_key` (`UNIQUE (customer_id, idempotency_key)`) is written
+alongside it as the documented last-resort database guarantee, not relied on alone.
+
+**Never trust the client's prices**: `expectedTotalAmount` on the create-order request is never
+used to compute the charge - the server always recomputes the authoritative total itself, and
+`expectedTotalAmount` is compared only to detect a stale cart (a price/availability change since the
+last checkout-preview call), surfaced as a clear `409` rather than silently charging the new total.
+
+**Price and content snapshots**: `order_items`/`orders` copy product name, variant, SKU, unit price,
+store name/address, and (for delivery) recipient/address details at creation time - never
+recomputed or re-joined from the live rows afterward. Verified directly: the integration suite
+changes a listing's `selling_price` after order creation and confirms the order's own
+`order_items.unit_price` is untouched.
+
+**Reservation expiry**: no merchant accept/reject flow exists yet in this milestone, so an order's
+reservation simply holds stock for 24 hours; `ReservationService.releaseExpiredOrderReservations()`
+releases each expired reservation in its own transaction and, only if the order is still `CREATED`
+(a compare-and-swap), transitions it to `CANCELLED` with a status-history row. Operated via
+`npm run release-expired-reservations` (apps/api) - compiled into `dist/jobs/` and run exactly like
+the application itself, since running NestJS-decorated code through the `ts-node/esm` loader
+`prisma/seed.ts` uses does not work (a real, reproduced failure - `ts-node/esm` cannot resolve one of
+`@nestjs/config`'s own CommonJS dependencies, a `.js.js` double-extension resolution bug specific to
+that loader). No new scheduler or infrastructure dependency - meant to be invoked periodically by
+whatever the deployment environment already has for cron-like tasks.
+
+**Verified, with each claim distinguished by how it was checked**:
+
+- Typecheck (`tsc --noEmit`, both the main and `test/` tsconfigs): clean.
+- Lint (`nx eslint:lint`, all workspaces): clean.
+- Format (`prettier --check .`): clean, after `prettier --write` on the new files.
+- Unit tests: **143/143 passing** (20 suites - the 94 pre-existing plus `idempotency.service.spec
+.ts`, `cart-pricing.service.spec.ts`, `cart.service.spec.ts`, `reservation.service.spec.ts`,
+  `fulfilment-validation.service.spec.ts`, `checkout.service.spec.ts`, and `orders.service.spec.ts`,
+  49 new tests between them). Covers idempotency replay/conflict/reset, cart pricing error codes
+  (including expired-batch exclusion), cross-store rejection, FEFO reservation allocation and
+  insufficient-stock rejection, aggregate/batch-tracked release and its double-release no-op,
+  expired-reservation release with order cancellation, pickup/delivery eligibility (zone inactive,
+  no radius configured, out of range), and checkout's full success/conflict/idempotency-replay
+  matrix.
+- Build (`nest build`): succeeds, including the new `src/jobs/release-expired-reservations.ts`
+  compiling into `dist/jobs/`.
+- Prisma schema validation (`prisma validate`): passes.
+- A new real-database integration suite
+  (`apps/api/test/integration/cart-checkout-orders.integration-spec.ts`, 18 tests) covers: cart
+  creation/duplicate-increment/absolute-update, cross-store rejection, empty-cart-frees-the-store-
+  lock, COD order creation with reservation and cart transition, stale-cart price-change rejection,
+  insufficient-stock rejection with inventory left untouched and no partial order, the price-
+  snapshot-survives-a-later-price-change check, idempotent replay, idempotency-key-reuse-with-
+  different-body rejection, concurrent-duplicate-request dedup (exactly one order), cross-customer
+  cart/order access denial, checkout blocked once a store is suspended, pickup/delivery validated
+  independently, two-customers-racing-for-the-final-unit (exactly one succeeds), FEFO allocation
+  excluding an expired batch, reservation expiry releasing stock and cancelling the order (and a
+  safe no-op on a second run), and cart cleanup never damaging order history. **It could not be run
+  to completion locally** - confirmed by reproducing the identical
+  `PrismaClientInitializationError: Authentication failed ... dropzo_app` failure already documented
+  for every prior milestone's suite, not a defect in this suite's own code.
+
+**Documentation updated**: `CART-CHECKOUT-DESIGN.md` (new), `ORDER-MANAGEMENT-DESIGN.md` (new),
+`DATABASE-DESIGN.md` (new `CHECK` constraints and partial unique index, change-log entry),
+`API-SPECIFICATION.md` (new endpoint rows), `FUNCTIONAL-REQUIREMENTS.md` (FR-CART-001, FR-ORD-001/
+002, FR-INV-002, FR-PAY-001 to Implemented; FR-ORD-003 stays Planned - no cancellation endpoint this
+milestone), `TASK-TRACKER.md`/`ROADMAP.md` (this entry, plus correcting BC-005/006/007's now-stale
+"not yet pushed"/"pending CI" notes to reflect that all three were in fact committed, pushed, and
+CI-verified earlier in this same working session), `RISK-REGISTER.md`/`TECHNICAL-DEBT.md` (see those
+files for the specific items this task adds).
+
+**Explicitly not done, by design (BC-008's own scope boundary)**: no online payment gateway
+integration or webhooks, no delivery-partner onboarding or assignment, no route optimization, no
+merchant order-fulfilment dashboard, no coupons/loyalty/subscriptions, no multi-store checkout, no
+AI recommendations, no advanced analytics, no Redis/Kafka/microservices - all deferred to later
+milestones, per the task's explicit exclusions. No cart-side ("while browsing") stock reservation
+either - a deliberate scope choice, not a gap (see "Reservation design decision" above). No
+customer-initiated order cancellation endpoint (FR-ORD-003 stays Planned) - only the automatic
+reservation-expiry cancellation path exists this milestone.
+
+**Not committed or pushed**, per the task's explicit instruction.

@@ -67,29 +67,40 @@ document explains the conventions and lists planned endpoint groups.
 | `POST`   | `.../listings/:listingId/inventory/adjustments`            | MERCHANT_OWNER         | Apply a signed stocktake/correction. Reason mandatory.                        |
 | `POST`   | `.../listings/:listingId/inventory/removals`               | MERCHANT_OWNER         | Write off damaged or expired stock. Reason mandatory.                         |
 | `GET`    | `.../listings/:listingId/inventory/movements`              | MERCHANT_OWNER         | List this listing's stock movement history (paginated).                       |
+| `GET`    | `/api/v1/customers/me/cart`                                | CUSTOMER               | Get the caller's active cart, priced and validated.                           |
+| `POST`   | `/api/v1/customers/me/cart/items`                          | CUSTOMER               | Add an item (creates the cart if none is active).                             |
+| `PATCH`  | `/api/v1/customers/me/cart/items/:itemId`                  | CUSTOMER               | Set an item to an absolute quantity.                                          |
+| `DELETE` | `/api/v1/customers/me/cart/items/:itemId`                  | CUSTOMER               | Remove an item from the cart.                                                 |
+| `DELETE` | `/api/v1/customers/me/cart`                                | CUSTOMER               | Clear (abandon) the active cart.                                              |
+| `POST`   | `/api/v1/checkout/prepare`                                 | CUSTOMER               | Validate and price the active cart for a chosen fulfilment method.            |
+| `POST`   | `/api/v1/checkout`                                         | CUSTOMER               | Create an order from the active cart. Requires `Idempotency-Key` header.      |
+| `GET`    | `/api/v1/customers/me/orders`                              | CUSTOMER               | List the caller's own orders (paginated, filterable by status).               |
+| `GET`    | `/api/v1/customers/me/orders/:idOrNumber`                  | CUSTOMER               | Get one of the caller's own orders by id or order number.                     |
 
 See [`AUTHENTICATION-DESIGN.md`](AUTHENTICATION-DESIGN.md) for the full OTP/token/session lifecycle,
 [ADR-0013](../03-decisions/ADR-0013-phone-otp-auth-opaque-refresh-tokens.md) for the design
 decisions behind it, [`MERCHANT-STORE-DESIGN.md`](MERCHANT-STORE-DESIGN.md) for the merchant
-application and store lifecycle behind the BC-006 endpoints above, and
+application and store lifecycle behind the BC-006 endpoints above,
 [`PRODUCT-CATALOGUE-DESIGN.md`](PRODUCT-CATALOGUE-DESIGN.md) /
-[`INVENTORY-MANAGEMENT-DESIGN.md`](INVENTORY-MANAGEMENT-DESIGN.md) for the BC-007 endpoints. Every
+[`INVENTORY-MANAGEMENT-DESIGN.md`](INVENTORY-MANAGEMENT-DESIGN.md) for the BC-007 endpoints, and
+[`CART-CHECKOUT-DESIGN.md`](CART-CHECKOUT-DESIGN.md) /
+[`ORDER-MANAGEMENT-DESIGN.md`](ORDER-MANAGEMENT-DESIGN.md) for the BC-008 endpoints. Every
 merchant-facing route resolves ownership from the authenticated user, never a client-supplied
-merchant/store/listing id.
+merchant/store/listing id; every customer-facing cart/checkout/order route resolves the customer
+the same way, never a client-supplied customer id.
 
 ## Planned endpoint groups
 
 These do not exist yet. Listed here so future work has a consistent naming convention to follow,
 not as a commitment to exact paths.
 
-| Group             | Example planned endpoints                                                         |
-| ----------------- | --------------------------------------------------------------------------------- |
-| Customer/location | `GET /customers/profile`, `GET /customers/addresses`, `GET /serviceability/check` |
-| Cart/checkout     | `GET /cart`, `POST /cart/items`, `POST /checkout`                                 |
-| Orders            | `GET /orders`, `GET /orders/:id`, `POST /orders/:id/cancel`                       |
-| Delivery          | `GET /delivery/assignments`, `POST /delivery/assignments/:id/delivered`           |
-| Payments          | `POST /payments/create-intent`, `POST /payments/webhook/:provider`                |
-| Admin             | `GET /admin/dashboard`                                                            |
+| Group                 | Example planned endpoints                                                         |
+| --------------------- | --------------------------------------------------------------------------------- |
+| Customer/location     | `GET /customers/profile`, `GET /customers/addresses`, `GET /serviceability/check` |
+| Orders (cancellation) | `POST /customers/me/orders/:id/cancel` (FR-ORD-003, still Planned)                |
+| Delivery              | `GET /delivery/assignments`, `POST /delivery/assignments/:id/delivered`           |
+| Payments              | `POST /payments/create-intent`, `POST /payments/webhook/:provider`                |
+| Admin                 | `GET /admin/dashboard`                                                            |
 
 When any of these is implemented, update this table's status and let the Swagger output be the
 detailed reference rather than duplicating request/response schemas here.

@@ -23,7 +23,8 @@
         "prisma:studio": "node ../../node_modules/dotenv-cli/cli.js -e ../../.env -- prisma studio",
         "prisma:set-app-password": "node ../../node_modules/dotenv-cli/cli.js -e ../../.env -- node ../../scripts/set-app-role-password.mjs",
         "prisma:set-app-password:test": "node ../../node_modules/dotenv-cli/cli.js -e ../../.env.test -- node ../../scripts/set-app-role-password.mjs",
-        "db:seed": "node ../../node_modules/dotenv-cli/cli.js -e ../../.env -- node --loader ts-node/esm prisma/seed.ts"
+        "db:seed": "node ../../node_modules/dotenv-cli/cli.js -e ../../.env -- node --loader ts-node/esm prisma/seed.ts",
+        "release-expired-reservations": "node ../../node_modules/dotenv-cli/cli.js -e ../../.env -- node dist/jobs/release-expired-reservations.js"
     },
     "dependencies": {
         "@dropzo/shared-types": "0.1.0",

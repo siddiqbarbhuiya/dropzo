@@ -36,6 +36,23 @@ This remains one canonical file, by decision (BC-003.2) — not split across `02
 - Idempotency keys are scoped to the requesting user and operation, never globally unique across
   unrelated users or endpoints (corrected in this revision).
 
+## Change log for BC-008
+
+Added one forward-only migration (`20261109120000_bc008_cart_checkout_order_checks`): three
+`CHECK` constraints on previously-unconstrained `VARCHAR` status columns - `carts.status` (`ACTIVE`,
+`CHECKED_OUT`, `ABANDONED`), `stock_reservations.status` (`ACTIVE`, `CONSUMED`, `RELEASED`,
+`EXPIRED` - the column already had two `CHECK`s tying status to its timestamps, but nothing
+restricted the value itself), and `idempotency_records.status` (`IN_PROGRESS`, `COMPLETED`,
+`FAILED`) - the same class of gap BC-006/BC-007 closed for `merchants.verification_status` and
+`stock_movements.movement_type`. Also added `uq_carts_active_per_user`, a partial unique index
+(`ON carts (user_id) WHERE status = 'ACTIVE'`) guaranteeing at most one active cart per customer -
+mirroring the init migration's own `uq_stock_reservations_active_cart`/`_active_order` pattern. No
+new tables: `carts`, `cart_items`, `stock_reservations`, `stock_reservation_items`, `orders`,
+`order_items`, `order_status_history`, `payments`, and `idempotency_records` were all already fully
+modeled by BC-004's init migration. No existing table, constraint, or MVP/deferred classification
+was otherwise changed. See [`CART-CHECKOUT-DESIGN.md`](CART-CHECKOUT-DESIGN.md) and
+[`ORDER-MANAGEMENT-DESIGN.md`](ORDER-MANAGEMENT-DESIGN.md) for the design this supports.
+
 ## Change log for BC-007
 
 Added one forward-only migration (`20261109060000_bc007_stock_movement_type_check`): a `CHECK`
@@ -581,13 +598,16 @@ magnitude (direction implied by `movement_type`); `ADJUSTED` stores the signed d
 
 #### `carts` — MVP-required
 
-| Column       | Type        | Null     | Default             | Notes                                 |
-| ------------ | ----------- | -------- | ------------------- | ------------------------------------- |
-| `id`         | UUID        | NOT NULL | `gen_random_uuid()` | PK                                    |
-| `user_id`    | UUID        | NOT NULL | —                   | FK → `users.id` `ON DELETE RESTRICT`  |
-| `store_id`   | UUID        | NOT NULL | —                   | FK → `stores.id` `ON DELETE RESTRICT` |
-| `status`     | VARCHAR(20) | NOT NULL | `'ACTIVE'`          | `ACTIVE`, `CHECKED_OUT`, `ABANDONED`  |
-| `updated_at` | TIMESTAMPTZ | NOT NULL | `NOW()`             |                                       |
+| Column       | Type        | Null     | Default             | Notes                                                            |
+| ------------ | ----------- | -------- | ------------------- | ---------------------------------------------------------------- |
+| `id`         | UUID        | NOT NULL | `gen_random_uuid()` | PK                                                               |
+| `user_id`    | UUID        | NOT NULL | —                   | FK → `users.id` `ON DELETE RESTRICT`                             |
+| `store_id`   | UUID        | NOT NULL | —                   | FK → `stores.id` `ON DELETE RESTRICT`                            |
+| `status`     | VARCHAR(20) | NOT NULL | `'ACTIVE'`          | CHECK restricts to `ACTIVE`, `CHECKED_OUT`, `ABANDONED` (BC-008) |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | `NOW()`             |                                                                  |
+
+Partial unique index `uq_carts_active_per_user` (BC-008): `ON carts (user_id) WHERE status =
+'ACTIVE'` - at most one active cart per customer.
 
 #### `cart_items` — MVP-required
 
@@ -607,7 +627,7 @@ Unique: `(cart_id, store_product_id)`.
 | `id`          | UUID        | NOT NULL | `gen_random_uuid()` | PK                                                                         |
 | `cart_id`     | UUID        | NULL     | —                   | FK → `carts.id` `ON DELETE RESTRICT`                                       |
 | `order_id`    | UUID        | NULL     | —                   | FK → `orders.id` `ON DELETE RESTRICT`                                      |
-| `status`      | VARCHAR(20) | NOT NULL | `'ACTIVE'`          | `ACTIVE`, `CONSUMED`, `RELEASED`, `EXPIRED`                                |
+| `status`      | VARCHAR(20) | NOT NULL | `'ACTIVE'`          | CHECK restricts to `ACTIVE`, `CONSUMED`, `RELEASED`, `EXPIRED` (BC-008)    |
 | `expires_at`  | TIMESTAMPTZ | NOT NULL | —                   |                                                                            |
 | `consumed_at` | TIMESTAMPTZ | NULL     | —                   | **new** — set exactly once, when stock actually leaves (order `COMPLETED`) |
 | `released_at` | TIMESTAMPTZ | NULL     | —                   | **new** — set exactly once, on cancellation/expiry                         |
@@ -1035,7 +1055,7 @@ Index: `(entity_type, entity_id, created_at)`.
 | `idempotency_key`   | VARCHAR(150) | NOT NULL | —                   |                                                                                                          |
 | `request_hash`      | TEXT         | NOT NULL | —                   |                                                                                                          |
 | `response_snapshot` | JSONB        | NULL     | —                   |                                                                                                          |
-| `status`            | VARCHAR(20)  | NOT NULL | `'IN_PROGRESS'`     | `IN_PROGRESS`, `COMPLETED`, `FAILED`                                                                     |
+| `status`            | VARCHAR(20)  | NOT NULL | `'IN_PROGRESS'`     | CHECK restricts to `IN_PROGRESS`, `COMPLETED`, `FAILED` (BC-008)                                         |
 | `created_at`        | TIMESTAMPTZ  | NOT NULL | `NOW()`             |                                                                                                          |
 | `expires_at`        | TIMESTAMPTZ  | NOT NULL | —                   |                                                                                                          |
 
