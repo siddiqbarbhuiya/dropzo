@@ -444,6 +444,39 @@ describe('Checkout and order creation (service + real DB)', () => {
         expect(pickupPreview.isReadyForCheckout).toBe(true);
     });
 
+    it('rejects a new order once the customer already has 5 open (CREATED) orders', async () => {
+        const customer = await makeCustomer();
+        const { store, owner, listing } = await makeStoreWithListing();
+        await receive(owner.id, store.id, listing.id, 100);
+
+        for (let i = 0; i < 5; i++) {
+            const preview = await cart.addItem(customer.id, {
+                storeProductId: listing.id,
+                quantity: 1,
+            });
+            await checkout.createOrder(
+                customer.id,
+                { fulfilmentType: 'PICKUP', expectedTotalAmount: preview.totalAmount },
+                `key-${randomUUID()}`,
+            );
+        }
+
+        const sixthPreview = await cart.addItem(customer.id, {
+            storeProductId: listing.id,
+            quantity: 1,
+        });
+        await expect(
+            checkout.createOrder(
+                customer.id,
+                { fulfilmentType: 'PICKUP', expectedTotalAmount: sixthPreview.totalAmount },
+                `key-${randomUUID()}`,
+            ),
+        ).rejects.toThrow();
+
+        const orderCount = await prisma.order.count({ where: { customer_id: customer.id } });
+        expect(orderCount).toBe(5);
+    });
+
     it('two customers competing for the final available unit: only one succeeds', async () => {
         const customerA = await makeCustomer();
         const customerB = await makeCustomer();

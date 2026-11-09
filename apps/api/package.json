@@ -77,7 +77,8 @@
             "ts"
         ],
         "moduleNameMapper": {
-            "^(\\.{1,2}/.*)\\.js$": "$1"
+            "^(\\.{1,2}/.*)\\.js$": "$1",
+            "^@nestjs/throttler$": "<rootDir>/../test/mocks/throttler.mock.ts"
         },
         "rootDir": "src",
         "testRegex": ".*\\.spec\\.ts$",

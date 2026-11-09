@@ -17,6 +17,8 @@ const IDEMPOTENCY_SCOPE = 'checkout.create_order';
 // in ORDER-MANAGEMENT-DESIGN.md's "Reservation lifecycle" section.
 const ORDER_ACCEPTANCE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const PRICE_TOLERANCE = 0.01;
+// See the usage site for why this exists and why the exact number is a placeholder, not policy.
+const MAX_OPEN_ORDERS_PER_CUSTOMER = 5;
 
 function generateOrderNumber(): string {
     const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -108,6 +110,20 @@ export class CheckoutService {
             const cart = await tx.cart.findFirst({ where: { user_id: userId, status: 'ACTIVE' } });
             if (!cart) {
                 throw new NotFoundException('You have no active cart.');
+            }
+
+            // A conservative defense-in-depth ceiling, not a tuned product policy - COD needs no
+            // upfront payment, so nothing else stops a customer from repeatedly creating orders
+            // against scarce stock and never collecting any of them (flagged by an automated
+            // security review; see RISK-014/TD-017 for the real per-customer limit, which depends
+            // on usage patterns this task has no basis to invent).
+            const openOrders = await tx.order.count({
+                where: { customer_id: userId, status: 'CREATED' },
+            });
+            if (openOrders >= MAX_OPEN_ORDERS_PER_CUSTOMER) {
+                throw new ConflictException(
+                    'You have too many orders awaiting confirmation. Please wait for an existing order to be processed before placing another.',
+                );
             }
 
             // Authoritative re-validation, inside this transaction - never the stale read from a

@@ -11,22 +11,29 @@ milestones, per the task's explicit scope boundary).
 
 ## Abuse resistance: COD hoarding
 
-COD needs no upfront payment, so nothing stops a customer from repeatedly creating orders against
-scarce stock and never collecting any of them - each one holds `reserved_quantity` for up to the
-24-hour acceptance window. An automated security review flagged this; two cheap, already-available
-mitigations are in place: cart line quantity is capped at 1000 units (see
-`CART-CHECKOUT-DESIGN.md`), and the app-wide `ThrottlerGuard` baseline (`AuthModule`, 30 requests/
-minute/IP) already applies to `POST /checkout` like every other route. A stricter, checkout-specific
-`@Throttle` override was tried and reverted: importing anything from `@nestjs/throttler` crashes
-Jest's own `--experimental-vm-modules` worker ("Must use import to load ES Module") the moment any
-test transitively loads the controller - the exact, already-documented incompatibility
-`auth.integration-spec.ts`'s own `TestAuthAppModule` comment explains for the whole `ThrottlerModule`
-(real Node resolves the package fine; only this project's Jest harness cannot). A genuine cap on how
-many `CREATED` orders one customer may hold open at once is, separately, a product-policy decision
-this task has no basis to invent (the right number depends on real usage patterns not yet observed)
+COD needs no upfront payment, so nothing would otherwise stop a customer from repeatedly creating
+orders against scarce stock and never collecting any of them - each one holds `reserved_quantity`
+for up to the 24-hour acceptance window. An automated security review flagged this; three
+mitigations are in place:
 
-- tracked as `RISK-014`/`TD-017` for a follow-up once real order volume exists, alongside revisiting
-  the stricter per-route throttle once the Jest incompatibility is resolved or worked around.
+- **Cart line quantity is capped at 1000 units** (see `CART-CHECKOUT-DESIGN.md`).
+- **`POST /checkout` carries its own stricter `@Throttle({ default: { limit: 5, ttl: 60_000 } })`**
+  (5 requests/minute/IP), on top of the app-wide `ThrottlerGuard` baseline (`AuthModule`, 30
+  requests/minute/IP) that already applies to every route. Importing anything from
+  `@nestjs/throttler` crashes Jest's own `--experimental-vm-modules` worker ("Must use import to
+  load ES Module") - the exact, already-documented incompatibility `auth.integration-spec.ts`'s own
+  `TestAuthAppModule` comment explains for the whole `ThrottlerModule` (real Node resolves the
+  package fine; only this project's Jest harness cannot). Rather than exclude the decorator from
+  production code, both Jest configs now map `@nestjs/throttler` to a no-op mock
+  (`test/mocks/throttler.mock.ts`), so the real decorator/guard runs in production while tests
+  simply treat it as absent - the same fix class the `auth.integration-spec.ts` comment itself
+  anticipated, generalized so no future test file needs its own ad hoc exclusion.
+- **`CheckoutService.doCreateOrder` rejects a new order once the customer already has
+  `MAX_OPEN_ORDERS_PER_CUSTOMER` (5) orders in `CREATED` status**, checked inside the same
+  transaction as order creation. This number is a conservative, documented placeholder, not tuned
+  product policy - the right number (and whether it should escalate after a no-show) depends on
+  real usage patterns not yet observed - tracked as `RISK-014`/`TD-017` for a follow-up once real
+  order volume exists.
 
 ## Order creation sequence (`CheckoutService.doCreateOrder`)
 

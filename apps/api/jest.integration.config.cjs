@@ -7,6 +7,10 @@ module.exports = {
     moduleFileExtensions: ['js', 'json', 'ts'],
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
+        // @nestjs/throttler crashes Jest's --experimental-vm-modules worker on import (see
+        // test/mocks/throttler.mock.ts for why) - mapped to a no-op mock here rather than
+        // excluded ad hoc from every test file that happens to load code importing it.
+        '^@nestjs/throttler$': '<rootDir>/mocks/throttler.mock.ts',
     },
     rootDir: 'test',
     testRegex: '.*\\.integration-spec\\.ts$',

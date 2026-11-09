@@ -52,7 +52,9 @@ function makeIdempotency(overrides: Record<string, unknown> = {}) {
     } as never;
 }
 
-function makePrisma(opts: { activeCart?: Record<string, unknown> | null } = {}) {
+function makePrisma(
+    opts: { activeCart?: Record<string, unknown> | null; openOrderCount?: number } = {},
+) {
     const order = {
         create: jest.fn(async (args: { data: Record<string, unknown> }) => ({
             id: 'order-1',
@@ -64,6 +66,7 @@ function makePrisma(opts: { activeCart?: Record<string, unknown> | null } = {}) 
             order_number: 'DZ20261109ABCD1234',
             items: [],
         })),
+        count: jest.fn(async () => opts.openOrderCount ?? 0),
     };
     const tx = {
         cart: {
@@ -198,6 +201,28 @@ describe('CheckoutService', () => {
             expect(
                 (prisma as never as { $transaction: jest.Mock }).$transaction,
             ).not.toHaveBeenCalled();
+        });
+
+        it('rejects a new order once the customer already has too many open orders', async () => {
+            const prisma = makePrisma({ openOrderCount: 5 });
+            const idempotency = makeIdempotency();
+            const service = new CheckoutService(
+                prisma,
+                makePricing(),
+                makeFulfilment(),
+                makeReservations(),
+                idempotency,
+                makeAudit(),
+            );
+
+            await expect(
+                service.createOrder(
+                    'user-1',
+                    { fulfilmentType: 'PICKUP', expectedTotalAmount: 200 },
+                    'key-1',
+                ),
+            ).rejects.toThrow(ConflictException);
+            expect((idempotency as never as { fail: jest.Mock }).fail).toHaveBeenCalled();
         });
 
         it('rejects a concurrent in-progress idempotency key', async () => {
