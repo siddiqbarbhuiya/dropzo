@@ -69,6 +69,7 @@ function makePrisma(
         count: jest.fn(async () => opts.openOrderCount ?? 0),
     };
     const tx = {
+        $executeRaw: jest.fn(async () => 0),
         cart: {
             findFirst: jest.fn(async () =>
                 'activeCart' in opts ? opts.activeCart : { id: 'cart-1', store_id: 'store-1' },

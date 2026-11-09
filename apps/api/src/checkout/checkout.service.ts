@@ -107,6 +107,16 @@ export class CheckoutService {
         idempotencyKey: string,
     ): Promise<Order & { items: unknown[] }> {
         return this.prisma.$transaction(async (tx) => {
+            // Serializes every order-creation transaction for this one customer (released
+            // automatically at transaction end) - without it, two concurrent requests with
+            // different idempotency keys could both read the open-order count (or the active cart)
+            // before either commits, letting both proceed past checks that were only ever
+            // correct against a single-threaded read. hashtext() collisions between different
+            // users only ever cost extra serialization, never incorrect behaviour. $executeRaw,
+            // not $queryRaw - pg_advisory_xact_lock returns void, which $queryRaw cannot
+            // deserialize as a result row ("Failed to deserialize column of type 'void'").
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+
             const cart = await tx.cart.findFirst({ where: { user_id: userId, status: 'ACTIVE' } });
             if (!cart) {
                 throw new NotFoundException('You have no active cart.');

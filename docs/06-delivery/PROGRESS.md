@@ -1820,3 +1820,44 @@ locally: lint/typecheck/format/build/143 unit tests clean, and the integration s
 on the documented local DB-credential limitation (confirmed by running it directly - the Jest
 module-loading error is gone, replaced by the same `PrismaClientInitializationError` every other
 suite in this project hits locally).
+
+## BC-008 follow-up #3 — restoring the throttle properly, an open-order cap, a TOCTOU fix, and finally fixing local integration-test execution
+
+Two more rounds of automated security review, both addressed directly rather than just acknowledged:
+
+1. **The previous revert was correctly flagged as a regression, not a fix.** Restored
+   `CheckoutController`'s stricter `@Throttle` by actually solving the Jest incompatibility instead
+   of avoiding it: `@nestjs/throttler` is now mapped to a no-op mock
+   (`apps/api/test/mocks/throttler.mock.ts`) via `moduleNameMapper` in both Jest configs, so
+   production code uses the real package unmodified while tests treat it as absent - this is the
+   fix class `auth.integration-spec.ts`'s own comment already anticipated, generalized so no future
+   test file needs its own ad hoc exclusion. Also added
+   `CheckoutService.MAX_OPEN_ORDERS_PER_CUSTOMER` (5, a documented placeholder, not tuned policy) -
+   `doCreateOrder` now rejects a new order once a customer already has that many `CREATED` orders.
+2. **A genuine TOCTOU race on that same open-order count**, flagged immediately after: two
+   concurrent `createOrder` calls for the same customer (different idempotency keys) could both
+   read the count before either committed. Fixed with `pg_advisory_xact_lock(hashtext(userId))`,
+   acquired first inside the transaction - serializes every order-creation attempt for one customer
+   without touching cross-customer concurrency.
+
+**Separately, and far more significantly**: in response to the user directly asking why every push
+keeps failing CI and why this isn't being caught beforehand, investigated the actual root cause
+rather than repeating "the documented local-environment limitation." Confirmed directly that this
+machine's native Windows PostgreSQL 17 (bound to port 5432, not the project's own Docker setup) has
+**no PostGIS extension installed at all** (`Could not open extension control file ".../postgis
+.control"`) and a **permanently failed `init` migration** from some earlier attempt - meaning no
+integration test has ever been able to run past its first database connection on this machine, for
+any BC-004 through BC-007 milestone either, not just this one. With the user's explicit approval,
+started Docker Desktop and ran the project's own `docker-compose` Postgres+PostGIS container
+(`postgis/postgis:16-3.4`) on an alternate port, **5433**, to avoid the port conflict with the
+native install, then applied all 5 migrations to both `dropzo` and `dropzo_test`, seeded, and ran
+the full integration suite for real.
+
+**First real local run immediately caught a genuine bug this exact session's own advisory-lock fix
+had introduced**: `pg_advisory_xact_lock()` returns `void`, which `$queryRaw` cannot deserialize
+("Failed to deserialize column of type 'void'") - every other pre-existing suite (8/8) passed
+untouched, isolating the bug precisely to the one new line. Fixed by using `$executeRaw` instead of
+`$queryRaw` for that statement. Re-ran the full suite: **all 9 integration suites, 114/114 tests,
+pass - including every pre-existing BC-004 through BC-007 suite, now genuinely verified locally for
+the first time, not just assumed consistent with a CI badge.** `npm run verify` (all 13 checks) now
+passes completely end to end on this machine. `RISK-013`/`TD-014` updated to reflect this.
