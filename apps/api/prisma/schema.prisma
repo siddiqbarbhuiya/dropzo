@@ -108,23 +108,24 @@ model User {
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
 
-  roles                   UserRole[]
-  sessions                UserSession[]
-  addresses               UserAddress[]
-  merchants_owned         Merchant[]
-  merchant_staff_of       MerchantStaff[]
-  delivery_partner        DeliveryPartner?
-  orders_placed           Order[]
-  order_status_changes    OrderStatusHistory[]
-  payment_status_changes  PaymentStatusHistory[]
-  refunds_initiated       Refund[]
-  ledger_transactions     LedgerTransaction[]
-  stock_movements_created StockMovement[]
-  notification_devices    NotificationDevice[]
-  notifications           Notification[]
-  complaints              Complaint[]
-  audit_logs              AuditLog[]
-  idempotency_records     IdempotencyRecord[]
+  roles                          UserRole[]
+  sessions                       UserSession[]
+  addresses                      UserAddress[]
+  merchants_owned                Merchant[]
+  merchant_applications_reviewed Merchant[]             @relation("MerchantReviewedBy")
+  merchant_staff_of              MerchantStaff[]
+  delivery_partner               DeliveryPartner?
+  orders_placed                  Order[]
+  order_status_changes           OrderStatusHistory[]
+  payment_status_changes         PaymentStatusHistory[]
+  refunds_initiated              Refund[]
+  ledger_transactions            LedgerTransaction[]
+  stock_movements_created        StockMovement[]
+  notification_devices           NotificationDevice[]
+  notifications                  Notification[]
+  complaints                     Complaint[]
+  audit_logs                     AuditLog[]
+  idempotency_records            IdempotencyRecord[]
 
   @@map("users")
 }
@@ -209,18 +210,36 @@ model UserAddress {
 // Merchant
 // ---------------------------------------------------------------------------
 
+// verification_status lifecycle (BC-006): DRAFT -> PENDING -> APPROVED | REJECTED; APPROVED ->
+// SUSPENDED -> APPROVED (reinstated); REJECTED -> PENDING (resubmission). Enforced at the
+// application layer (MerchantApplicationService) and by a CHECK constraint added in this task's
+// migration - see docs/04-design/MERCHANT-STORE-DESIGN.md.
 model Merchant {
-  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  owner_user_id       String   @db.Uuid
-  legal_name          String   @db.VarChar(200)
-  display_name        String   @db.VarChar(200)
-  contact_phone       String   @db.VarChar(20)
-  business_address    String   @db.Text
-  verification_status String   @default("PENDING") @db.VarChar(30)
-  commission_percent  Decimal  @default(8.00) @db.Decimal(5, 2)
-  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_user_id        String    @unique @db.Uuid
+  legal_name           String    @db.VarChar(200)
+  display_name         String    @db.VarChar(200)
+  business_type        String?   @db.VarChar(50)
+  contact_person_name  String?   @db.VarChar(150)
+  contact_phone        String    @db.VarChar(20)
+  business_email       String?   @db.VarChar(255)
+  business_address     String    @db.Text
+  city                 String?   @db.VarChar(100)
+  district             String?   @db.VarChar(100)
+  state                String    @default("Assam") @db.VarChar(100)
+  postal_code          String?   @db.VarChar(10)
+  business_description String?   @db.Text
+  verification_status  String    @default("PENDING") @db.VarChar(30)
+  commission_percent   Decimal   @default(8.00) @db.Decimal(5, 2)
+  submitted_at         DateTime? @db.Timestamptz(6)
+  reviewed_at          DateTime? @db.Timestamptz(6)
+  reviewed_by_user_id  String?   @db.Uuid
+  rejection_reason     String?   @db.Text
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
 
   owner              User               @relation(fields: [owner_user_id], references: [id], onDelete: Restrict)
+  reviewer           User?              @relation("MerchantReviewedBy", fields: [reviewed_by_user_id], references: [id], onDelete: Restrict)
   staff              MerchantStaff[]
   stores             Store[]
   settlements        Settlement[]
@@ -248,19 +267,29 @@ model Store {
   merchant_id         String                                @db.Uuid
   name                String                                @db.VarChar(200)
   description         String?                               @db.Text
+  contact_phone       String?                               @db.VarChar(20)
+  email               String?                               @db.VarChar(255)
   address             String                                @db.Text
+  locality            String?                               @db.VarChar(150)
   district            String                                @db.VarChar(100)
   city                String                                @db.VarChar(100)
+  state               String                                @default("Assam") @db.VarChar(100)
   postal_code         String?                               @db.VarChar(10)
   location            Unsupported("geography(Point, 4326)")
+  timezone            String                                @default("Asia/Kolkata") @db.VarChar(50)
+  service_zone_id     String?                               @db.Uuid
   status              StoreStatus                           @default(PENDING)
   supports_pickup     Boolean                               @default(true)
   supports_delivery   Boolean                               @default(false)
   preparation_minutes Int                                   @default(20)
+  // Per-weekday hours and closed days - see docs/04-design/MERCHANT-STORE-DESIGN.md for the exact
+  // shape ({mon: {open, close} | null, ...}), validated at the DTO layer, not by the database.
   opening_hours       Json                                  @default("{}") @db.JsonB
   created_at          DateTime                              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime                              @default(now()) @updatedAt @db.Timestamptz(6)
 
   merchant       Merchant       @relation(fields: [merchant_id], references: [id], onDelete: Restrict)
+  service_zone   ServiceZone?   @relation(fields: [service_zone_id], references: [id], onDelete: Restrict)
   store_products StoreProduct[]
   carts          Cart[]
   orders         Order[]
@@ -283,8 +312,12 @@ model ServiceZone {
   is_active              Boolean                                  @default(true)
   created_at             DateTime                                 @default(now()) @db.Timestamptz(6)
 
-  // No foreign-key relationship to any other table, by design - see
-  // DATABASE-DESIGN.md's "Service zones and delivery eligibility".
+  // Originally "no foreign-key relationship to any other table, by design". BC-006 adds the one
+  // inbound reference DATABASE-DESIGN.md's own delivery-eligibility rule already assumed ("the
+  // store's service_zones membership") but the schema never actually had: stores.service_zone_id.
+  // service_zones itself still has no outbound FK of its own.
+  stores Store[]
+
   @@map("service_zones")
 }
 

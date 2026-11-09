@@ -1414,3 +1414,113 @@ document) - confirmed once, not retried repeatedly, per the review's own instruc
 fixes are not yet committed or pushed**, so they have not yet had their own CI run - `RISK-010` and
 `TD-009` are updated to reflect that CI run #8 passed for the code as of `0a1849d`, but remain open
 until a follow-up CI run confirms these additional changes.
+
+## BC-006 — Merchant onboarding and store management
+
+Built directly on BC-005 (accepted as complete per the task brief - not re-reviewed here). Inspected
+the actual `merchants`/`stores`/`service_zones` schema first: most of what BC-006 needed already
+existed (`merchants.verification_status`, `store_status` enum, `stores.opening_hours` JSONB,
+`stores.supports_pickup`/`supports_delivery`), but several genuine gaps remained - no structured
+address fields, no application-review audit trail, no `UNIQUE` stopping a user from submitting two
+applications, no `CHECK` constraining `verification_status` to real values, and
+`DATABASE-DESIGN.md`'s own delivery-eligibility rule referenced "the store's `service_zones`
+membership" which the schema never actually implemented (`stores` had no `service_zone_id` at all).
+
+**Migration** (`20261107180000_bc006_merchant_store_onboarding`, forward-only, generated via the
+same DB-connection-free `prisma migrate diff` technique BC-005 used for `otp_challenges`): extends
+`merchants` (business type, contact person, email, structured city/district/state/postal_code,
+business description, `submitted_at`/`reviewed_at`/`reviewed_by_user_id`/`rejection_reason`,
+`UNIQUE` on `owner_user_id`, a `CHECK` on `verification_status`, a second `CHECK` that reviewed
+fields are set together or not at all) and `stores` (contact phone/email, locality, structured
+state, timezone, `service_zone_id` FK to `service_zones`). No new tables; no change to any
+BC-004/BC-005 migration.
+
+**Built**: `MerchantApplicationService` (submit/resubmit-after-rejection/update/dashboard, plus
+admin list/get/approve/reject/suspend/reinstate) and `StoreService` (create/list/get/update/hours/
+availability/status, plus admin list-by-merchant/status), both under a new `MerchantModule`.
+Ownership is resolved from the authenticated user (`req.user.id`), never a client-supplied merchant
+or store id - the merchant-facing routes live under `/merchants/me` and `/merchants/me/stores`
+specifically so there is no id to trust in the first place. Admin routes
+(`/admin/merchants`, `/admin/stores`) take real ids, since that is the whole point of being admin,
+and are `@Roles('ADMIN', 'SUPER_ADMIN')`-gated. Every application/store decision is audited with a
+real UUID `entityId` (the `merchants`/`stores` row itself - see BC-005's own audit-UUID fix for why
+this matters), never a phone number or other non-UUID value.
+
+**Role assignment**: approving an application grants the owner `MERCHANT_OWNER` (idempotent
+`userRole.upsert`), because `SECURITY-STANDARDS.md` requires every protected endpoint to check both
+role and resource ownership - the merchant-facing store routes are `@Roles('MERCHANT_OWNER')`-gated,
+so without the grant an approved merchant could never reach them. No other role is granted
+automatically.
+
+**Concurrency**: application decisions (approve/reject/suspend/reinstate) and store status
+transitions both use the same compare-and-swap shape - an `updateMany` scoped to the row's id _and_
+its expected current status, never a plain read-then-write - so two admins racing to approve and
+reject the same application, or two requests racing to change one store's status, can never both
+succeed. This mirrors the exact pattern BC-005 used for refresh-token rotation and OTP verification.
+Verified with real-database integration tests that race both scenarios with `Promise.allSettled`.
+
+**Store lifecycle** (full transition table in `MERCHANT-STORE-DESIGN.md`): a store starts `PENDING`
+and is not publicly discoverable until an admin approves it into `ACTIVE` - the literal mechanism
+behind "admin approval is required before a merchant/store becomes publicly discoverable." A
+suspended merchant cannot create a store or reactivate a `PAUSED` one (checked explicitly, not
+inferred); a merchant can self-service pause/reopen/close an already-`ACTIVE` store, but can never
+self-service out of `SUSPENDED` (admin-only reinstatement) or straight from `PENDING` into `ACTIVE`
+(admin approval is not a self-service action).
+
+**Verified, with each claim distinguished by how it was checked**:
+
+- Typecheck (`tsc --noEmit`, both the main and `test/` tsconfigs): clean.
+- Lint (`nx eslint:lint`, all workspaces): clean.
+- Unit tests: **59/59 passing** (9 suites - the 7 pre-existing plus `merchant-application.service
+.spec.ts` and `store.service.spec.ts`, 22 new tests between them).
+- Build (`nest build`): succeeds.
+- Prisma schema validation, `prisma format` (no-op), and the seed-UUID validator: all pass.
+- A new real-database integration suite (`apps/api/test/integration/merchant.integration-spec.ts`,
+  23 tests) covers: application submission/resubmission/duplicate-rejection, the concurrent-
+  approval race, role grant on approval, store creation gated on approval, suspended-merchant
+  denial, reinstatement, cross-merchant store access denial, store listing scoping, the full
+  PENDING→ACTIVE→PAUSED→ACTIVE admin/merchant handoff, merchant-cannot-activate-from-PENDING,
+  admin suspend + merchant-cannot-self-reinstate, the concurrent store-status race, operating-hours
+  validation, availability updates, and five HTTP-level wiring checks (401/403 paths, a real
+  submission and a real store creation over HTTP). **It could not be run to completion locally** -
+  confirmed once (not retried repeatedly, per this task's own instruction): the native Postgres
+  service that became reachable during this session's earlier BC-005 review still lacks the
+  PostGIS extension (`extension "postgis" is not available` - a fresh, concrete error, not an
+  assumption), the same documented local-environment limitation as every integration suite in this
+  project since BC-004. The half-applied failed migration this attempt left in `dropzo_test` was
+  cleanly resolved (`prisma migrate resolve --rolled-back`) rather than left dangling.
+
+**Documentation updated**: `MERCHANT-STORE-DESIGN.md` (new), `DATABASE-DESIGN.md` (new
+`merchants`/`stores` fields, change log entry), `API-SPECIFICATION.md` (new endpoint table rows),
+`FUNCTIONAL-REQUIREMENTS.md` (FR-MER-001/003/004/005, FR-ADM-001 to Implemented), `TESTING-STRATEGY
+.md` (new test counts), `TASK-TRACKER.md`/`ROADMAP.md` (this entry).
+
+**Explicitly not done, by design (BC-006's own scope boundary)**: no product catalogue, inventory,
+cart, checkout, orders, payments, or delivery-partner management (BC-007+); no public store-
+discovery API; no `MerchantStaff`-delegated store management; no cascading of merchant suspension
+onto a merchant's existing stores (documented as a deliberate, narrower scope in
+`MERCHANT-STORE-DESIGN.md`); no real `DRAFT`-save-and-resume flow (the state exists in the `CHECK`
+constraint, reserved for later; no endpoint produces it); no frontend; no production file/image
+uploads; no Redis/microservices.
+
+**Not committed or pushed**, per the task's explicit instruction.
+
+## BC-005 — CI run #9 (`b66295b`) failed on formatting, not a real defect
+
+While starting BC-006, the project owner's own commit closing out the BC-005 security review
+(`b66295b`, "BC-005 — Finish Final Adversarial Review and Prepare for CI") turned out to have
+triggered CI run #9, which **failed in 58 seconds at the "Formatting" step** - confirmed from the
+real job log (`jobs[0].steps` showing only `"Formatting"` as `failure`), not assumed from the
+badge. Reproduced locally by stashing this session's own BC-006 work and running
+`npx prettier --check .` against `b66295b` alone: several of the review's own documentation edits
+(`FUNCTIONAL-REQUIREMENTS.md`, `API-SPECIFICATION.md`, `DATABASE-DESIGN.md`, `TESTING-STRATEGY.md`,
+`PROGRESS.md`, `ROADMAP.md`, `TASK-TRACKER.md`, `RISK-REGISTER.md`, `TECHNICAL-DEBT.md`,
+`src/app.module.ts`) were never run through `prettier --write` before being committed - a
+formatting oversight, not a logic defect; typecheck/lint-the-code/unit tests were all still
+genuinely clean in that commit, only whitespace/line-wrap formatting was off. Fixed by running
+`prettier --write` and merging the result into this session's working tree (restored the stash
+afterward). One unrelated discovery while doing this: `.claude/launch.json` - a local Claude Code
+tool file this project has repeatedly been instructed to never stage or commit - was nonetheless
+included in `b66295b`. It is now part of the repository's history; this session did not re-format
+or otherwise touch it beyond reverting its own accidental reformat back to the committed version,
+consistent with "preserve it, don't modify it" even though it is technically tracked now.

@@ -79,20 +79,22 @@ For traceability from requirement to task to test, see
 | FR-PAY-001 | Cash on delivery/pickup (COD) is supported at launch.             | An order can be placed and completed with `paymentMethod: COD` with no online payment step. | Planned |
 | FR-PAY-002 | Online payment is a later phase, not required for MVP completion. | No online payment gateway integration exists yet; this is intentional.                      | Planned |
 
-## Merchant (Planned)
+## Merchant (Implemented, BC-006, except where noted)
 
-| ID         | Requirement                                                              | Acceptance criteria                                                      | Status  |
-| ---------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------- |
-| FR-MER-001 | A merchant can own multiple stores.                                      | A merchant record can have more than one associated store.               | Planned |
-| FR-MER-002 | A merchant can accept or reject an incoming order with a reason.         | Rejecting an order releases any reserved stock and records the reason.   | Planned |
-| FR-MER-003 | A merchant cannot access another merchant's stores, products, or orders. | A request for another merchant's resource returns 403/404, not the data. | Planned |
+| ID         | Requirement                                                                           | Acceptance criteria                                                                                                        | Status                                                                  |
+| ---------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| FR-MER-001 | A merchant can own multiple stores.                                                   | A merchant record can have more than one associated store.                                                                 | **Implemented**                                                         |
+| FR-MER-002 | A merchant can accept or reject an incoming order with a reason.                      | Rejecting an order releases any reserved stock and records the reason.                                                     | Planned (needs BC-007 orders)                                           |
+| FR-MER-003 | A merchant cannot access another merchant's stores, products, or orders.              | A request for another merchant's resource returns 403/404, not the data.                                                   | **Implemented** (for applications/stores - products/orders are BC-007+) |
+| FR-MER-004 | A user submits a merchant application that goes through an explicit review lifecycle. | PENDING -> APPROVED/REJECTED, REJECTED -> PENDING (resubmission), APPROVED -> SUSPENDED -> APPROVED, all backend-enforced. | **Implemented**                                                         |
+| FR-MER-005 | A store is not publicly discoverable until an admin approves it.                      | A store starts `PENDING`; only an admin transition moves it to `ACTIVE`.                                                   | **Implemented** (gate only - public discovery APIs are a later task)    |
 
-## Admin (Planned)
+## Admin (Partially implemented, BC-006)
 
-| ID         | Requirement                                                                        | Acceptance criteria                                                | Status  |
-| ---------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------- |
-| FR-ADM-001 | Admin can approve or suspend a merchant/store independently of the whole platform. | Suspending one store does not affect order flow for other stores.  | Planned |
-| FR-ADM-002 | Admin can configure commission and delivery-fee rules.                             | Commission percentage is configurable per merchant, not hardcoded. | Planned |
+| ID         | Requirement                                                                        | Acceptance criteria                                                | Status                                                                                                                |
+| ---------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| FR-ADM-001 | Admin can approve or suspend a merchant/store independently of the whole platform. | Suspending one store does not affect order flow for other stores.  | **Implemented** (no order flow exists yet to prove the independence claim against - revisit once BC-007 orders exist) |
+| FR-ADM-002 | Admin can configure commission and delivery-fee rules.                             | Commission percentage is configurable per merchant, not hardcoded. | Planned                                                                                                               |
 
 ## Support (Planned)
 

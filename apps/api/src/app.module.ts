@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuditModule } from './common/audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { MerchantModule } from './merchant/merchant.module.js';
 
 // process.cwd() is apps/api regardless of how `nest start`/Jest/Nx invoke this app, so the
 // repository-root .env (the single source of truth documented in DEVELOPMENT-SETUP.md) is
@@ -24,6 +25,7 @@ const repoRootEnvPath = resolve(__dirname, '..', '..', '..', '.env');
         PrismaModule,
         AuditModule,
         AuthModule,
+        MerchantModule,
         HealthModule,
     ],
 })

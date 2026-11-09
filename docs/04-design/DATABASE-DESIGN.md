@@ -36,6 +36,19 @@ This remains one canonical file, by decision (BC-003.2) — not split across `02
 - Idempotency keys are scoped to the requesting user and operation, never globally unique across
   unrelated users or endpoints (corrected in this revision).
 
+## Change log for BC-006
+
+Extended `merchants` and `stores` (no new tables) via a single forward-only migration
+(`20261107180000_bc006_merchant_store_onboarding`): structured address fields, application-review
+fields (`submitted_at`/`reviewed_at`/`reviewed_by_user_id`/`rejection_reason`), a `UNIQUE` on
+`merchants.owner_user_id` (one merchant per user), a `CHECK` restricting `verification_status` to
+its five real lifecycle values (previously an unconstrained `VARCHAR`), contact/timezone fields on
+`stores`, and `stores.service_zone_id` — the one new inbound reference, to `service_zones`, which
+`DATABASE-DESIGN.md`'s own delivery-eligibility rule already assumed ("the store's `service_zones`
+membership") but the schema never actually implemented. No existing table, constraint, or
+MVP/deferred classification was otherwise changed. See
+[`MERCHANT-STORE-DESIGN.md`](MERCHANT-STORE-DESIGN.md) for the design this supports.
+
 ## Change log for BC-005
 
 Added `otp_challenges` (see its table specification under "Identity") via a new, forward-only
@@ -343,19 +356,34 @@ past order — see `orders.delivery_address_snapshot` below.
 
 #### `merchants` — MVP-required
 
-| Column                | Type         | Null     | Default             | Notes                                                                                 |
-| --------------------- | ------------ | -------- | ------------------- | ------------------------------------------------------------------------------------- |
-| `id`                  | UUID         | NOT NULL | `gen_random_uuid()` | PK                                                                                    |
-| `owner_user_id`       | UUID         | NOT NULL | —                   | FK → `users.id` `ON DELETE RESTRICT`                                                  |
-| `legal_name`          | VARCHAR(200) | NOT NULL | —                   |                                                                                       |
-| `display_name`        | VARCHAR(200) | NOT NULL | —                   |                                                                                       |
-| `contact_phone`       | VARCHAR(20)  | NOT NULL | —                   |                                                                                       |
-| `business_address`    | TEXT         | NOT NULL | —                   |                                                                                       |
-| `verification_status` | VARCHAR(30)  | NOT NULL | `'PENDING'`         |                                                                                       |
-| `commission_percent`  | NUMERIC(5,2) | NOT NULL | `8.00`              | **current** rate only — historical rate is `settlement_items.commission_rate_applied` |
-| `created_at`          | TIMESTAMPTZ  | NOT NULL | `NOW()`             |                                                                                       |
+| Column                 | Type         | Null     | Default             | Notes                                                                                     |
+| ---------------------- | ------------ | -------- | ------------------- | ----------------------------------------------------------------------------------------- |
+| `id`                   | UUID         | NOT NULL | `gen_random_uuid()` | PK                                                                                        |
+| `owner_user_id`        | UUID         | NOT NULL | —                   | FK → `users.id` `ON DELETE RESTRICT`. **UNIQUE** (added BC-006) — one merchant per user   |
+| `legal_name`           | VARCHAR(200) | NOT NULL | —                   |                                                                                           |
+| `display_name`         | VARCHAR(200) | NOT NULL | —                   |                                                                                           |
+| `business_type`        | VARCHAR(50)  | NULL     | —                   | added BC-006                                                                              |
+| `contact_person_name`  | VARCHAR(150) | NULL     | —                   | added BC-006                                                                              |
+| `contact_phone`        | VARCHAR(20)  | NOT NULL | —                   |                                                                                           |
+| `business_email`       | VARCHAR(255) | NULL     | —                   | added BC-006                                                                              |
+| `business_address`     | TEXT         | NOT NULL | —                   |                                                                                           |
+| `city`                 | VARCHAR(100) | NULL     | —                   | added BC-006                                                                              |
+| `district`             | VARCHAR(100) | NULL     | —                   | added BC-006                                                                              |
+| `state`                | VARCHAR(100) | NOT NULL | `'Assam'`           | added BC-006                                                                              |
+| `postal_code`          | VARCHAR(10)  | NULL     | —                   | added BC-006                                                                              |
+| `business_description` | TEXT         | NULL     | —                   | added BC-006                                                                              |
+| `verification_status`  | VARCHAR(30)  | NOT NULL | `'PENDING'`         | CHECK restricts to `DRAFT`/`PENDING`/`APPROVED`/`REJECTED`/`SUSPENDED` (added BC-006)     |
+| `commission_percent`   | NUMERIC(5,2) | NOT NULL | `8.00`              | **current** rate only — historical rate is `settlement_items.commission_rate_applied`     |
+| `submitted_at`         | TIMESTAMPTZ  | NULL     | —                   | added BC-006                                                                              |
+| `reviewed_at`          | TIMESTAMPTZ  | NULL     | —                   | added BC-006; CHECK: set together with `reviewed_by_user_id`, never one without the other |
+| `reviewed_by_user_id`  | UUID         | NULL     | —                   | added BC-006; FK → `users.id` `ON DELETE RESTRICT`                                        |
+| `rejection_reason`     | TEXT         | NULL     | —                   | added BC-006                                                                              |
+| `created_at`           | TIMESTAMPTZ  | NOT NULL | `NOW()`             |                                                                                           |
+| `updated_at`           | TIMESTAMPTZ  | NOT NULL | `NOW()`             | added BC-006; Prisma-managed `@updatedAt`                                                 |
 
-Business rule: ADR-0007.
+Index: `(verification_status, created_at)` (added BC-006 — admin list/filter by status).
+Business rules: ADR-0007, FR-MER-004. See
+[`MERCHANT-STORE-DESIGN.md`](MERCHANT-STORE-DESIGN.md) for the full application lifecycle.
 
 #### `merchant_staff` — MVP-required
 
@@ -372,25 +400,34 @@ the application layer by checking this table before granting access to merchant 
 
 #### `stores` — MVP-required
 
-| Column                | Type                   | Null     | Default             | Notes                                                |
-| --------------------- | ---------------------- | -------- | ------------------- | ---------------------------------------------------- |
-| `id`                  | UUID                   | NOT NULL | `gen_random_uuid()` | PK                                                   |
-| `merchant_id`         | UUID                   | NOT NULL | —                   | FK → `merchants.id` `ON DELETE RESTRICT`             |
-| `name`                | VARCHAR(200)           | NOT NULL | —                   |                                                      |
-| `description`         | TEXT                   | NULL     | —                   |                                                      |
-| `address`             | TEXT                   | NOT NULL | —                   | human-readable                                       |
-| `district`            | VARCHAR(100)           | NOT NULL | —                   |                                                      |
-| `city`                | VARCHAR(100)           | NOT NULL | —                   |                                                      |
-| `postal_code`         | VARCHAR(10)            | NULL     | —                   |                                                      |
-| `location`            | GEOGRAPHY(POINT, 4326) | NOT NULL | —                   | a store's one location                               |
-| `status`              | ENUM `store_status`    | NOT NULL | `'PENDING'`         | `PENDING`, `ACTIVE`, `PAUSED`, `SUSPENDED`, `CLOSED` |
-| `supports_pickup`     | BOOLEAN                | NOT NULL | `TRUE`              |                                                      |
-| `supports_delivery`   | BOOLEAN                | NOT NULL | `FALSE`             |                                                      |
-| `preparation_minutes` | INTEGER                | NOT NULL | `20`                |                                                      |
-| `opening_hours`       | JSONB                  | NOT NULL | `'{}'`              |                                                      |
-| `created_at`          | TIMESTAMPTZ            | NOT NULL | `NOW()`             |                                                      |
+| Column                | Type                   | Null     | Default             | Notes                                                                                |
+| --------------------- | ---------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------ |
+| `id`                  | UUID                   | NOT NULL | `gen_random_uuid()` | PK                                                                                   |
+| `merchant_id`         | UUID                   | NOT NULL | —                   | FK → `merchants.id` `ON DELETE RESTRICT`                                             |
+| `name`                | VARCHAR(200)           | NOT NULL | —                   |                                                                                      |
+| `description`         | TEXT                   | NULL     | —                   |                                                                                      |
+| `contact_phone`       | VARCHAR(20)            | NULL     | —                   | added BC-006                                                                         |
+| `email`               | VARCHAR(255)           | NULL     | —                   | added BC-006                                                                         |
+| `address`             | TEXT                   | NOT NULL | —                   | human-readable                                                                       |
+| `locality`            | VARCHAR(150)           | NULL     | —                   | added BC-006                                                                         |
+| `district`            | VARCHAR(100)           | NOT NULL | —                   |                                                                                      |
+| `city`                | VARCHAR(100)           | NOT NULL | —                   |                                                                                      |
+| `state`               | VARCHAR(100)           | NOT NULL | `'Assam'`           | added BC-006                                                                         |
+| `postal_code`         | VARCHAR(10)            | NULL     | —                   |                                                                                      |
+| `location`            | GEOGRAPHY(POINT, 4326) | NOT NULL | —                   | a store's one location                                                               |
+| `timezone`            | VARCHAR(50)            | NOT NULL | `'Asia/Kolkata'`    | added BC-006, IANA string                                                            |
+| `service_zone_id`     | UUID                   | NULL     | —                   | added BC-006; FK → `service_zones.id` `ON DELETE RESTRICT`                           |
+| `status`              | ENUM `store_status`    | NOT NULL | `'PENDING'`         | `PENDING`, `ACTIVE`, `PAUSED`, `SUSPENDED`, `CLOSED`                                 |
+| `supports_pickup`     | BOOLEAN                | NOT NULL | `TRUE`              |                                                                                      |
+| `supports_delivery`   | BOOLEAN                | NOT NULL | `FALSE`             |                                                                                      |
+| `preparation_minutes` | INTEGER                | NOT NULL | `20`                |                                                                                      |
+| `opening_hours`       | JSONB                  | NOT NULL | `'{}'`              | per-weekday shape validated at the DTO layer (BC-006) — see MERCHANT-STORE-DESIGN.md |
+| `created_at`          | TIMESTAMPTZ            | NOT NULL | `NOW()`             |                                                                                      |
+| `updated_at`          | TIMESTAMPTZ            | NOT NULL | `NOW()`             | added BC-006; Prisma-managed `@updatedAt`                                            |
 
-Indexes: `(merchant_id)`; GIST on `location`. Business rules: FR-MER-001, ADR-0010.
+Indexes: `(merchant_id)`; GIST on `location`; `(service_zone_id)` (added BC-006). Business rules:
+FR-MER-001, FR-MER-005, ADR-0010. See [`MERCHANT-STORE-DESIGN.md`](MERCHANT-STORE-DESIGN.md) for
+the full status lifecycle.
 
 ### Location
 
