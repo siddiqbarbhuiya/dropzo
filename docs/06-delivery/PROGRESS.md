@@ -1791,9 +1791,32 @@ passing in CI run #16 itself.
 **Separately, an automated security review of the BC-008 commit** flagged unbounded cart-line
 quantity (no practical ceiling) and COD inventory-hoarding risk (no rate limit specific to order
 creation, no cap on open orders per customer). Addressed: `AddCartItemDto`/`UpdateCartItemDto` now
-cap quantity at 1000; `POST /checkout` carries its own stricter `@Throttle` (5/min/IP, reusing the
-`@nestjs/throttler` infrastructure already registered globally by `AuthModule`) on top of the
-app-wide 30/min/IP baseline. A genuine per-customer open-order cap is a product-policy decision
+cap quantity at 1000; `POST /checkout` was given its own stricter `@Throttle` (5/min/IP) on top of
+the app-wide 30/min/IP baseline. A genuine per-customer open-order cap is a product-policy decision
 this task has no basis to invent - tracked as `RISK-014`/`TD-017` for a follow-up once real order
 volume gives a basis for the number, documented in `ORDER-MANAGEMENT-DESIGN.md`'s new "Abuse
 resistance: COD hoarding" section.
+
+## BC-008 follow-up #2 — CI run #17 failure (a real @nestjs/throttler + Jest incompatibility, not a logic defect)
+
+CI run #17 on `ca8eda6` **failed again at the same "Database integration and concurrency tests"
+step** - confirmed from the actual job log, not the badge. This time every one of the new suite's
+own tests failed with `ReferenceError: You are trying to import a file after the Jest environment
+has been torn down`, with the real cause one level up: `Must use import to load ES Module:
+.../@nestjs/common/index.js`, triggered by `CheckoutController`'s new `import { Throttle } from
+'@nestjs/throttler'` from the previous follow-up. This is not a new bug - it is the _exact_
+incompatibility `auth.integration-spec.ts`'s own `TestAuthAppModule` comment already documents:
+`@nestjs/throttler` 6.7.1's CommonJS build `require()`s the now-ESM-only `@nestjs/common`, which
+real Node resolves via CJS/ESM interop but Jest's `--experimental-vm-modules` worker cannot,
+crashing the moment anything imports the package. BC-005 worked around this by excluding
+`ThrottlerModule` from its own integration test wiring; this task's new per-route `@Throttle()`
+decorator reintroduced the same import at the controller-file level, which every test that loads
+`CheckoutController` (including ones unrelated to checkout, since Jest parses the whole import
+graph) now transitively hit. **Reverted** - `CheckoutController` no longer imports `@nestjs/throttler`
+at all; the app-wide `ThrottlerGuard` baseline (`AuthModule`, 30/min/IP) still applies to
+`POST /checkout` regardless, since it is a global `APP_GUARD`. `RISK-014`/`TD-017`/
+`ORDER-MANAGEMENT-DESIGN.md` updated to describe the reverted mitigation accurately. Re-verified
+locally: lint/typecheck/format/build/143 unit tests clean, and the integration suite now fails only
+on the documented local DB-credential limitation (confirmed by running it directly - the Jest
+module-loading error is gone, replaced by the same `PrismaClientInitializationError` every other
+suite in this project hits locally).

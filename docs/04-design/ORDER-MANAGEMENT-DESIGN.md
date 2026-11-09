@@ -14,12 +14,19 @@ milestones, per the task's explicit scope boundary).
 COD needs no upfront payment, so nothing stops a customer from repeatedly creating orders against
 scarce stock and never collecting any of them - each one holds `reserved_quantity` for up to the
 24-hour acceptance window. An automated security review flagged this; two cheap, already-available
-mitigations are in place: `POST /checkout` carries its own stricter `@Throttle` (5 requests/minute/
-IP, reusing the `@nestjs/throttler` infrastructure `AuthModule` already registers globally at 30/
-minute/IP), and cart line quantity is capped at 1000 units (see `CART-CHECKOUT-DESIGN.md`). A
-genuine cap on how many `CREATED` orders one customer may hold open at once is a product-policy
-decision this task has no basis to invent (the right number depends on real usage patterns not yet
-observed) - tracked as `RISK-014`/`TD-017` for a follow-up once real order volume exists.
+mitigations are in place: cart line quantity is capped at 1000 units (see
+`CART-CHECKOUT-DESIGN.md`), and the app-wide `ThrottlerGuard` baseline (`AuthModule`, 30 requests/
+minute/IP) already applies to `POST /checkout` like every other route. A stricter, checkout-specific
+`@Throttle` override was tried and reverted: importing anything from `@nestjs/throttler` crashes
+Jest's own `--experimental-vm-modules` worker ("Must use import to load ES Module") the moment any
+test transitively loads the controller - the exact, already-documented incompatibility
+`auth.integration-spec.ts`'s own `TestAuthAppModule` comment explains for the whole `ThrottlerModule`
+(real Node resolves the package fine; only this project's Jest harness cannot). A genuine cap on how
+many `CREATED` orders one customer may hold open at once is, separately, a product-policy decision
+this task has no basis to invent (the right number depends on real usage patterns not yet observed)
+
+- tracked as `RISK-014`/`TD-017` for a follow-up once real order volume exists, alongside revisiting
+  the stricter per-route throttle once the Jest incompatibility is resolved or worked around.
 
 ## Order creation sequence (`CheckoutService.doCreateOrder`)
 
