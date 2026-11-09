@@ -127,7 +127,10 @@ export class MerchantApplicationService {
         // owner change legal_name/business_address/etc. would let vetted details drift without
         // ever being re-reviewed. SUSPENDED is blocked for the same reason PENDING isn't: nothing
         // about a suspension should be editable away by the suspended party.
-        if (merchant.verification_status === 'APPROVED' || merchant.verification_status === 'SUSPENDED') {
+        if (
+            merchant.verification_status === 'APPROVED' ||
+            merchant.verification_status === 'SUSPENDED'
+        ) {
             throw new ConflictException(
                 `Cannot edit an application that is already ${merchant.verification_status} - contact an administrator.`,
             );

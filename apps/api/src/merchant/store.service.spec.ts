@@ -108,7 +108,9 @@ describe('StoreService', () => {
 
         it('rejects an inactive service zone', async () => {
             const prisma = makePrisma({
-                serviceZone: { findUnique: jest.fn(async () => ({ id: 'zone-1', is_active: false })) },
+                serviceZone: {
+                    findUnique: jest.fn(async () => ({ id: 'zone-1', is_active: false })),
+                },
             });
             const service = new StoreService(prisma, makeAudit(), makeMerchantApplications());
 
@@ -162,7 +164,9 @@ describe('StoreService', () => {
             const service = new StoreService(prisma, makeAudit(), merchantApplications);
 
             await expect(
-                service.updateHours('user-1', 'store-1', { mon: { open: '09:00', close: '18:00' } }),
+                service.updateHours('user-1', 'store-1', {
+                    mon: { open: '09:00', close: '18:00' },
+                }),
             ).rejects.toThrow(ForbiddenException);
         });
 
