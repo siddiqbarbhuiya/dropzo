@@ -2733,3 +2733,55 @@ Status: **Complete.**
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"   |
 | `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)      |
 | `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)        |
+
+
+---
+
+## 2026-11-12 — BC-016: Customer Order Receipt & Tracking Screen (Done)
+
+Status: **Complete.**
+
+### What was built
+
+1. **1:1 Responsive Stitch Implementation (`CustomerOrderDetailPage.tsx`)**:
+    - Replaced the low-fidelity wireframe with the complete 1:1 Stitch implementation across Mobile (`0f9149f6ef8f4b3d99077ad561339635`, Screen #12) & Desktop (`c4d5c1c9250f40daa239fbc738600724`, Screen #28).
+    - **Desktop Header & Sub-Header Bar**: Dropzo brand header with Badarpur Central Hub store pin, navigation links, and cart summary pill. Sub-header bar featuring order ID (`Order #DZ-2026-8941`), fulfillment status badge (`Active Pickup` / `Ready for Pickup` / `Delivery Order`), placement timestamp, estimated pickup window pill, and an interactive print invoice button.
+    - **Green Confirmation Banner**: Emerald background (`successContainer`), check-circle icon, store confirmation headline ("Order Confirmed with [Store Name]!"), items reserved reassurance, and pulsing batch pill (`Readying Batch #8492`).
+    - **Store Counter Verification Card**:
+        - High-visibility 6-digit pickup PIN box with monospace styling and verified code indicator.
+        - Interactive Copy button with microinteraction (updates to "Copied!" with check icon for 2.2 seconds).
+        - Simulated vector SVG QR code with corner markers, scannable matrix pattern, and centered Dropzo lightning badge.
+        - Security labels: "Single-use • Valid 48h", "Encrypted POS Sync", and POS digital verification note ("No paper invoice needed").
+    - **Live Order Progress Stepper**:
+        - Real-time 4-step vertical timeline synced with backend status: "Order Placed" -> "Accepted by Merchant" -> "Merchant is Packing Items" (with spinning indicator and 75% progress bar) -> "Ready at Counter for Pickup".
+        - Pickup slot window reminder ("5:45 PM – 7:30 PM Today") with extend option.
+    - **Pickup Location Card**:
+        - Store showcase with name (`Maa Tara Groceries`), full Station Road Badarpur address, operating hours ("Open till 9:30 PM"), distance indicator (`0.8 km away`), and counter guidance.
+        - Map preview container with Badarpur street map render and overlay banner ("Station Road Hub Gate 1", "Walking: 7 min").
+        - Quick action buttons: "Call Shop" (`tel:` link) and "Directions" (Google Maps link).
+    - **Itemized Order Summary Card**:
+        - Item count badge and "Cash/UPI Counter" payment badge.
+        - Item list with product thumbnails, product name snapshots, variant badges, quantity, and line price calculations.
+        - Authoritative price breakdown: Subtotal, Store Pickup Convenience Fee (`FREE`), Payment Mode, and Total Amount Due.
+        - Action CTA buttons: "View All Orders" (navigates to `/orders`) and "Continue Shopping" (navigates to `/`).
+    - **Dual Fulfillment Support**:
+        - Automatically detects `fulfilment_type === 'DELIVERY'`.
+        - Renders delivery partner card with assigned courier name, phone call link, and 15s polling.
+        - Exposes delivery verification PIN when order reaches `OUT_FOR_DELIVERY`.
+2. **Comprehensive Integration Test Suite (`CustomerOrderDetailPage.test.tsx`)**:
+    - Verified initial loading state and error handling.
+    - Verified order confirmation banner, store details, and verification PIN rendering for pickup orders.
+    - Verified clipboard copy microinteraction.
+    - Verified delivery partner details and out-for-delivery verification PIN for delivery orders.
+    - All 5/5 tests passing.
+
+### Verification Performed
+
+| Check                              | Result                                                    |
+| :--------------------------------- | :-------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 17 test files, 63 tests passing (100%)         |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                       |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                           |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"   |
+| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)      |
+| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)        |
