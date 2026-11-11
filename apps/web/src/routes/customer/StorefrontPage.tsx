@@ -284,15 +284,15 @@ const BreadcrumbInner = styled.div`
 `;
 
 // --- Main Content ---
-const MainContainer = styled.main`
+const MainContainer = styled.main<{ $hasActiveCart?: boolean }>`
     max-width: 1280px;
     margin: 0 auto;
-    padding: 1rem;
+    padding: ${({ $hasActiveCart }) => ($hasActiveCart ? '1rem 1rem 11.5rem' : '1rem 1rem 5.5rem')};
     width: 100%;
     box-sizing: border-box;
 
     ${media.desktop} {
-        padding: 1.5rem 2rem;
+        padding: 1.5rem 2rem 6rem;
     }
 `;
 
@@ -1389,7 +1389,7 @@ export function StorefrontPage() {
             </BreadcrumbStrip>
 
             {/* Main Storefront Area */}
-            <MainContainer>
+            <MainContainer $hasActiveCart={isCartActiveForThisStore}>
                 {/* Store Showcase Hero Card */}
                 <HeroCard>
                     <HeroTopRow>
