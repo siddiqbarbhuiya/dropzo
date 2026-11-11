@@ -2713,12 +2713,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                  |
-| :--------------------------------- | :------------------------------------------------------ |
-| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)       |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
-| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
 | Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
 
 ---
@@ -2796,12 +2796,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                  |
-| :--------------------------------- | :------------------------------------------------------ |
-| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)       |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
-| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
 | Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
 
 ---
@@ -2883,12 +2883,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                  |
-| :--------------------------------- | :------------------------------------------------------ |
-| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)       |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
-| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
 | Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
 
 ## BC-014-EXT — Reusable WoltModalSheet Component & Storefront Floating Cart Integration
@@ -2961,10 +2961,43 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                  |
-| :--------------------------------- | :------------------------------------------------------ |
-| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)       |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
-| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
+| Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
+
+## BC-018 — Customer Order History & Real-Time Tracking List Screen (`/orders`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprints Generated & Downloaded**:
+    - Mobile Blueprint (`6299f458e1be4b53bd9811a38dde65e1`): "Dropzo Customer Order History & Tracking List - Mobile"
+    - Desktop Blueprint (`8ebce536b5fb49b8992ae7362b4597e5`): "Dropzo Customer Order History & Tracking Dashboard - Desktop"
+    - Assets saved to `audit/stitch-audit/screenshots/` and `audit/stitch-audit/html/`.
+
+2. **1:1 Responsive Stitch Implementation of `/orders` (`apps/web/src/routes/customer/CustomerOrdersPage.tsx`)**:
+    - **Header & Navigation**: Sticky header with back link to `/`, active Badarpur location indicator ("Delivering to Badarpur Market"), and quick search input.
+    - **Category Filter Tabs**: Horizontal pill rail on mobile and sticky filter bar on desktop (`All Orders`, `Active`, `Pickup Orders`, `Delivered`).
+    - **Active Order Cards**: Prominently highlights active orders with emerald countdown / ETA badges, order status pill (`READY` / `OUT_FOR_DELIVERY` / `ACCEPTED`), 6-digit pickup PIN display with one-click copy, item summary thumbnail gallery, and direct CTAs ("Track Live", "View Pickup Details").
+    - **Past Completed Orders**: Card feed of completed orders with itemized breakdown, store name, order total, date, reorder action button, and invoice download link.
+    - **Customer Reassurance Banner**: Badarpur local store guarantee, instant merchant chat, and 15-min delivery promise.
+    - **Desktop Sidebar & Layout**: 12-column responsive layout with left customer profile/navigation sidebar and main order list stream.
+    - **Storefront Floating Cart Fix**: Increased bottom clearance to 7.5rem and aligned mobile dock bottom to prevent obscuring catalogue product cards.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/customer/CustomerOrdersPage.test.tsx`)**:
+    - 5 tests covering active/past order rendering, category filtering, search input empty states, and PIN interactions.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 19 test files, 77 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
 | Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |

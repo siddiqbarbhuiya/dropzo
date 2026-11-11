@@ -34,10 +34,10 @@ const PageContainer = styled.div`
     font-family: ${({ theme }) => theme.typography.fontFamily};
     display: flex;
     flex-direction: column;
-    padding-bottom: 5.5rem;
+    padding-bottom: 7.5rem;
 
     ${media.desktop} {
-        padding-bottom: 0;
+        padding-bottom: 2rem;
     }
 `;
 
@@ -768,7 +768,7 @@ const StepperBtn = styled.button`
 // Mobile Dock
 const MobileFloatingCart = styled.aside`
     position: fixed;
-    bottom: 5rem;
+    bottom: 1rem;
     left: 1rem;
     right: 1rem;
     z-index: 40;
