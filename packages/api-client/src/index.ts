@@ -83,6 +83,82 @@ export interface PaginatedResult<T> {
     meta: { page: number; limit: number; total: number; totalPages: number };
 }
 
+// --- Customer: Cart & Checkout types ---
+export type FulfilmentType = 'PICKUP' | 'DELIVERY';
+
+export interface DeliveryAddress {
+    recipientName: string;
+    recipientPhone: string;
+    addressLine1: string;
+    addressLine2?: string;
+    landmark?: string;
+    locality?: string;
+    city: string;
+    district: string;
+    state?: string;
+    postalCode?: string;
+    latitude: number;
+    longitude: number;
+}
+
+export type CartLineErrorCode =
+    | 'LISTING_UNAVAILABLE'
+    | 'VARIANT_INACTIVE'
+    | 'PRODUCT_INACTIVE'
+    | 'STORE_INACTIVE'
+    | 'MERCHANT_INACTIVE'
+    | 'INSUFFICIENT_STOCK'
+    | 'LISTING_NOT_FOUND';
+
+export interface PricedCartLine {
+    cartItemId: string;
+    storeProductId: string;
+    inventoryId: string | null;
+    usesBatchTracking: boolean;
+    productName: string;
+    variantName: string;
+    sku: string | null;
+    unit: string;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+    errors: CartLineErrorCode[];
+}
+
+export interface PricedCartSummary {
+    cartId: string | null;
+    storeId: string | null;
+    storeName: string | null;
+    items: PricedCartLine[];
+    subtotal: number;
+    totalAmount: number;
+    isValid: boolean;
+}
+
+export type FulfilmentErrorCode =
+    | 'PICKUP_NOT_SUPPORTED'
+    | 'DELIVERY_NOT_SUPPORTED'
+    | 'DELIVERY_ADDRESS_REQUIRED'
+    | 'DELIVERY_ZONE_NOT_CONFIGURED'
+    | 'DELIVERY_ZONE_INACTIVE'
+    | 'DELIVERY_OUT_OF_RANGE';
+
+export interface CheckoutSummary extends PricedCartSummary {
+    fulfilmentType: FulfilmentType;
+    fulfilmentErrors: FulfilmentErrorCode[];
+    isReadyForCheckout: boolean;
+}
+
+export interface PrepareCheckoutDto {
+    fulfilmentType: FulfilmentType;
+    deliveryAddress?: DeliveryAddress;
+}
+
+export interface CreateOrderDto extends PrepareCheckoutDto {
+    expectedTotalAmount: number;
+    customerNotes?: string;
+}
+
 export type OrderStatus =
     | 'CREATED'
     | 'ACCEPTED'
@@ -517,6 +593,26 @@ export function createApiClient(baseUrl: string, options?: ApiClientOptions) {
         getOwnOrder: (idOrNumber: string) => getJson<Order>(`/customers/me/orders/${idOrNumber}`),
         getOwnPickupCode: (orderId: string) =>
             getJson<PickupCodeResponse>(`/customers/me/orders/${orderId}/pickup-code`),
+
+        // --- Customer: cart ---
+        getActiveCart: () => getJson<PricedCartSummary>('/customers/me/cart'),
+        addCartItem: (dto: { storeProductId: string; quantity: number }) =>
+            postJson<PricedCartSummary>('/customers/me/cart/items', dto),
+        updateCartItem: (itemId: string, dto: { quantity: number }) =>
+            patchJson<PricedCartSummary>(`/customers/me/cart/items/${itemId}`, dto),
+        removeCartItem: (itemId: string) =>
+            request<PricedCartSummary>(`/customers/me/cart/items/${itemId}`, { method: 'DELETE' }),
+        clearCart: () => request<PricedCartSummary>('/customers/me/cart', { method: 'DELETE' }),
+
+        // --- Customer: checkout ---
+        prepareCheckout: (dto: PrepareCheckoutDto) =>
+            postJson<CheckoutSummary>('/checkout/prepare', dto),
+        createOrder: (dto: CreateOrderDto, idempotencyKey: string) =>
+            request<Order>('/checkout', {
+                method: 'POST',
+                headers: { 'idempotency-key': idempotencyKey },
+                body: JSON.stringify(dto),
+            }),
 
         // --- Customer: delivery progress and verification code ---
         getOwnDeliveryStatus: (orderId: string) =>

@@ -2685,3 +2685,51 @@ Status: **Complete.**
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"   |
 | `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)      |
 | `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)       |
+
+
+---
+
+## 2026-11-12 — BC-015: Customer Cart & Fulfillment Checkout Screen (Done)
+
+Status: **Complete.**
+
+### What was built
+
+1. **`@dropzo/api-client` Extensions**:
+    - Added typed DTOs and interfaces: `FulfilmentType`, `DeliveryAddress`, `PricedCartLine`, `PricedCartSummary`, `CheckoutSummary`, `PrepareCheckoutDto`, `CreateOrderDto`.
+    - Added API methods: `getActiveCart`, `addCartItem`, `updateCartItem`, `removeCartItem`, `clearCart`, `prepareCheckout`, `createOrder`.
+    - Built and typechecked with 0 errors.
+2. **1:1 Responsive Stitch Implementation (`CheckoutPage.tsx`)**:
+    - Mobile Viewport (`f0f05e05c68a43c89251ec6f567fa9a9`, Screen #21) & Desktop Viewport (`57e0783864824b8ab618af95a229d5d3`, Screen #29).
+    - Dedicated Checkout Navigation: Desktop sticky header with Dropzo rust brand, back link to store, trust assurance shield ("100% Quality Assured from Trusted Neighborhood Store"), and end-to-end encrypted lock badge. Mobile app bar with back button, "Checkout & Cart", store name subtitle, and cart count badge.
+    - Breadcrumb Flow: "Cart > Fulfillment & Review > Receipt & Tracking" with Order #DZ-CHECKOUT pill.
+    - Single-Merchant Fulfillment Alert: Prominent banner enforcing single-store checkout in MVP.
+    - Fulfillment Mode Selection: Interactive radio cards switching between **Store Pickup** (Ready in 20 min • FREE) and **Home Delivery** (30-45 min • ₹20 flat in Badarpur). Includes Badarpur store address/hours and default home delivery address with inline "Change" modal.
+    - Cart Items List: Thumbnail previews, variant tags, unit prices, line totals, and interactive `QuantityStepper` (`[- qty +]`) allowing real-time quantity adjustment and automatic removal on 0.
+    - Offers & Vouchers: Promo input with applied `DROPZO50` chip (-₹50 discount) and remove option.
+    - Payment Method Selector: Cash on Delivery (COD) selected by default, online payment disabled with "Coming Soon" badge.
+    - Order Summary Bill Breakdown: Items total, pickup/delivery fee, packaging & handling (₹15), coupon discount, Total Payable, and celebration savings alert ("You saved ₹60 on this order!").
+    - Idempotent Order Placement: Generates UUID `Idempotency-Key` header, submits via `apiClient.createOrder`, clears cart via `useCartStore.clearCart()`, and navigates to `/orders/:orderId`.
+    - Empty Cart View: Friendly illustration and "Start Shopping" CTA when cart has no items.
+3. **App Wiring & Auth Redirect (`App.tsx` & `LoginPage.tsx` & `RequireAuth.tsx`)**:
+    - Mounted `<Route path="/checkout" element={<CheckoutPage />} />` in `App.tsx`.
+    - Preserved `redirect` search query in `RequireAuth.tsx` and `LoginPage.tsx` so users seamlessly return to checkout after login.
+4. **Integration Test Suite (`CheckoutPage.test.tsx`)**:
+    - Verified empty cart view.
+    - Verified single-store banner, items, and bill breakdown math.
+    - Verified stepper adjustments updating cart store.
+    - Verified fulfillment mode toggle updating delivery fee.
+    - Verified guest redirect to `/login?redirect=/checkout` on order confirmation.
+    - Verified authenticated COD order placement calling `apiClient.createOrder` with idempotency key, clearing cart, and navigating to receipt.
+    - All 6/6 tests passing.
+
+### Verification Performed
+
+| Check                              | Result                                                    |
+| :--------------------------------- | :-------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 16 test files, 58 tests passing (100%)         |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                       |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                           |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"   |
+| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)      |
+| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)        |

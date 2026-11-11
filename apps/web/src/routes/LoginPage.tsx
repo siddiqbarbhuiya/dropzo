@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ApiError } from '@dropzo/api-client';
 import { apiClient } from '../lib/apiClient';
 import { useAuthStore } from '../store/useAuthStore';
@@ -763,6 +763,7 @@ export function LoginPage() {
 
     const setSession = useAuthStore((state) => state.setSession);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     // Resend countdown timer
     useEffect(() => {
@@ -799,8 +800,11 @@ export function LoginPage() {
             const me = await apiClient.getMe();
             setSession(tokens, me);
 
-            // Role-aware navigation
-            if (role === 'merchant') {
+            // Role-aware or redirect navigation
+            const redirectUrl = searchParams.get('redirect');
+            if (redirectUrl) {
+                navigate(redirectUrl);
+            } else if (role === 'merchant') {
                 navigate('/merchant');
             } else if (role === 'admin') {
                 navigate('/admin');

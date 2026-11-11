@@ -4,6 +4,7 @@ import { LoginPage } from './routes/LoginPage';
 import { LandingRedirect } from './routes/LandingRedirect';
 import { RequireAuth } from './routes/RequireAuth';
 import { StorefrontPage } from './routes/customer/StorefrontPage';
+import { CheckoutPage } from './routes/customer/CheckoutPage';
 import { CustomerOrdersPage } from './routes/customer/CustomerOrdersPage';
 import { CustomerOrderDetailPage } from './routes/customer/CustomerOrderDetailPage';
 import { MerchantOrdersPage } from './routes/merchant/MerchantOrdersPage';
@@ -20,6 +21,7 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/redirect" element={<LandingRedirect />} />
             <Route path="/stores/:storeId" element={<StorefrontPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route
                 path="/orders"
