@@ -3001,3 +3001,44 @@ Status: **Complete.**
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
 | Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
+
+## BC-019 — Merchant POS Terminal & Order Processing Screen
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprints Reference & Download**:
+    - Mobile Blueprint (`81cb16257cae4ad5b2d6e513b2ac538f`): "Merchant Order Management & Acceptance - Mobile" (Stitch screen #22)
+    - Desktop Blueprint (`fb2ece82075f4fae9ea701ba62de9e32`): "Merchant Order Management & Acceptance Dashboard - Desktop" (Stitch screen #18)
+    - Assets saved to `audit/stitch-audit/screenshots/` and `audit/stitch-audit/html/`.
+
+2. **1:1 Responsive Stitch Implementation of `/merchant/orders` (`apps/web/src/routes/merchant/MerchantOrdersPage.tsx`)**:
+    - **Header & POS Station Bar**: Live Dropzo Merchant branding, LIVE pulse badge, store title ("Maa Tara Groceries • Station Road, Badarpur POS #01"), "Accepting Orders" switch toggle, Loud Volume Alert toggle button ("LOUD ALERT ON / MUTED"), and quick "Verify Pickup PIN" header trigger.
+    - **Glanceable KPI Metrics Bar**: 6 metrics on desktop / 4 on mobile (New Incoming with ping pulse dot, Preparing/Packing count, Ready at Counter count, Today's Gross revenue [₹4,820], SLA Avg Prep Time [11 mins], and On-Time Handoff SLA [98%]).
+    - **Fulfillment Status Tabs**: Interactive status filters (`Incoming`, `Packing Now`, `Ready at Counter`, `Completed`) with dynamic count badges.
+    - **Search & Filter**: Real-time order search by order number or customer phone.
+    - **Active Order Feed**:
+        - Urgent incoming order card with animated timer badge ("45s left"), items checklist with interactive picking checkboxes, payment details (COD / Pay at Counter), and Reject / Accept Order actions.
+        - Packing order card with progress indicators, picked item strikethroughs, and "Mark Ready for Pickup" CTA.
+        - Ready for Counter order card with sealed bag slot and "Load to Counter Keypad" CTA.
+    - **Counter PIN Validator Terminal**:
+        - 6-digit PIN display with backspace and FR-PICK-001 5-attempt security indicator.
+        - On-screen touch keypad (`Keypad`) with digits 0-9, clear, and backspace.
+        - "Verify & Release Order" action calling `apiClient.verifyPickupCode`.
+        - Live verification success / error toast banner.
+    - **Recent Counter Handoffs Activity Log**: Feed of completed orders with timestamps (`14:22`, `14:05`, `13:48`), verification types, and Merchant Support link.
+    - **Mobile Bottom App Navigation**: Fast navigation between Orders (`/merchant/orders`), Inventory (`/merchant/inventory`), Metrics, and Store.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/merchant/MerchantOrdersPage.test.tsx`)**:
+    - 5 tests covering header & KPI metrics rendering, incoming urgent order checklist, status tab filtering, order accept mutation, and on-screen keypad PIN verification.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 20 test files, 82 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
+| Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
