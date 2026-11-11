@@ -2,7 +2,7 @@
 
 **Status: Approved Audit.**  
 **Document Reference:** `docs/04-design/UI-SCREEN-COVERAGE.md`  
-**Related Documents:** [`STITCH-DESIGN-AUDIT.md`](./STITCH-DESIGN-AUDIT.md), [`DESIGN-SYSTEM-EXTRACTION.md`](./DESIGN-SYSTEM-EXTRACTION.md), [`UI-UX-SPECIFICATION.md`](./UI-UX-SPECIFICATION.md)
+**Related Documents:** [`STITCH-DESIGN-AUDIT.md`](./STITCH-DESIGN-AUDIT.md), [`DESIGN-SYSTEM-EXTRACTION.md`](./DESIGN-SYSTEM-EXTRACTION.md), [`UI-UX-SPECIFICATION.md`](./UI-UX-SPECIFICATION.md), [`STITCH-DESIGN-BRIEFS.md`](./STITCH-DESIGN-BRIEFS.md) (design briefs + ready-to-use Stitch prompts for every item below with no Stitch design at all — the `_(None in Stitch)_` rows and Gaps 1/4 in §3)
 
 > **Audit correction (2026-11-11, BC-011 Stage 1):** The screen total in section 2 is corrected
 > from 30 to 29 (see `STITCH-DESIGN-AUDIT.md`'s own correction note). Every backend-endpoint path

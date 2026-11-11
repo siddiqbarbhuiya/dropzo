@@ -2133,3 +2133,26 @@ Stitch screens. The customer Home and Store Catalogue screens remain blocked on 
 store/product-listing backend endpoint, which does not exist yet (Stage 1 finding) — recommended
 next task: design and implement that endpoint before building those two screens. Not committed or
 pushed, per the task's explicit instruction.
+
+### BC-011 addendum — owner handoff: Stitch design briefs for items missing from Stitch
+
+Per the task's "Additional Mandatory Phase" instruction, produced
+`docs/04-design/STITCH-DESIGN-BRIEFS.md`: 11 design briefs (DB-01 through DB-11), each with
+identification/business-purpose/functional-requirements/data-rules/visual-requirements sections
+and a self-contained, copy-paste-ready Stitch prompt, for every item confirmed to have **no**
+existing Stitch design — as opposed to the 23 already-designed-but-unimplemented screens, which
+stay ordinary implementation backlog in `ROADMAP.md`. Covers: the entire Delivery Partner role
+(current-assignment/accept-reject, pickup collection, out-for-delivery + customer code
+verification, delivery-failed), Admin Delivery Queue & Dispatch, Admin COD Handover &
+Reconciliation, the Merchant POS Login desktop variant, and four shared states (empty cart, store
+closed, no stores in service zone, network offline). Grounded against real code this session
+re-verified: `DeliveryAssignment`/`delivery_status` schema fields, the real
+accept/reject/collect/out-for-delivery/verify-delivery/fail endpoint shapes, the delivery
+verification code being **6 digits** (distinct from the customer pickup PIN's 4 digits), the admin
+eligible-orders/assign/cancel endpoint shapes (no SLA/age field, no assignment notes field), the
+COD handover/summary shapes (confirmed: no cash-denomination breakdown field anywhere), and the
+full real `merchants/me` application DTO field list (confirmed: no PAN/FSSAI/bank/GSTIN field
+exists at all, strengthening Stage 1's "NOT FOUND IN CODE" finding for those onboarding screens).
+Implementation of any DB-01–DB-11 item is paused pending the owner creating the corresponding
+Stitch design; already-approved work is unaffected. Not committed/pushed, per the task's explicit
+instruction.
