@@ -18,18 +18,18 @@ depending on anything installed in their personal Claude Code environment.
 All skills live at `.claude/skills/<skill-name>/SKILL.md` and are prefixed `dropzo-` to make clear
 they're project-specific, not a general-purpose or plugin-provided skill.
 
-| Skill                      | Covers                                                                                  | Key doc references                                                     |
-| -------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `dropzo-tdd`               | Test-driven development (red-green-refactor) for backend, frontend, and shared packages | `TESTING-STRATEGY.md`                                                  |
-| `dropzo-code-review`       | Code review against Dropzo's standards and business rules                               | `CODE-REVIEW-STANDARDS.md`, `CODING-STANDARDS.md`, `BUSINESS-RULES.md` |
-| `dropzo-security-review`   | Security review: auth, tenant isolation, payments, webhooks, pickup codes               | `SECURITY-STANDARDS.md`, `DATABASE-DESIGN.md`                          |
-| `dropzo-debugging`         | Systematic root-cause debugging, including known Dropzo issues                          | `TROUBLESHOOTING.md`                                                   |
-| `dropzo-backend-nestjs`    | NestJS module/controller/service development (`apps/api`)                               | `SYSTEM-ARCHITECTURE.md`, `API-SPECIFICATION.md`                       |
-| `dropzo-database-prisma`   | PostgreSQL/Prisma schema and migrations, inventory/ledger/concurrency rules             | `DATABASE-DESIGN.md`, `BC-004-IMPLEMENTATION-PLAN.md`                  |
-| `dropzo-frontend-e2e`      | React development, accessibility, Playwright end-to-end testing (`apps/web`)            | `CODING-STANDARDS.md`, `TESTING-STRATEGY.md`                           |
-| `dropzo-docs-and-adr`      | Documentation synchronization, requirements traceability, ADR governance                | `DOCUMENTATION-STANDARDS.md`, `03-decisions/`                          |
-| `dropzo-release-readiness` | Pre-merge/pre-commit completion gate                                                    | `AGENTS.md` ("after implementation")                                   |
-| `dropzo-stitch-to-react`   | 1:1 Stitch HTML/screenshot to React translation without layout distortion               | `STITCH-DESIGN-AUDIT.md`, `UI-SCREEN-COVERAGE.md`                      |
+| Skill                      | Covers                                                                                             | Key doc references                                                     |
+| -------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `dropzo-tdd`               | Test-driven development (red-green-refactor) for backend, frontend, and shared packages            | `TESTING-STRATEGY.md`                                                  |
+| `dropzo-code-review`       | Code review against Dropzo's standards and business rules                                          | `CODE-REVIEW-STANDARDS.md`, `CODING-STANDARDS.md`, `BUSINESS-RULES.md` |
+| `dropzo-security-review`   | Security review: auth, tenant isolation, payments, webhooks, pickup codes                          | `SECURITY-STANDARDS.md`, `DATABASE-DESIGN.md`                          |
+| `dropzo-debugging`         | Systematic root-cause debugging, including known Dropzo issues                                     | `TROUBLESHOOTING.md`                                                   |
+| `dropzo-backend-nestjs`    | NestJS module/controller/service development (`apps/api`)                                          | `SYSTEM-ARCHITECTURE.md`, `API-SPECIFICATION.md`                       |
+| `dropzo-database-prisma`   | PostgreSQL/Prisma schema and migrations, inventory/ledger/concurrency rules                        | `DATABASE-DESIGN.md`, `BC-004-IMPLEMENTATION-PLAN.md`                  |
+| `dropzo-frontend-e2e`      | React development, accessibility, Playwright end-to-end testing (`apps/web`)                       | `CODING-STANDARDS.md`, `TESTING-STRATEGY.md`                           |
+| `dropzo-docs-and-adr`      | Documentation synchronization, requirements traceability, ADR governance                           | `DOCUMENTATION-STANDARDS.md`, `03-decisions/`                          |
+| `dropzo-release-readiness` | Pre-merge/pre-commit completion gate                                                               | `AGENTS.md` ("after implementation")                                   |
+| `dropzo-stitch-to-react`   | 1:1 Stitch HTML/screenshot translation via Stitch MCP (mobile & desktop) without layout distortion | `STITCH-DESIGN-AUDIT.md`, `UI-SCREEN-COVERAGE.md`                      |
 
 This covers the twelve originally-requested workflows, consolidated into nine skills where two
 workflows are tightly coupled in practice (Prisma schema work with its concurrency tests; React

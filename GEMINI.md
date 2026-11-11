@@ -23,6 +23,7 @@ This file does not duplicate those instructions — `AGENTS.md` is authoritative
 
 When creating or modifying frontend screens in `apps/web`:
 
-- You MUST reference the approved Stitch designs in `audit/stitch-audit/html/<screenId>.html` and `audit/stitch-audit/screenshots/<screenId>.png` (see [`docs/04-design/UI-SCREEN-COVERAGE.md`](docs/04-design/UI-SCREEN-COVERAGE.md)).
+- **Always fetch the latest artifacts via Stitch MCP**: If a design might have changed or when starting work on a screen, use the Stitch MCP tools or `node scripts/stitch.mjs` to fetch the newest HTML and screenshots for **both Mobile and Desktop viewports** from project `3837531702173487386`.
+- **Reference approved Stitch designs**: Reference `audit/stitch-audit/html/<screenId>.html` and `audit/stitch-audit/screenshots/<screenId>.png` (see [`docs/04-design/UI-SCREEN-COVERAGE.md`](docs/04-design/UI-SCREEN-COVERAGE.md)).
 - **NEVER delete visual sections or simplify layouts** because backend database columns/APIs are missing. Preserve all headers, stat cards, toggles, sidebars, and badges using static/default props with `// TODO: wire to API` comments.
 - Replicate the exact DOM hierarchy, layout grid, and Dropzo theme tokens (Plus Jakarta Sans, Coral `#FF5733`, Forest `#006E2D`, Surface `#FBF8FF`).
