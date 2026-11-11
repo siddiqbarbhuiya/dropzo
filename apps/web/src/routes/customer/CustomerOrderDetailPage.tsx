@@ -5,28 +5,47 @@ import { ApiError } from '@dropzo/api-client';
 import { apiClient } from '../../lib/apiClient';
 import { AppShell } from '../layout/AppShell';
 import { OrderStatusBadge } from '../components/OrderStatusBadge';
-import { ErrorText } from '../components/FormPrimitives';
+import { Card, LoadingState, ErrorState } from '../../components/ui';
+import { OrderStatusStepper, PickupPinCard } from '../../components/domain';
+import { typeScale } from '../../theme';
 
-const Section = styled.section`
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
+const Section = styled(Card)`
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
 `;
 
-const CodeBox = styled.div`
-    text-align: center;
-    padding: 1rem;
-    border: 2px dashed #15803d;
-    border-radius: 0.5rem;
-    margin-top: 0.75rem;
+const SectionTitle = styled.h3`
+    ${({ theme }) => typeScale(theme.typography.headlineSm)}
+    color: ${({ theme }) => theme.colors.textPrimary};
+    margin-bottom: ${({ theme }) => theme.spacing.md};
 `;
 
-const CodeDigits = styled.p`
-    font-size: 2rem;
-    font-weight: 700;
-    letter-spacing: 0.3rem;
-    margin: 0.25rem 0;
+const MetaRow = styled.p`
+    ${({ theme }) => typeScale(theme.typography.bodyMd)}
+    color: ${({ theme }) => theme.colors.textSecondary};
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const ItemList = styled.ul`
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.sm};
+    ${({ theme }) => typeScale(theme.typography.bodyMd)}
+`;
+
+const HistoryList = styled.ul`
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
+    color: ${({ theme }) => theme.colors.textMuted};
 `;
 
 export function CustomerOrderDetailPage() {
@@ -65,14 +84,14 @@ export function CustomerOrderDetailPage() {
     if (order.isLoading) {
         return (
             <AppShell title="Order detail">
-                <p>Loading…</p>
+                <LoadingState label="Loading order" />
             </AppShell>
         );
     }
     if (order.isError || !order.data) {
         return (
             <AppShell title="Order detail">
-                <p>Could not load this order.</p>
+                <ErrorState description="Could not load this order." />
             </AppShell>
         );
     }
@@ -82,70 +101,72 @@ export function CustomerOrderDetailPage() {
     return (
         <AppShell title={`Order ${data.order_number}`}>
             <Section>
-                <p>
+                <MetaRow>
                     Status: <OrderStatusBadge status={data.status} />
-                </p>
-                <p>Total: ₹{data.total_amount}</p>
-                <p>Fulfilment: {data.fulfilment_type}</p>
+                </MetaRow>
+                <MetaRow>Total: ₹{data.total_amount}</MetaRow>
+                <MetaRow>Fulfilment: {data.fulfilment_type}</MetaRow>
+                <div style={{ marginTop: '1rem' }}>
+                    <OrderStatusStepper status={data.status} />
+                </div>
             </Section>
 
             {data.items && data.items.length > 0 && (
                 <Section>
-                    <h3>Items</h3>
-                    <ul>
+                    <SectionTitle>Items</SectionTitle>
+                    <ItemList>
                         {data.items.map((item) => (
                             <li key={item.id}>
                                 {item.product_name_snapshot} ({item.variant_snapshot}) ×{' '}
                                 {item.quantity} — ₹{item.unit_price}
                             </li>
                         ))}
-                    </ul>
+                    </ItemList>
                 </Section>
             )}
 
             {isDelivery && (
                 <Section>
-                    <h3>Delivery progress</h3>
-                    {deliveryStatus.isLoading && <p>Loading delivery progress…</p>}
+                    <SectionTitle>Delivery progress</SectionTitle>
+                    {deliveryStatus.isLoading && <LoadingState label="Loading delivery progress" />}
                     {deliveryStatus.data?.assignment ? (
                         <>
-                            <p>Delivery status: {deliveryStatus.data.assignment.deliveryStatus}</p>
+                            <MetaRow>
+                                Delivery status: {deliveryStatus.data.assignment.deliveryStatus}
+                            </MetaRow>
                             {deliveryStatus.data.assignment.partnerName && (
-                                <p>
+                                <MetaRow>
                                     Delivery partner: {deliveryStatus.data.assignment.partnerName} (
                                     {deliveryStatus.data.assignment.partnerPhone})
-                                </p>
+                                </MetaRow>
                             )}
                         </>
                     ) : (
-                        <p>Waiting for a delivery partner to be assigned.</p>
+                        <MetaRow>Waiting for a delivery partner to be assigned.</MetaRow>
                     )}
                     {data.status === 'DELIVERY_FAILED' && (
-                        <ErrorText>
-                            Delivery was unsuccessful. Our support team will contact you shortly.
-                        </ErrorText>
+                        <ErrorState
+                            title="Delivery unsuccessful"
+                            description="Our support team will contact you shortly."
+                        />
                     )}
                     {data.status === 'OUT_FOR_DELIVERY' && (
                         <>
-                            {deliveryCode.isLoading && <p>Loading your delivery code…</p>}
+                            {deliveryCode.isLoading && (
+                                <LoadingState label="Loading your delivery code" />
+                            )}
                             {deliveryCode.data?.codeAvailable && deliveryCode.data.code && (
-                                <CodeBox>
-                                    <p>
-                                        Share this code with the delivery partner only after you
-                                        receive your order:
-                                    </p>
-                                    <CodeDigits>{deliveryCode.data.code}</CodeDigits>
-                                    <small>
-                                        Expires{' '}
-                                        {new Date(deliveryCode.data.expiresAt).toLocaleString()}
-                                    </small>
-                                </CodeBox>
+                                <PickupPinCard
+                                    code={deliveryCode.data.code}
+                                    expiresAt={deliveryCode.data.expiresAt}
+                                    helperText="Share this code with the delivery partner only after you receive your order."
+                                />
                             )}
                             {deliveryCode.data && !deliveryCode.data.codeAvailable && (
-                                <p>
+                                <MetaRow>
                                     Your code was already generated but can&apos;t be shown again
                                     here. Please contact support for help.
-                                </p>
+                                </MetaRow>
                             )}
                         </>
                     )}
@@ -154,37 +175,37 @@ export function CustomerOrderDetailPage() {
 
             {data.status === 'READY' && data.fulfilment_type === 'PICKUP' && (
                 <Section>
-                    <h3>Pickup code</h3>
-                    {pickupCode.isLoading && <p>Loading your code…</p>}
+                    <SectionTitle>Pickup code</SectionTitle>
+                    {pickupCode.isLoading && <LoadingState label="Loading your code" />}
                     {pickupCode.isError && (
-                        <p>
-                            {pickupCode.error instanceof ApiError
-                                ? pickupCode.error.message
-                                : 'Could not load your pickup code.'}
-                        </p>
+                        <ErrorState
+                            description={
+                                pickupCode.error instanceof ApiError
+                                    ? pickupCode.error.message
+                                    : 'Could not load your pickup code.'
+                            }
+                        />
                     )}
                     {pickupCode.data?.codeAvailable && pickupCode.data.code && (
-                        <CodeBox>
-                            <p>Show this code to the store to collect your order:</p>
-                            <CodeDigits>{pickupCode.data.code}</CodeDigits>
-                            <small>
-                                Expires {new Date(pickupCode.data.expiresAt).toLocaleString()}
-                            </small>
-                        </CodeBox>
+                        <PickupPinCard
+                            code={pickupCode.data.code}
+                            expiresAt={pickupCode.data.expiresAt}
+                            helperText="Show this code to the store to collect your order."
+                        />
                     )}
                     {pickupCode.data && !pickupCode.data.codeAvailable && (
-                        <p>
+                        <MetaRow>
                             Your code was already generated but can&apos;t be shown again here.
                             Please contact the store for help.
-                        </p>
+                        </MetaRow>
                     )}
                 </Section>
             )}
 
             {data.status_history && data.status_history.length > 0 && (
                 <Section>
-                    <h3>History</h3>
-                    <ul>
+                    <SectionTitle>History</SectionTitle>
+                    <HistoryList>
                         {data.status_history.map((entry) => (
                             <li key={entry.id}>
                                 {entry.old_status ?? '—'} → {entry.new_status}
@@ -192,7 +213,7 @@ export function CustomerOrderDetailPage() {
                                 {new Date(entry.created_at).toLocaleString()}
                             </li>
                         ))}
-                    </ul>
+                    </HistoryList>
                 </Section>
             )}
         </AppShell>

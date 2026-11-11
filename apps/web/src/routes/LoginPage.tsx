@@ -4,42 +4,42 @@ import { useNavigate } from 'react-router-dom';
 import { ApiError } from '@dropzo/api-client';
 import { apiClient } from '../lib/apiClient';
 import { useAuthStore } from '../store/useAuthStore';
+import { Card, Input, Button, OTPInput, ErrorState } from '../components/ui';
+import { typeScale } from '../theme';
 
-const Card = styled.div`
+const Wrapper = styled.div`
+    display: flex;
+    justify-content: center;
+    padding: ${({ theme }) => theme.spacing.xxl} ${({ theme }) => theme.spacing.lg};
+`;
+
+const StyledCard = styled(Card)`
     max-width: 24rem;
-    margin: 4rem auto;
-    padding: 2rem;
-    border-radius: 0.75rem;
-    border: 1px solid #e2e8f0;
-    font-family: system-ui, sans-serif;
-`;
-
-const Field = styled.input`
     width: 100%;
-    padding: 0.5rem;
-    margin: 0.5rem 0 1rem;
-    border-radius: 0.375rem;
-    border: 1px solid #cbd5e1;
-    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-const Button = styled.button`
-    width: 100%;
-    padding: 0.6rem;
-    border-radius: 0.375rem;
-    border: none;
-    background: #15803d;
-    color: white;
-    cursor: pointer;
-
-    &:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-    }
+const Title = styled.h1`
+    ${({ theme }) => typeScale(theme.typography.headlineXl)}
+    color: ${({ theme }) => theme.colors.primary};
 `;
 
-const ErrorText = styled.p`
-    color: #b91c1c;
+const Subtitle = styled.p`
+    ${({ theme }) => typeScale(theme.typography.bodyMd)}
+    color: ${({ theme }) => theme.colors.textMuted};
+`;
+
+const Field = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+`;
+
+const Label = styled.label`
+    ${({ theme }) => typeScale(theme.typography.labelMd)}
+    color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
 export function LoginPage() {
@@ -81,45 +81,42 @@ export function LoginPage() {
     }
 
     return (
-        <Card>
-            <h1>Dropzo</h1>
-            <p>Sign in with your phone number.</p>
+        <Wrapper>
+            <StyledCard>
+                <div>
+                    <Title>Dropzo</Title>
+                    <Subtitle>Sign in with your phone number.</Subtitle>
+                </div>
 
-            <label htmlFor="phone">Phone number</label>
-            <Field
-                id="phone"
-                type="tel"
-                placeholder="98765 43210"
-                value={phone}
-                disabled={step === 'code'}
-                onChange={(e) => setPhone(e.target.value)}
-            />
+                <Input
+                    id="phone"
+                    label="Phone number"
+                    type="tel"
+                    placeholder="98765 43210"
+                    value={phone}
+                    disabled={step === 'code'}
+                    onChange={(e) => setPhone(e.target.value)}
+                />
 
-            {step === 'code' && (
-                <>
-                    <label htmlFor="code">OTP code</label>
-                    <Field
-                        id="code"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="123456"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                    />
-                </>
-            )}
+                {step === 'code' && (
+                    <Field>
+                        <Label htmlFor="code">OTP code</Label>
+                        <OTPInput value={code} onChange={setCode} aria-label="One-time password" />
+                    </Field>
+                )}
 
-            {error && <ErrorText>{error}</ErrorText>}
+                {error && <ErrorState title="Could not sign in" description={error} />}
 
-            {step === 'phone' ? (
-                <Button disabled={busy || !phone} onClick={handleSendOtp}>
-                    Send OTP
-                </Button>
-            ) : (
-                <Button disabled={busy || !code} onClick={handleVerifyOtp}>
-                    Verify and sign in
-                </Button>
-            )}
-        </Card>
+                {step === 'phone' ? (
+                    <Button $fullWidth disabled={busy || !phone} onClick={handleSendOtp}>
+                        Send OTP
+                    </Button>
+                ) : (
+                    <Button $fullWidth disabled={busy || code.length < 4} onClick={handleVerifyOtp}>
+                        Verify and sign in
+                    </Button>
+                )}
+            </StyledCard>
+        </Wrapper>
     );
 }

@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DeliveryPartnerInboxPage } from './DeliveryPartnerInboxPage';
+import { withTheme } from '../../test/renderWithProviders';
 
 vi.mock('../../lib/apiClient', () => ({
     apiClient: {
@@ -21,11 +22,13 @@ vi.mock('../../lib/apiClient', () => ({
 function renderPage() {
     const queryClient = new QueryClient();
     return render(
-        <QueryClientProvider client={queryClient}>
-            <MemoryRouter>
-                <DeliveryPartnerInboxPage />
-            </MemoryRouter>
-        </QueryClientProvider>,
+        withTheme(
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter>
+                    <DeliveryPartnerInboxPage />
+                </MemoryRouter>
+            </QueryClientProvider>,
+        ),
     );
 }
 

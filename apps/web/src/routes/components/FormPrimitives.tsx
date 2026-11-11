@@ -1,60 +1,55 @@
 import styled from 'styled-components';
+import { typeScale } from '../../theme';
+import { Button as ThemedButton } from '../../components/ui';
 
-/** Shared styled primitives, extracted from MerchantOrderDetailPage's original inline definitions
- * now that BC-010 adds several more pages reusing the same look - the first shared UI primitives
- * in the app (previously every page defined its own). */
+/** Shared styled primitives for merchant/admin/delivery operational screens.
+ * Button/SecondaryButton/DangerButton now delegate to the themed ui/Button so every
+ * screen shares one button implementation; the rest are kept here until those screens migrate. */
 export const Section = styled.section`
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    border: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+    border-radius: ${({ theme }) => theme.radii.xl};
+    padding: ${({ theme }) => theme.spacing.lg};
+    margin-bottom: ${({ theme }) => theme.spacing.lg};
+    background: ${({ theme }) => theme.colors.surfaceContainerLowest};
 `;
 
 export const ActionRow = styled.div`
     display: flex;
-    gap: 0.5rem;
+    gap: ${({ theme }) => theme.spacing.sm};
     flex-wrap: wrap;
     align-items: center;
 `;
 
-export const Button = styled.button`
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    border: none;
-    background: #15803d;
-    color: white;
-    cursor: pointer;
+export const Button = ThemedButton;
 
-    &:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-    }
-`;
+export const DangerButton = styled(ThemedButton).attrs({ $variant: 'danger' })``;
 
-export const DangerButton = styled(Button)`
-    background: #b91c1c;
-`;
-
-export const SecondaryButton = styled(Button)`
-    background: #334155;
-`;
+export const SecondaryButton = styled(ThemedButton).attrs({ $variant: 'secondary' })``;
 
 export const Field = styled.input`
-    padding: 0.5rem;
-    border-radius: 0.375rem;
-    border: 1px solid #cbd5e1;
+    ${({ theme }) => typeScale(theme.typography.bodyLg)}
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+    border-radius: ${({ theme }) => theme.radii.lg};
+    border: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+    background: ${({ theme }) => theme.colors.surfaceContainerLowest};
+    color: ${({ theme }) => theme.colors.textPrimary};
 `;
 
 export const Select = styled.select`
-    padding: 0.5rem;
-    border-radius: 0.375rem;
-    border: 1px solid #cbd5e1;
+    ${({ theme }) => typeScale(theme.typography.bodyLg)}
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+    border-radius: ${({ theme }) => theme.radii.lg};
+    border: 1px solid ${({ theme }) => theme.colors.borderSubtle};
+    background: ${({ theme }) => theme.colors.surfaceContainerLowest};
+    color: ${({ theme }) => theme.colors.textPrimary};
 `;
 
 export const ErrorText = styled.p`
-    color: #b91c1c;
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
+    color: ${({ theme }) => theme.colors.error};
 `;
 
 export const SuccessText = styled.p`
-    color: #15803d;
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
+    color: ${({ theme }) => theme.colors.success};
 `;

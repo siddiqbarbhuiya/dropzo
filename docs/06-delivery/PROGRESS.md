@@ -2022,3 +2022,114 @@ than silently expanding this task's scope to cover it.
 
 Not committed or pushed, per the task's explicit instruction - the working tree is left for the
 owner's review and authorization.
+
+## BC-011 — Design system foundation and UI integration
+
+Status: **In progress** (Stages 1–4 and 6 implemented; Stage 5 partially verified, see below).
+
+### Stage 1 — Audit reconciliation
+
+Corrected `docs/04-design/STITCH-DESIGN-AUDIT.md`, `docs/04-design/UI-SCREEN-COVERAGE.md` and
+`docs/04-design/DESIGN-SYSTEM-EXTRACTION.md` against the real Stitch project (id
+`3837531702173487386`) and the real `apps/api`/`apps/web` code, in place (no commits made, per
+instruction):
+
+- **Stitch screen count**: 38 raw canvas entries = 29 functional UI screens (15 mobile + 14
+  desktop; Merchant POS Login has no desktop pair) + 1 Dribbble reference image + 8
+  repo-doc-extract knowledge cards. The "30 functional vs 38 total" discrepancy was a header/count
+  mismatch in the original audit, not 8 missing screens — the original table already listed every
+  reference row.
+- **Backend endpoints**: several claimed endpoints existed but at a different path/verb than
+  documented (auth OTP, checkout, nested customer/merchant order routes, store `hours`, admin
+  merchant approve/reject, inventory receive/adjustments/removals/movements, delivery routes) —
+  corrected with the real controller file cited. A public customer-facing store/product-listing
+  endpoint, a dedicated merchant-document endpoint, a dedicated bank-details endpoint, and any
+  merchant-analytics endpoint were **not found in code** and are now flagged as such rather than
+  marked "Active".
+- **Coverage recalculated** from the real 29-screen inventory: 0/29 high-fidelity, ~21% (6/29)
+  partial wireframe, ~79% (23/29) missing — replacing the prior overstated "100% backend
+  readiness" line.
+
+### Stage 2 — Theme
+
+Added `apps/web/src/theme/`: `theme.ts` (typed `DropzoTheme` interface + the one approved
+`dropzoTheme` instance, matching `DESIGN-SYSTEM-EXTRACTION.md` §2 exactly — colors, typography
+scale, spacing, radii, shadows, plus breakpoints/z-index not in the original doc but needed for
+implementation), `media.ts` (breakpoint helpers), `GlobalStyles.ts` (font loading, resets,
+`:focus-visible` ring), `styled.d.ts` (typed `DefaultTheme`). Wired once via `<ThemeProvider>` +
+`<GlobalStyles />` in `main.tsx`.
+
+### Stage 3 — UI primitives and domain components
+
+18 primitives in `apps/web/src/components/ui/` (`Button`, `IconButton`, `Input`, `OTPInput`,
+`Select`, `Checkbox`, `Switch`, `Badge`, `Card`, `Modal`, `Toast`, `Skeleton`, `EmptyState`,
+`ErrorState`, `LoadingState`, `QuantityStepper`, `SegmentedControl`, `PageHeader`,
+`ResponsiveContainer`) and 6 domain components in `apps/web/src/components/domain/` (`StoreCard`,
+`ProductCard`, `ProductQuantityControl`, `OrderStatusStepper`, `FulfillmentSelector`,
+`PickupPinCard`). Full inventory and conventions: `docs/04-design/COMPONENT-LIBRARY.md`.
+`StoreCard`/`ProductCard`/`FulfillmentSelector` are built but not wired into a route, since Stage 1
+confirmed no public store/product-listing backend endpoint exists yet — wiring them to mock data
+would have violated the task's "no hardcoded mock business data" constraint.
+
+### Stage 4 — Screen migration
+
+Migrated `AppShell.tsx`, `LoginPage.tsx`, `CustomerOrdersPage.tsx`, `CustomerOrderDetailPage.tsx`.
+Refactored `routes/components/FormPrimitives.tsx` and `routes/components/OrderStatusBadge.tsx` to
+delegate to the new themed `Button`/`Badge` instead of duplicating hardcoded hex colors — every
+other screen that imports them (merchant, admin, delivery-partner pages, all from BC-009/BC-010)
+now inherits the new button/badge look without being rewritten. All existing route behaviour, API
+integration, auth state, and role-based access were preserved unchanged — only presentation
+changed.
+
+### Stage 5 — Visual verification
+
+Started the Vite dev server (`apps/web`, port 5173) and checked `LoginPage` in the browser pane:
+Plus Jakarta Sans font and `9999px` pill button radius confirmed via computed styles; desktop,
+tablet (768×1024) and mobile (375×812) layouts all rendered without overflow; the primary button
+correctly disables/enables based on input; `:focus-visible` shows the deep-blue ring on keyboard
+focus; submitting without a running backend correctly rendered the new `ErrorState` component
+("Could not sign in" / "Could not send the OTP"); navigating to `/orders` while logged out
+correctly redirected to `/login` (`RequireAuth` unaffected by the restyle). **Not checked**:
+authenticated order-list/order-detail/pickup-code visuals (backend + PostgreSQL were not running
+this session — same pre-existing Docker/WSL2 blocker `docs/07-operations/DEVELOPMENT-SETUP.md`
+already documents), and no Stitch screen screenshots were pulled for a pixel-level comparison this
+round — `UI-SCREEN-COVERAGE.md`'s "Visual Match" column is explicitly left unchanged rather than
+overstated.
+
+### Stage 6 — Tests and documentation
+
+Added 6 new frontend test files: `theme/theme.test.ts` (token values), `components/ui/Button.test.tsx`
+(click/disabled/all 4 variants), `components/ui/QuantityStepper.test.tsx` (add/increment/decrement/max),
+`components/ui/Modal.test.tsx` (open/closed, Escape, close button),
+`components/ui/OTPInput.test.tsx` (digit labels, auto-advance focus, paste splitting),
+`components/domain/OrderStatusStepper.test.tsx` (current-step marking, terminal-failure banner,
+COMPLETED→Delivered mapping). Added `src/test/renderWithProviders.tsx` (`withTheme` helper) and used
+it to fix 3 pre-existing tests (`App.test.tsx`, `AdminDeliveryQueuePage.test.tsx`,
+`DeliveryPartnerInboxPage.test.tsx`) that started failing once `AppShell`/`LoginPage` required a
+`ThemeProvider` ancestor. Frontend suite: 9 test files / 25 tests, all passing.
+
+Documentation updated: `DESIGN-SYSTEM-EXTRACTION.md`, `UI-SCREEN-COVERAGE.md`,
+`STITCH-DESIGN-AUDIT.md` (Stage 1 corrections), new `COMPONENT-LIBRARY.md`,
+`TESTING-STRATEGY.md` (frontend test count), this file, and `TASK-TRACKER.md`.
+`UI-UX-SPECIFICATION.md` was read but needed no correction.
+
+### Verification performed (actual results)
+
+| Check                              | Result                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| `nx run web:typecheck`               | Pass                                                                      |
+| `nx run web:lint`                    | Pass                                                                      |
+| `nx run web:test` (Vitest)           | Pass — 9 files / 25 tests                                                |
+| Dev-server visual check (Login page) | Pass — desktop/tablet/mobile, font, radius, focus ring, error state       |
+| Authenticated-screen visual check    | **Not checked** — backend/PostgreSQL not running this session            |
+| Stitch screen pixel comparison       | **Not checked** — no Stitch screenshots pulled this round                |
+
+### Remaining work / recommended next task
+
+Merchant POS Terminal, Merchant Inventory/Settings/Analytics, Admin Merchant Approvals, Admin
+Delivery Queue, and Delivery Partner Inbox screens are not yet migrated to the new design system —
+they inherit the new `Button`/`Badge` look via the shared primitives but are not laid out per their
+Stitch screens. The customer Home and Store Catalogue screens remain blocked on a public
+store/product-listing backend endpoint, which does not exist yet (Stage 1 finding) — recommended
+next task: design and implement that endpoint before building those two screens. Not committed or
+pushed, per the task's explicit instruction.

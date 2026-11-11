@@ -21,3 +21,4 @@ backups/*.dump
 .claude/worktrees
 .claude/settings.local.json
 vite.config.*.timestamp*
+audit/

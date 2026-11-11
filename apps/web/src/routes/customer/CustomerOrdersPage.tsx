@@ -4,19 +4,19 @@ import { Link } from 'react-router-dom';
 import { apiClient } from '../../lib/apiClient';
 import { AppShell } from '../layout/AppShell';
 import { OrderStatusBadge } from '../components/OrderStatusBadge';
+import { Card, ErrorState, EmptyState, Skeleton } from '../../components/ui';
+import { typeScale } from '../../theme';
 
 const List = styled.ul`
     list-style: none;
     padding: 0;
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.md};
 `;
 
-const Row = styled.li`
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.75rem;
-
+const Row = styled(Card)`
     a {
         text-decoration: none;
         color: inherit;
@@ -24,6 +24,17 @@ const Row = styled.li`
         justify-content: space-between;
         align-items: center;
     }
+`;
+
+const OrderNumber = styled.span`
+    ${({ theme }) => typeScale(theme.typography.labelLg)}
+    color: ${({ theme }) => theme.colors.textPrimary};
+    display: block;
+`;
+
+const Amount = styled.span`
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
+    color: ${({ theme }) => theme.colors.textMuted};
 `;
 
 export function CustomerOrdersPage() {
@@ -34,23 +45,35 @@ export function CustomerOrdersPage() {
 
     return (
         <AppShell title="My orders">
-            {orders.isLoading && <p>Loading orders…</p>}
-            {orders.isError && <p>Could not load your orders.</p>}
-            {orders.data && orders.data.data.length === 0 && <p>No orders yet.</p>}
-            <List>
-                {orders.data?.data.map((order) => (
-                    <Row key={order.id}>
-                        <Link to={`/orders/${order.id}`}>
-                            <span>
-                                {order.order_number}
-                                <br />
-                                <small>₹{order.total_amount}</small>
-                            </span>
-                            <OrderStatusBadge status={order.status} />
-                        </Link>
-                    </Row>
-                ))}
-            </List>
+            {orders.isLoading && (
+                <List>
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} $height="4rem" />
+                    ))}
+                </List>
+            )}
+            {orders.isError && <ErrorState description="Could not load your orders." />}
+            {orders.data && orders.data.data.length === 0 && (
+                <EmptyState
+                    title="No orders yet"
+                    description="Orders you place will show up here."
+                />
+            )}
+            {orders.data && orders.data.data.length > 0 && (
+                <List>
+                    {orders.data.data.map((order) => (
+                        <Row key={order.id}>
+                            <Link to={`/orders/${order.id}`}>
+                                <span>
+                                    <OrderNumber>{order.order_number}</OrderNumber>
+                                    <Amount>₹{order.total_amount}</Amount>
+                                </span>
+                                <OrderStatusBadge status={order.status} />
+                            </Link>
+                        </Row>
+                    ))}
+                </List>
+            )}
         </AppShell>
     );
 }
