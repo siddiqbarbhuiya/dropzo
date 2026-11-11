@@ -29,6 +29,55 @@ export interface Store {
     status: string;
 }
 
+export interface PublicStore {
+    id: string;
+    name: string;
+    description: string | null;
+    address: string;
+    locality: string | null;
+    district: string;
+    city: string;
+    contact_phone: string | null;
+    supports_pickup: boolean;
+    supports_delivery: boolean;
+    opening_hours: Record<string, { open: string; close: string } | null> | null;
+    is_open: boolean;
+}
+
+export interface PublicProductListing {
+    id: string;
+    store_id: string;
+    product_id: string;
+    product_name: string;
+    product_description: string | null;
+    category_id: string | null;
+    category_name: string | null;
+    variant_id: string;
+    variant_name: string;
+    sku: string | null;
+    pack_size: number | null;
+    unit: string | null;
+    selling_price: number;
+    mrp: number | null;
+    in_stock: boolean;
+    low_stock: boolean;
+}
+
+export interface ListPublicStoresParams {
+    locality?: string;
+    supportsPickup?: boolean;
+    supportsDelivery?: boolean;
+    page?: number;
+    limit?: number;
+}
+
+export interface ListPublicProductsParams {
+    categoryId?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+}
+
 export interface PaginatedResult<T> {
     data: T[];
     meta: { page: number; limit: number; total: number; totalPages: number };
@@ -574,6 +623,32 @@ export function createApiClient(baseUrl: string, options?: ApiClientOptions) {
             patchJson<DeliveryAssignment>(`/delivery-partners/me/assignments/${orderId}/fail`, {
                 reason,
             }),
+
+        // --- Public Store & Catalogue Browsing ---
+        listPublicStores: (params: ListPublicStoresParams = {}) => {
+            const query = new URLSearchParams();
+            if (params.locality) query.set('locality', params.locality);
+            if (params.supportsPickup !== undefined)
+                query.set('supportsPickup', String(params.supportsPickup));
+            if (params.supportsDelivery !== undefined)
+                query.set('supportsDelivery', String(params.supportsDelivery));
+            if (params.page) query.set('page', String(params.page));
+            if (params.limit) query.set('limit', String(params.limit));
+            const qs = query.toString();
+            return getJson<PaginatedResult<PublicStore>>(`/stores${qs ? `?${qs}` : ''}`);
+        },
+        getPublicStore: (storeId: string) => getJson<PublicStore>(`/stores/${storeId}`),
+        getStoreCatalogue: (storeId: string, params: ListPublicProductsParams = {}) => {
+            const query = new URLSearchParams();
+            if (params.categoryId) query.set('categoryId', params.categoryId);
+            if (params.search) query.set('search', params.search);
+            if (params.page) query.set('page', String(params.page));
+            if (params.limit) query.set('limit', String(params.limit));
+            const qs = query.toString();
+            return getJson<PaginatedResult<PublicProductListing>>(
+                `/stores/${storeId}/products${qs ? `?${qs}` : ''}`,
+            );
+        },
     };
 }
 

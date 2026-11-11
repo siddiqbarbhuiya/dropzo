@@ -284,4 +284,41 @@ describe('StoreService', () => {
             ).rejects.toThrow(BadRequestException);
         });
     });
+
+    describe('public store discovery', () => {
+        it('lists active stores with calculated open status', async () => {
+            const prisma = makePrisma({
+                store: {
+                    findMany: jest.fn(async () => [
+                        {
+                            id: 'store-1',
+                            name: 'Maa Tara Groceries',
+                            status: 'ACTIVE',
+                            locality: 'Station Road',
+                            supports_pickup: true,
+                            supports_delivery: true,
+                            opening_hours: null,
+                        },
+                    ]),
+                    count: jest.fn(async () => 1),
+                },
+            });
+            const service = new StoreService(prisma, makeAudit(), makeMerchantApplications());
+
+            const result = await service.listPublicStores({ page: 1, limit: 10, locality: 'Station Road' });
+            expect(result.data).toHaveLength(1);
+            expect(result.data[0].name).toBe('Maa Tara Groceries');
+            expect(result.data[0].is_open).toBe(true);
+            expect(result.meta.total).toBe(1);
+        });
+
+        it('throws NotFoundException if store is inactive or not found', async () => {
+            const prisma = makePrisma({
+                store: { findFirst: jest.fn(async () => null) },
+            });
+            const service = new StoreService(prisma, makeAudit(), makeMerchantApplications());
+
+            await expect(service.getPublicStore('missing-store')).rejects.toThrow(NotFoundException);
+        });
+    });
 });

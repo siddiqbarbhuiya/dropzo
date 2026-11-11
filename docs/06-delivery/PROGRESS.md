@@ -2567,3 +2567,74 @@ Status: **Complete.**
 | `npm run build` (all workspaces)     | **Pass** — `@dropzo/api` and `@dropzo/web` built successfully                                                               |
 | `node apps/api/dist/main.js`         | **Pass** — Nest application, Prisma database, and all 16 controllers bootstrap cleanly without runtime import errors        |
 | `git status`                         | Clean working state, no uncommitted changes without user authorization                                                      |
+
+## BC-012 — Public Store and Catalogue Discovery Endpoints
+
+Status: **Complete.**
+
+### What was built
+
+1. **IST Operating Hours Utility (`store-hours.util.ts`)**:
+    - `isStoreOpen(hours, now)`: Computes store open/closed status against Indian Standard Time (`Asia/Kolkata`) using standard `Intl.DateTimeFormat`.
+    - Handles midnight rollover (e.g., 20:00 to 02:00) and defaults to `true` if store status is `ACTIVE` and hours are unconfigured. Unit tested with 5/5 tests passing.
+2. **Public Store DTOs & Serialization (`public-store.dto.ts`)**:
+    - `PublicStoreDto`: Sanitized DTO exposing only public fields (`id`, `name`, `slug`, `address`, `latitude`, `longitude`, `is_open`, `status`, `store_hours`). Explicitly conceals sensitive merchant data (phone, commission percentage, bank details, tax identifiers).
+    - `PublicProductListingDto`: Public product listing DTO with variant name, SKU, pack size, unit, selling price, MRP, and inventory availability flags (`in_stock`, `low_stock`) without exposing numeric wholesale inventory quantities.
+3. **Public Discovery Controller & Service Layer**:
+    - `StoreService.listPublicStores()` & `getPublicStore()`: Paginated active store listings for Badarpur.
+    - `StoreProductService.listPublicStoreProducts()`: Store catalogue listing filtered by store and published status.
+    - `PublicStoreController`: Mounted under `@Controller('stores')` with `@Public()` decorator. Registered in `InventoryModule` to avoid circular dependencies.
+4. **Client-Side SDK (`@dropzo/api-client`)**:
+    - Added `listPublicStores(params)`, `getPublicStore(storeId)`, and `getStoreCatalogue(storeId, params)`.
+    - Exported `PublicStore` and `PublicProductListing` interfaces.
+
+### Verification Performed
+
+- `npm run test -w @dropzo/api`: All 25 suites passed (196/196 tests).
+- `npm run typecheck -w @dropzo/api`: 0 errors.
+- `npm run typecheck -w @dropzo/api-client`: 0 errors.
+
+---
+
+## BC-013 — Public Customer Marketplace Home Screen
+
+Status: **Complete.**
+
+### What was built
+
+1. **Guest-First Public Marketplace Routing (`apps/web/src/App.tsx`)**:
+    - Reconfigured root route `/` to mount `<HomePage />` as a public route.
+    - Completely eliminated the forced login redirect for first-time visitors; visitors can browse all stores, categories, and products without logging in.
+    - Added storefront placeholder route `/stores/:storeId` (`StorePlaceholderPage.tsx`) so store card interactions link cleanly.
+2. **1:1 Responsive Stitch Implementation (`HomePage.tsx`)**:
+    - Mobile Viewport (`7dafe4578dda46dfb093cad7eab02188`) & Desktop Viewport (`4ea61046b65a4effa3ce7492fbc197b1`).
+    - Location context bar with "Delivering to Badarpur Main Town, Sribhumi" and animated `15-30 min` pulse badge.
+    - Header with guest/auth controls: "Sign In" button when unauthenticated; user greeting, avatar, and notification bell when authenticated.
+    - Interactive search input with filter button and desktop `Cmd+K` shortcut indicator.
+    - Fulfillment mode switcher ("Express Delivery" vs "Store Pickup") with state toggle.
+    - Category capsule rail (Vegetables, Soft Fruits, Dairy & Bread, Groceries, Snacks).
+    - Featured promo hero banner with emerald gradient ("100% Farm Fresh", "Fresh foods everyday").
+    - Popular Stores in Badarpur: Dynamic store cards loaded from `apiClient.listPublicStores()` with rating, distance, tags, and open/closed badge.
+    - Daily Essentials product grid: 2-column mobile / 4-column desktop layout with strike-through MRP, savings badge, and interactive quantity stepper.
+    - Local community assurance banner.
+    - Mobile floating bottom navigation bar (Home, Stores, Orders, Cart with badge, Profile).
+    - Desktop sticky top navigation bar with full search and cart summary button.
+3. **Guest Handoff Protocol**:
+    - Guests clicking "Orders", "Sign In", or "Proceed to Checkout" are redirected to `/login?redirect=...`.
+4. **Test-Driven Unit Test Suite (`HomePage.test.tsx`)**:
+    - Verified unauthenticated rendering without tokens.
+    - Verified location badge and guest sign-in button.
+    - Verified dynamic store cards loaded from API.
+    - Verified category carousel and daily essentials.
+    - Verified user greeting switch upon authentication.
+    - All 5/5 tests passing.
+
+### Verification Performed
+
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 13 test files, 39 tests passing              |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                     |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |

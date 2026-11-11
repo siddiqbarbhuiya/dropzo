@@ -16,6 +16,8 @@ import type { StoreOperatingHoursDto } from './dto/store-operating-hours.dto.js'
 import { WEEKDAY_KEYS } from './dto/store-operating-hours.dto.js';
 import type { PaginatedResult } from './dto/pagination.dto.js';
 import type { PaginationDto } from './dto/pagination.dto.js';
+import { isStoreOpen } from './utils/store-hours.util.js';
+import type { ListPublicStoresQueryDto, PublicStoreDto } from './dto/public-store.dto.js';
 
 // Self-service transitions a store's own merchant may make. Reopening (-> ACTIVE) additionally
 // requires the merchant to currently be APPROVED (checked separately, not here) - "suspended
@@ -356,5 +358,86 @@ export class StoreService {
             throw new NotFoundException('Store not found.');
         }
         return store;
+    }
+
+    /** Public store discovery: lists active stores belonging to approved merchants. */
+    async listPublicStores(
+        query: ListPublicStoresQueryDto,
+    ): Promise<PaginatedResult<PublicStoreDto>> {
+        const where = {
+            status: 'ACTIVE' as StoreStatus,
+            merchant: { verification_status: 'APPROVED' },
+            ...(query.locality
+                ? { locality: { contains: query.locality, mode: 'insensitive' as const } }
+                : {}),
+            ...(query.supportsPickup !== undefined
+                ? { supports_pickup: query.supportsPickup }
+                : {}),
+            ...(query.supportsDelivery !== undefined
+                ? { supports_delivery: query.supportsDelivery }
+                : {}),
+        };
+        const [stores, total] = await Promise.all([
+            this.prisma.store.findMany({
+                where,
+                orderBy: { name: 'asc' },
+                skip: (query.page - 1) * query.limit,
+                take: query.limit,
+            }),
+            this.prisma.store.count({ where }),
+        ]);
+
+        const data: PublicStoreDto[] = stores.map((s) => ({
+            id: s.id,
+            name: s.name,
+            description: s.description,
+            address: s.address,
+            locality: s.locality,
+            district: s.district,
+            city: s.city,
+            contact_phone: s.contact_phone,
+            supports_pickup: s.supports_pickup,
+            supports_delivery: s.supports_delivery,
+            opening_hours: s.opening_hours as StoreOperatingHoursDto | null,
+            is_open: isStoreOpen(s.status, s.opening_hours as StoreOperatingHoursDto | null),
+        }));
+
+        return {
+            data,
+            meta: {
+                page: query.page,
+                limit: query.limit,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / query.limit)),
+            },
+        };
+    }
+
+    /** Public store details: returns single active store. */
+    async getPublicStore(storeId: string): Promise<PublicStoreDto> {
+        const store = await this.prisma.store.findFirst({
+            where: {
+                id: storeId,
+                status: 'ACTIVE',
+                merchant: { verification_status: 'APPROVED' },
+            },
+        });
+        if (!store) {
+            throw new NotFoundException('Store not found or is currently inactive.');
+        }
+        return {
+            id: store.id,
+            name: store.name,
+            description: store.description,
+            address: store.address,
+            locality: store.locality,
+            district: store.district,
+            city: store.city,
+            contact_phone: store.contact_phone,
+            supports_pickup: store.supports_pickup,
+            supports_delivery: store.supports_delivery,
+            opening_hours: store.opening_hours as StoreOperatingHoursDto | null,
+            is_open: isStoreOpen(store.status, store.opening_hours as StoreOperatingHoursDto | null),
+        };
     }
 }

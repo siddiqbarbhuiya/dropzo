@@ -1,7 +1,9 @@
 import { Route, Routes } from 'react-router-dom';
+import { HomePage } from './routes/HomePage';
 import { LoginPage } from './routes/LoginPage';
 import { LandingRedirect } from './routes/LandingRedirect';
 import { RequireAuth } from './routes/RequireAuth';
+import { StorePlaceholderPage } from './routes/customer/StorePlaceholderPage';
 import { CustomerOrdersPage } from './routes/customer/CustomerOrdersPage';
 import { CustomerOrderDetailPage } from './routes/customer/CustomerOrderDetailPage';
 import { MerchantOrdersPage } from './routes/merchant/MerchantOrdersPage';
@@ -15,7 +17,9 @@ import { DeliveryPartnerInboxPage } from './routes/delivery-partner/DeliveryPart
 export function App() {
     return (
         <Routes>
-            <Route path="/" element={<LandingRedirect />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/redirect" element={<LandingRedirect />} />
+            <Route path="/stores/:storeId" element={<StorePlaceholderPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route
                 path="/orders"

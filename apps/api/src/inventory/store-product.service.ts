@@ -13,6 +13,10 @@ import type { CreateListingDto } from './dto/create-listing.dto.js';
 import type { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { ListListingsDto } from './dto/list-listings.dto.js';
 import type { PaginatedResult } from '../merchant/dto/pagination.dto.js';
+import type {
+    ListPublicProductsQueryDto,
+    PublicProductListingDto,
+} from '../merchant/dto/public-store.dto.js';
 
 /**
  * Store-owned listings connecting a global ProductVariant to one store. One product/variant may
@@ -179,5 +183,109 @@ export class StoreProductService {
         if (merchant.verification_status === 'SUSPENDED') {
             throw new ForbiddenException('Your merchant account is suspended.');
         }
+    }
+
+    /** Public store catalogue: lists published listings with live stock flags. */
+    async listPublicStoreProducts(
+        storeId: string,
+        query: ListPublicProductsQueryDto,
+    ): Promise<PaginatedResult<PublicProductListingDto>> {
+        const store = await this.prisma.store.findFirst({
+            where: {
+                id: storeId,
+                status: 'ACTIVE',
+            },
+        });
+        if (!store) {
+            throw new NotFoundException('Store not found or inactive.');
+        }
+
+        const where = {
+            store_id: storeId,
+            is_available: true,
+            variant: {
+                is_active: true,
+                product: {
+                    is_active: true,
+                    ...(query.categoryId ? { category_id: query.categoryId } : {}),
+                    ...(query.search
+                        ? {
+                              OR: [
+                                  {
+                                      name: {
+                                          contains: query.search,
+                                          mode: 'insensitive' as const,
+                                      },
+                                  },
+                                  {
+                                      description: {
+                                          contains: query.search,
+                                          mode: 'insensitive' as const,
+                                      },
+                                  },
+                              ],
+                          }
+                        : {}),
+                },
+            },
+        };
+
+        const [items, total] = await Promise.all([
+            this.prisma.storeProduct.findMany({
+                where,
+                include: {
+                    variant: {
+                        include: {
+                            product: {
+                                include: {
+                                    category: true,
+                                },
+                            },
+                        },
+                    },
+                    inventory: true,
+                },
+                orderBy: { created_at: 'desc' },
+                skip: (query.page - 1) * query.limit,
+                take: query.limit,
+            }),
+            this.prisma.storeProduct.count({ where }),
+        ]);
+
+        const data: PublicProductListingDto[] = items.map((item) => {
+            const onHand = Number(item.inventory?.on_hand_quantity ?? 0);
+            const reserved = Number(item.inventory?.reserved_quantity ?? 0);
+            const blocked = Number(item.inventory?.blocked_quantity ?? 0);
+            const availableQty = Math.max(0, onHand - reserved - blocked);
+            const lowStockThreshold = Number(item.inventory?.low_stock_threshold ?? 0);
+            return {
+                id: item.id,
+                store_id: item.store_id,
+                product_id: item.variant.product.id,
+                product_name: item.variant.product.name,
+                product_description: item.variant.product.description,
+                category_id: item.variant.product.category_id,
+                category_name: item.variant.product.category?.name ?? null,
+                variant_id: item.variant.id,
+                variant_name: item.variant.variant_name,
+                sku: item.variant.sku,
+                pack_size: item.variant.pack_size ? Number(item.variant.pack_size) : null,
+                unit: item.variant.unit,
+                selling_price: Number(item.selling_price),
+                mrp: item.mrp ? Number(item.mrp) : null,
+                in_stock: availableQty > 0,
+                low_stock: availableQty > 0 && availableQty <= lowStockThreshold,
+            };
+        });
+
+        return {
+            data,
+            meta: {
+                page: query.page,
+                limit: query.limit,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / query.limit)),
+            },
+        };
     }
 }

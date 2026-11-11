@@ -8,6 +8,8 @@ import { withTheme } from './test/renderWithProviders';
 vi.mock('./lib/apiClient', () => ({
     apiClient: {
         getHealth: () => new Promise(() => {}),
+        listPublicStores: () =>
+            Promise.resolve({ data: [], total: 0, page: 1, limit: 10, totalPages: 1 }),
     },
 }));
 

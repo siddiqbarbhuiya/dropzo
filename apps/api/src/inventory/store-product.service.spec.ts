@@ -22,6 +22,10 @@ function makeStores() {
 }
 
 function makePrisma(overrides: Record<string, unknown> = {}) {
+    const store = {
+        findFirst: jest.fn(async () => ({ id: 'store-1', status: 'ACTIVE' })),
+        ...((overrides.store as object) ?? {}),
+    };
     const storeProduct = {
         create: jest.fn(async (args: { data: Record<string, unknown> }) => ({
             id: 'listing-1',
@@ -46,6 +50,7 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
         ...((overrides.productVariant as object) ?? {}),
     };
     return {
+        store,
         storeProduct,
         inventory,
         productVariant,
@@ -150,6 +155,78 @@ describe('StoreProductService', () => {
             await expect(
                 service.getOwnListing('user-1', 'store-1', 'listing-from-another-store'),
             ).rejects.toThrow(NotFoundException);
+        });
+    });
+
+    describe('listPublicStoreProducts', () => {
+        it('throws NotFoundException if store is inactive or not found', async () => {
+            const prisma = makePrisma({
+                store: { findFirst: jest.fn(async () => null) },
+            });
+            const service = new StoreProductService(
+                prisma,
+                makeAudit(),
+                makeMerchantApplications(),
+                makeStores(),
+            );
+
+            await expect(
+                service.listPublicStoreProducts('missing-store', { page: 1, limit: 10 }),
+            ).rejects.toThrow(NotFoundException);
+        });
+
+        it('returns published listings with in_stock and low_stock flags', async () => {
+            const prisma = makePrisma({
+                storeProduct: {
+                    findMany: jest.fn(async () => [
+                        {
+                            id: 'listing-1',
+                            store_id: 'store-1',
+                            selling_price: '180.00',
+                            mrp: '200.00',
+                            is_available: true,
+                            variant: {
+                                id: 'variant-1',
+                                variant_name: '5kg Bag',
+                                sku: 'AASH-5KG',
+                                pack_size: 5,
+                                unit: 'kg',
+                                product: {
+                                    id: 'prod-1',
+                                    name: 'Aashirvaad Shudh Chakki Atta',
+                                    description: '100% whole wheat',
+                                    category_id: 'cat-1',
+                                    category: { name: 'Atta & Flours' },
+                                },
+                            },
+                            inventory: {
+                                on_hand_quantity: 15,
+                                reserved_quantity: 0,
+                                blocked_quantity: 0,
+                                low_stock_threshold: 5,
+                            },
+                        },
+                    ]),
+                    count: jest.fn(async () => 1),
+                },
+                store: {
+                    findFirst: jest.fn(async () => ({ id: 'store-1', status: 'ACTIVE' })),
+                },
+            });
+            const service = new StoreProductService(
+                prisma,
+                makeAudit(),
+                makeMerchantApplications(),
+                makeStores(),
+            );
+
+            const result = await service.listPublicStoreProducts('store-1', { page: 1, limit: 10 });
+            expect(result.data).toHaveLength(1);
+            expect(result.data[0].product_name).toBe('Aashirvaad Shudh Chakki Atta');
+            expect(result.data[0].selling_price).toBe(180);
+            expect(result.data[0].mrp).toBe(200);
+            expect(result.data[0].in_stock).toBe(true);
+            expect(result.data[0].low_stock).toBe(false);
         });
     });
 });

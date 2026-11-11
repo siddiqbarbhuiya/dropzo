@@ -35,50 +35,115 @@ deployment operations. You do not decide these on your own.
 6. Any relevant ADRs in [`docs/03-decisions/`](docs/03-decisions/).
 7. The actual source code and tests for the area you're touching — not just the docs.
 
-## 4. Mandatory workflow
+## 4. Mandatory three-phase workflow (Spike -> Plan -> Execution)
 
-### Before implementation
+Every new task, feature, bugfix, or refactoring in this repository MUST strictly proceed through
+three distinct gates. Never jump ahead to planning before a Spike is approved; never write
+production code before a Plan is approved.
 
-1. Read the files in section 3.
-2. Inspect current `git status` and branch.
-3. Identify the files, modules, APIs, and database structures affected.
-4. For non-trivial work, present a short implementation plan before writing code.
-5. If a requirement is ambiguous, ask one focused clarification rather than inventing a business
-   rule. If requirements conflict, stop and explain the conflict.
+### Scope threshold (When to trigger)
 
-### During implementation
+- **Trigger this full workflow for**: Any non-trivial task — new features, frontend screens, new API endpoints, database schema changes, architectural modifications, or multi-step bugfixes.
+- **Do NOT trigger full ceremony for**: Trivial single-line typo fixes, isolated documentation edits, or simple one-off config updates.
 
-- Work only on the assigned task. Avoid unrelated refactoring.
-- Follow the module boundaries in
-  [`docs/02-architecture/SYSTEM-ARCHITECTURE.md`](docs/02-architecture/SYSTEM-ARCHITECTURE.md) and
-  the rules in [`docs/05-engineering/CODING-STANDARDS.md`](docs/05-engineering/CODING-STANDARDS.md).
-- Add or update tests as you go, not as an afterthought.
-- Never silently change architecture or business rules — if a decision affects product scope,
-  security, data integrity, or architecture, stop and ask.
-- Do not generate an entire feature set or the whole platform in one operation. Work on one
-  approved task at a time.
-- If a task requires a database schema change, present the migration plan before implementing it.
-- Do not invent API contracts or database fields that contradict `docs/`.
+```
+┌─────────────────────────────────┐
+│     Phase 1: Spike              │ ──> Requires >95% Confidence & Owner Approval
+└─────────────────────────────────┘
+                 │ (Approved)
+                 ▼
+┌─────────────────────────────────┐
+│     Phase 2: Plan               │ ──> Requires Owner Approval
+└─────────────────────────────────┘
+                 │ (Approved)
+                 ▼
+┌─────────────────────────────────┐
+│     Phase 3: Execution (TDD)    │ ──> Verified via Tests, Types, Lint, & Docs Sync
+└─────────────────────────────────┘
+```
 
-### After implementation
+### Dedicated Spike and Plan Storage
 
-1. Run the relevant tests.
-2. Run lint (`npm run lint`, or `npx nx run-many -t lint`).
-3. Run typecheck (`npm run typecheck`, or `npx nx run-many -t typecheck`).
-4. Run the build where applicable (`npm run build`).
-5. Verify formatting (`npm run format:check`).
-6. Review the actual git diff.
-7. **Update affected documentation** — see the synchronization rule below. This is not optional
-   polish; a task is not complete merely because the code compiles.
-8. Update the task's status in
-   [`docs/06-delivery/TASK-TRACKER.md`](docs/06-delivery/TASK-TRACKER.md).
-9. Update [`docs/06-delivery/PROGRESS.md`](docs/06-delivery/PROGRESS.md).
-10. Add or update an ADR in [`docs/03-decisions/`](docs/03-decisions/) if a real architectural
-    decision was made or changed.
-11. Record any new or changed risks/technical debt in
-    [`docs/08-quality/RISK-REGISTER.md`](docs/08-quality/RISK-REGISTER.md) or
-    [`TECHNICAL-DEBT.md`](docs/08-quality/TECHNICAL-DEBT.md).
-12. Report changed files, actual test results (not claimed ones), and commit/push status.
+Every spike and implementation plan MUST be committed to the repository for historical traceability:
+
+- **Spikes**: Save to `docs/06-delivery/spikes/YYYY-MM-DD-<task-id>-<slug>.md` (use template [`docs/_templates/SPIKE-TEMPLATE.md`](docs/_templates/SPIKE-TEMPLATE.md)).
+- **Plans**: Save to `docs/06-delivery/plans/YYYY-MM-DD-<task-id>-<slug>.md` (use template [`docs/_templates/IMPLEMENTATION-PLAN-TEMPLATE.md`](docs/_templates/IMPLEMENTATION-PLAN-TEMPLATE.md)).
+
+### Interactive Clarification Protocol (Multiple-Choice Questions)
+
+If any ambiguity, open requirement, or technical trade-off arises during **Phase 1 (Spike)** or **Phase 2 (Plan)**:
+
+- **DO NOT GUESS or invent business rules.**
+- **Present the question as a Multiple-Choice Question (MCQ)** with explicit options (using the `ask_question` tool or structured markdown options), placing the `(Recommended)` option first, followed by clear alternatives.
+
+---
+
+### Phase 1: Spike & Feasibility Analysis (Confidence > 95% Gate)
+
+Before writing any plan or code, immediately conduct a Spike investigation.
+
+1. **Activate relevant skills**:
+    - `brainstorming` — explore approaches, requirements, and edge cases.
+    - `systematic-debugging` — for bugs, investigate root cause before proposing fixes.
+    - `dropzo-stitch-to-react` & Stitch MCP — for frontend work, fetch fresh HTML and screenshots for **both Mobile and Desktop viewports** from project `3837531702173487386`.
+2. **Investigation checklist**:
+    - Read Section 3 authoritative docs (`docs/README.md`, `TASK-TRACKER.md`, requirements, ADRs, database schema).
+    - Inspect current `git status` and branch.
+    - Identify affected files, modules, API contracts, database tables, and foreign keys.
+    - Uncover potential blockers, performance implications, security boundaries, and edge cases.
+    - Resolve any ambiguities with the owner via MCQ questions.
+3. **Produce & Save Spike Report**:
+    - Save report to `docs/06-delivery/spikes/YYYY-MM-DD-<task-id>-<slug>.md`.
+    - Summarize findings, proposed approach, affected boundaries, and any open design questions.
+    - Explicitly state the **Confidence Level (e.g. 98%)**.
+4. **GATE 1**: **Stop and present the Spike Report to the product owner.** If confidence is not
+   **>95%**, identify the unknowns and resolve them first. Do NOT proceed to Phase 2 without explicit
+   user approval.
+
+### Phase 2: Formal Implementation Planning (Approval Gate)
+
+Once the Spike is approved, draft a detailed implementation plan.
+
+1. **Activate relevant skills**:
+    - `writing-plans` — structure the plan into bite-sized, single-responsibility tasks.
+    - `writing-skills` — if new agent behaviors or skills are being defined.
+2. **Planning standards**:
+    - Save plan to `docs/06-delivery/plans/YYYY-MM-DD-<task-id>-<slug>.md`.
+    - Break work into small, independently testable tasks (each ending with a test verification).
+    - Specify exact file paths (Create, Modify, Test), concrete interfaces/signatures, and test assertions.
+    - Adhere to module boundaries in `SYSTEM-ARCHITECTURE.md` and rules in `CODING-STANDARDS.md`.
+    - If database schema changes are required, present the migration plan upfront.
+    - Never invent business rules or API contracts that contradict `docs/`.
+3. **GATE 2**: **Stop and present the plan to the product owner.** Do NOT write production code
+   until the user reviews and explicitly approves the plan.
+
+### Phase 3: Execution, TDD & Verification (Verification Gate)
+
+Once the Plan is approved, execute it task-by-task.
+
+1. **Activate relevant skills**:
+    - `executing-plans` / `subagent-driven-development` — disciplined task-by-task execution.
+    - `test-driven-development` (`dropzo-tdd`) — write failing test first, then minimal implementation, then verify pass.
+    - `dropzo-stitch-to-react` — for UI work, preserve 100% visual fidelity against Stitch designs without stripping sections.
+    - `dropzo-code-review` & `dropzo-security-review` — rigorous verification of correctness, authorization, and data safety.
+    - `verification-before-completion` — execute actual verification commands and verify real output before claiming success.
+    - `dropzo-release-readiness` — ensure repository hygiene before completion.
+2. **Execution rules**:
+    - Work only on the assigned task; avoid unrelated refactoring.
+    - Add/update tests as you go, not as an afterthought.
+    - Strict TypeScript mode, avoid `any`.
+3. **Mandatory verification suite**:
+    - Run unit & integration tests (`npm run test` or `npx nx run-many -t test`).
+    - Run typecheck (`npm run typecheck` or `npx nx run-many -t typecheck`).
+    - Run linter (`npm run lint` or `npx nx run-many -t lint`).
+    - Run build (`npm run build`).
+    - Run formatting check (`npm run format:check`).
+    - Review git diff (`git status`, `git diff`).
+4. **Documentation synchronization**:
+    - Update affected documents per Section 5 mapping.
+    - Update `docs/06-delivery/TASK-TRACKER.md` and `docs/06-delivery/PROGRESS.md`.
+    - Record any new risks or technical debt in `RISK-REGISTER.md` or `TECHNICAL-DEBT.md`.
+5. **GATE 3**: Report changed files, actual test outputs, and await user authorization for git commit/push.
 
 ## 5. Documentation synchronization rule
 

@@ -11,6 +11,14 @@ Before anything else:
    [`docs/06-delivery/PROGRESS.md`](docs/06-delivery/PROGRESS.md).
 5. Follow the engineering standards in [`docs/05-engineering/`](docs/05-engineering/).
 
+## Mandatory 3-Phase Workflow (Spike -> Plan -> Execution)
+
+Every task in this repository strictly adheres to three sequential gates defined in [`AGENTS.md`](AGENTS.md):
+
+1. **Phase 1 (Spike)**: Conduct feasibility analysis, research code/docs/Stitch, assess edge cases. Stop and present Spike Report with explicit **Confidence Level (>95%)**. Do NOT plan or write code until user approves. (Skills: `brainstorming`, `systematic-debugging`, `dropzo-stitch-to-react`).
+2. **Phase 2 (Plan)**: Create detailed TDD implementation plan with exact file paths, signatures, test cases, and migration plans. Stop and await user approval. (Skills: `writing-plans`).
+3. **Phase 3 (Execution)**: Execute task-by-task using TDD, verify all tests pass, run full verification suite, and sync documentation. (Skills: `executing-plans`, `test-driven-development`, `dropzo-stitch-to-react`, `verification-before-completion`).
+
 This file does not duplicate those instructions — `AGENTS.md` is authoritative.
 
 ## Customizations & Resources for Antigravity
