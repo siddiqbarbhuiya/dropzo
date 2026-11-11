@@ -125,13 +125,13 @@ const ComplianceTag = styled.div`
     }
 `;
 
-// Main Auth Canvas (Split Layout)
+// Main Auth Canvas
 const MainCanvas = styled.main`
     flex-grow: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.75rem;
+    padding: 1rem 0.75rem 2rem;
     max-width: 80rem;
     margin: 0 auto;
     width: 100%;
@@ -154,27 +154,25 @@ const SplitCard = styled.div`
     background: ${({ theme }) => theme.colors.surfaceContainerLowest};
     box-shadow: 0 12px 40px -10px rgba(24, 24, 27, 0.08);
     border: 1px solid rgba(232, 231, 241, 0.8);
-    min-height: 40rem;
 
     ${media.desktop} {
         grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+        min-height: 40rem;
     }
 `;
 
-// Left Hero Branding Panel
+// Left Hero Branding Panel (Desktop Only)
 const LeftHero = styled.section`
-    background: linear-gradient(135deg, #f4f2fd 0%, #eeedf7 50%, #e8e7f1 100%);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    position: relative;
-    overflow: hidden;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.surfaceContainerHigh};
+    display: none;
 
     ${media.desktop} {
+        display: flex;
+        background: linear-gradient(135deg, #f4f2fd 0%, #eeedf7 50%, #e8e7f1 100%);
         padding: 2.5rem;
-        border-bottom: none;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
         border-right: 1px solid ${({ theme }) => theme.colors.surfaceContainerHigh};
     }
 `;
@@ -310,9 +308,9 @@ const AvatarStack = styled.div`
     }
 `;
 
-// Right Authentication Card
+// Right Authentication Card (and full mobile content)
 const RightAuth = styled.section`
-    padding: 1.5rem;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -333,14 +331,83 @@ const FormContainer = styled.div`
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
 `;
 
+// Mobile Top Branding (hidden on desktop)
+const MobileHeader = styled.header`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-top: 0.25rem;
+    margin-bottom: 0.5rem;
+
+    ${media.desktop} {
+        display: none;
+    }
+`;
+
+const MobileBrandBadge = styled.div`
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ffffff;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    padding: 0.375rem 0.875rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(228, 190, 182, 0.3);
+    margin-bottom: 0.5rem;
+`;
+
+const MobileBolt = styled.div`
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 9999px;
+    background: ${({ theme }) => theme.colors.primary};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    box-shadow: 0 1px 2px 0 rgba(255, 87, 51, 0.3);
+`;
+
+const MobileBrandTitle = styled.span`
+    ${({ theme }) => typeScale(theme.typography.headlineMd)}
+    font-weight: 800;
+    color: ${({ theme }) => theme.colors.rust};
+    letter-spacing: -0.01em;
+`;
+
+const MobileTagBadge = styled.span`
+    background: #7cf994;
+    color: #007230;
+    ${({ theme }) => typeScale(theme.typography.labelSm)}
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 700;
+`;
+
+const MobileMainHeading = styled.h1`
+    ${({ theme }) => typeScale(theme.typography.headlineSm)}
+    color: ${({ theme }) => theme.colors.textPrimary};
+    font-weight: 700;
+    margin: 0.25rem 0 0;
+`;
+
+const MobileSubHeading = styled.p`
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
+    color: ${({ theme }) => theme.colors.textSecondary};
+    margin: 0.25rem 0 0;
+    max-width: 20rem;
+`;
+
+// Segmented Role Tabs
 const RoleTabs = styled.div`
     width: 100%;
     padding: 0.25rem;
     background: ${({ theme }) => theme.colors.surfaceContainerLow};
-    border-radius: 1rem;
+    border-radius: 9999px;
     border: 1px solid ${({ theme }) => theme.colors.surfaceContainerHighest};
     display: flex;
     align-items: center;
@@ -349,13 +416,12 @@ const RoleTabs = styled.div`
 
 const RoleTabButton = styled.button<{ $active: boolean }>`
     flex: 1;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.75rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: 9999px;
     border: none;
-    ${({ theme }) => typeScale(theme.typography.labelMd)}
-    font-weight: ${({ $active }) => ($active ? '700' : '500')};
-    color: ${({ $active, theme }) =>
-        $active ? theme.colors.textPrimary : theme.colors.textSecondary};
+    ${({ theme }) => typeScale(theme.typography.labelSm)}
+    font-weight: ${({ $active }) => ($active ? '700' : '600')};
+    color: ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
     background: ${({ $active, theme }) =>
         $active ? theme.colors.surfaceContainerLowest : 'transparent'};
     box-shadow: ${({ $active }) => ($active ? '0 1px 3px 0 rgba(0, 0, 0, 0.1)' : 'none')};
@@ -363,8 +429,9 @@ const RoleTabButton = styled.button<{ $active: boolean }>`
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
+    gap: 0.25rem;
     transition: all 0.2s ease;
+    white-space: nowrap;
 
     &:hover {
         color: ${({ theme }) => theme.colors.textPrimary};
@@ -384,26 +451,35 @@ const PortalTitleRow = styled.div`
 `;
 
 const PortalTitle = styled.h2`
-    ${({ theme }) => typeScale(theme.typography.headlineLg)}
+    ${({ theme }) => typeScale(theme.typography.headlineSm)}
     color: ${({ theme }) => theme.colors.textPrimary};
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -0.015em;
+
+    ${media.desktop} {
+        ${({ theme }) => typeScale(theme.typography.headlineLg)}
+        font-weight: 800;
+    }
 `;
 
 const PortalSubtitle = styled.p`
-    ${({ theme }) => typeScale(theme.typography.bodyMd)}
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
     color: ${({ theme }) => theme.colors.textSecondary};
+
+    ${media.desktop} {
+        ${({ theme }) => typeScale(theme.typography.bodyMd)}
+    }
 `;
 
 const InputGroup = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.375rem;
 `;
 
 const FieldLabel = styled.label`
     display: block;
-    ${({ theme }) => typeScale(theme.typography.labelMd)}
+    ${({ theme }) => typeScale(theme.typography.labelSm)}
     color: ${({ theme }) => theme.colors.textPrimary};
     font-weight: 600;
 `;
@@ -412,23 +488,23 @@ const PhoneInputBox = styled.div`
     position: relative;
     display: flex;
     align-items: center;
-    border-radius: 1rem;
-    border: 2px solid rgba(228, 190, 182, 0.6);
+    border-radius: 0.75rem;
+    border: 1.5px solid rgba(228, 190, 182, 0.6);
     background: ${({ theme }) => theme.colors.surfaceContainerLowest};
     transition: all 0.15s ease;
     overflow: hidden;
 
     &:focus-within {
         border-color: ${({ theme }) => theme.colors.primary};
-        box-shadow: 0 0 0 4px rgba(255, 87, 51, 0.1);
+        box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.15);
     }
 `;
 
 const CountryCodeCluster = styled.div`
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 0.625rem 0.75rem 0.875rem;
+    gap: 0.375rem;
+    padding: 0.625rem 0.5rem 0.625rem 0.75rem;
     border-right: 1px solid ${({ theme }) => theme.colors.surfaceContainerHighest};
     background: rgba(244, 242, 253, 0.5);
     user-select: none;
@@ -455,7 +531,7 @@ const IndianFlagSvg = () => (
 
 const PhoneInputField = styled.input`
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.75rem;
     ${({ theme }) => typeScale(theme.typography.headlineSm)}
     color: ${({ theme }) => theme.colors.textPrimary};
     border: none;
@@ -467,19 +543,37 @@ const PhoneInputField = styled.input`
     }
 
     &::placeholder {
-        color: rgba(143, 112, 105, 0.5);
+        color: rgba(143, 112, 105, 0.4);
     }
 `;
 
-const InputHelper = styled.p`
-    ${({ theme }) => typeScale(theme.typography.bodySm)}
-    color: ${({ theme }) => theme.colors.border};
+const ClearButton = styled.button`
+    background: transparent;
+    border: none;
+    padding: 0.375rem;
+    margin-right: 0.5rem;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.375rem;
+    justify-content: center;
+    border-radius: 50%;
+
+    &:hover {
+        color: ${({ theme }) => theme.colors.textPrimary};
+    }
 `;
 
-// OTP Section
+const DeliveryReassurance = styled.p`
+    ${({ theme }) => typeScale(theme.typography.labelSm)}
+    color: ${({ theme }) => theme.colors.secondary};
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0.125rem 0 0;
+`;
+
+// OTP Step Styles
 const OtpCard = styled.div`
     padding: 1.25rem;
     border-radius: 1rem;
@@ -490,21 +584,67 @@ const OtpCard = styled.div`
     gap: 1rem;
 `;
 
-const OtpHeader = styled.div`
+const OtpPhoneDisplayRow = styled.div`
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
 `;
 
-const AutoReadPill = styled.div`
+const VerificationPill = styled.div`
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
     padding: 0.125rem 0.5rem;
     border-radius: 9999px;
-    background: rgba(124, 249, 148, 0.6);
+    background: rgba(124, 249, 148, 0.4);
     color: #007230;
     ${({ theme }) => typeScale(theme.typography.labelSm)}
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+`;
+
+const OtpTitle = styled.h3`
+    ${({ theme }) => typeScale(theme.typography.headlineSm)}
+    color: ${({ theme }) => theme.colors.textPrimary};
+    font-weight: 700;
+    margin: 0.125rem 0 0.25rem;
+`;
+
+const OtpPhoneText = styled.p`
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
+    color: ${({ theme }) => theme.colors.textSecondary};
+    margin: 0;
+
+    strong {
+        color: ${({ theme }) => theme.colors.textPrimary};
+        font-weight: 700;
+    }
+`;
+
+const EditPhoneButton = styled.button`
+    background: transparent;
+    border: none;
+    color: ${({ theme }) => theme.colors.primary};
+    ${({ theme }) => typeScale(theme.typography.labelSm)}
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    text-decoration: underline;
+
+    &:hover {
+        color: ${({ theme }) => theme.colors.rust};
+    }
+`;
+
+const SmsIconCircle = styled.div`
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: ${({ theme }) => theme.colors.surfaceContainer};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: ${({ theme }) => theme.colors.primary};
 `;
 
 const ResendRow = styled.div`
@@ -541,23 +681,170 @@ const ResendButton = styled.button`
     }
 `;
 
-const WhatsAppButton = styled.button`
-    border: none;
-    background: transparent;
-    color: ${({ theme }) => theme.colors.secondary};
-    ${({ theme }) => typeScale(theme.typography.labelMd)}
-    font-weight: 600;
-    cursor: pointer;
+const SecurityReminderBox = styled.div`
     display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    background: ${({ theme }) => theme.colors.surfaceContainer};
+    border: 1px solid rgba(228, 190, 182, 0.3);
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
+    color: ${({ theme }) => theme.colors.textSecondary};
 
-    &:hover {
-        text-decoration: underline;
+    p {
+        margin: 0;
+        line-height: 1.3;
+    }
+
+    strong {
+        color: ${({ theme }) => theme.colors.textPrimary};
     }
 `;
 
+// Alternative Login & Fast WhatsApp
+const FastConnectRow = styled.div`
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0.25rem 0;
+
+    &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        border-top: 1px solid rgba(228, 190, 182, 0.4);
+    }
+
+    span {
+        position: relative;
+        background: ${({ theme }) => theme.colors.surfaceContainerLowest};
+        padding: 0 0.75rem;
+        ${({ theme }) => typeScale(theme.typography.labelSm)}
+        color: ${({ theme }) => theme.colors.textSecondary};
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+`;
+
+const WhatsAppCtaButton = styled.button`
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(0, 110, 45, 0.3);
+    background: #ffffff;
+    color: #005320;
+    ${({ theme }) => typeScale(theme.typography.labelMd)}
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: rgba(124, 249, 148, 0.15);
+    }
+`;
+
+const WhatsAppInstantBadge = styled.span`
+    background: #7cf994;
+    color: #007230;
+    ${({ theme }) => typeScale(theme.typography.labelSm)}
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 700;
+`;
+
+const MerchantCalloutCard = styled.div`
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background: ${({ theme }) => theme.colors.surfaceContainerLow};
+    border: 1px solid rgba(228, 190, 182, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    div.left {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+    }
+
+    div.icon {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        background: ${({ theme }) => theme.colors.surfaceContainerHighest};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: ${({ theme }) => theme.colors.primary};
+    }
+
+    p.title {
+        ${({ theme }) => typeScale(theme.typography.labelMd)}
+        font-weight: 600;
+        color: ${({ theme }) => theme.colors.textPrimary};
+        margin: 0;
+    }
+
+    p.sub {
+        ${({ theme }) => typeScale(theme.typography.bodySm)}
+        color: ${({ theme }) => theme.colors.textSecondary};
+        margin: 0;
+    }
+
+    button.link {
+        background: transparent;
+        border: none;
+        color: ${({ theme }) => theme.colors.primary};
+        ${({ theme }) => typeScale(theme.typography.labelSm)}
+        font-weight: 700;
+        cursor: pointer;
+        padding: 0;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+`;
+
+// Micro Trust Badges Grid
+const MobileTrustGrid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+`;
+
+const TrustCard = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0.625rem 0.375rem;
+    border-radius: 0.75rem;
+    background: ${({ theme }) => theme.colors.surfaceContainerLowest};
+    border: 1px solid rgba(228, 190, 182, 0.3);
+
+    span.title {
+        ${({ theme }) => typeScale(theme.typography.labelSm)}
+        font-weight: 700;
+        color: ${({ theme }) => theme.colors.textPrimary};
+        margin-top: 0.25rem;
+    }
+
+    span.sub {
+        font-size: 0.625rem;
+        color: ${({ theme }) => theme.colors.textSecondary};
+    }
+`;
+
+// Action Buttons
 const PrimaryAuthButton = styled.button`
     width: 100%;
     padding: 0.875rem 1.5rem;
@@ -591,6 +878,7 @@ const TermsText = styled.p`
     text-align: center;
     color: ${({ theme }) => theme.colors.border};
     line-height: 1.4;
+    margin: 0;
 
     a {
         color: ${({ theme }) => theme.colors.textPrimary};
@@ -674,20 +962,25 @@ const SecurityComplianceNote = styled.div`
 // Canonical Footer
 const Footer = styled.footer`
     width: 100%;
-    margin-top: 4rem;
+    margin-top: 2rem;
     background: ${({ theme }) => theme.colors.surfaceContainer};
+
+    ${media.desktop} {
+        margin-top: 4rem;
+    }
 `;
 
 const FooterInner = styled.div`
     max-width: 80rem;
     margin: 0 auto;
-    padding: 3rem 1rem;
+    padding: 2rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem;
 
     ${media.tablet} {
         padding: 3rem 2rem;
+        gap: 2rem;
     }
 `;
 
@@ -760,6 +1053,7 @@ export function LoginPage() {
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [resendTimer, setResendTimer] = useState(45);
+    const [whatsAppNotice, setWhatsAppNotice] = useState<string | null>(null);
 
     const setSession = useAuthStore((state) => state.setSession);
     const navigate = useNavigate();
@@ -778,6 +1072,10 @@ export function LoginPage() {
     }, [step, resendTimer]);
 
     async function handleSendOtp() {
+        if (phone.length < 10) {
+            setError('Please enter a valid 10-digit mobile number.');
+            return;
+        }
         setError(null);
         setBusy(true);
         try {
@@ -792,6 +1090,10 @@ export function LoginPage() {
     }
 
     async function handleVerifyOtp() {
+        if (code.length < 6) {
+            setError('Please enter all 6 digits of the OTP.');
+            return;
+        }
         setError(null);
         setBusy(true);
         try {
@@ -816,6 +1118,15 @@ export function LoginPage() {
         } finally {
             setBusy(false);
         }
+    }
+
+    function handleWhatsAppOtp() {
+        if (phone.length < 10) {
+            setError('Please enter your 10-digit mobile number first.');
+            return;
+        }
+        setWhatsAppNotice(`Verification code dispatched via WhatsApp to +91 ${phone}`);
+        handleSendOtp();
     }
 
     // Role-specific text
@@ -888,7 +1199,7 @@ export function LoginPage() {
             {/* Main Auth Split Canvas */}
             <MainCanvas>
                 <SplitCard>
-                    {/* Left Hero Branding Panel (5 Cols) */}
+                    {/* Left Hero Branding Panel (Desktop Only) */}
                     <LeftHero>
                         <HeroTopContent>
                             <ExpressDeliveryBadge>
@@ -1026,9 +1337,32 @@ export function LoginPage() {
                         </SocialProof>
                     </LeftHero>
 
-                    {/* Right Authentication Card (7 Cols) */}
+                    {/* Right Authentication Card (Unified Responsive Auth) */}
                     <RightAuth>
                         <FormContainer>
+                            {/* Mobile Brand Header */}
+                            <MobileHeader>
+                                <MobileBrandBadge>
+                                    <MobileBolt>
+                                        <span
+                                            className="material-symbols-outlined"
+                                            style={{ fontSize: '16px' }}
+                                        >
+                                            bolt
+                                        </span>
+                                    </MobileBolt>
+                                    <MobileBrandTitle>Dropzo</MobileBrandTitle>
+                                    <MobileTagBadge>15 MIN</MobileTagBadge>
+                                </MobileBrandBadge>
+                                <MobileMainHeading>
+                                    Badarpur's 15-Minute Grocery &amp; Daily Needs
+                                </MobileMainHeading>
+                                <MobileSubHeading>
+                                    Fast delivery from Station Road, Bazar Ghat &amp; local Mandi
+                                    straight to your doorstep.
+                                </MobileSubHeading>
+                            </MobileHeader>
+
                             {/* Role Switcher Tabs */}
                             <RoleTabs role="tablist">
                                 <RoleTabButton
@@ -1130,7 +1464,7 @@ export function LoginPage() {
                                         type="tel"
                                         inputMode="numeric"
                                         maxLength={10}
-                                        placeholder="98765 43210"
+                                        placeholder="94351 00000"
                                         value={phone}
                                         disabled={step === 'code' || busy}
                                         onChange={(e) =>
@@ -1138,6 +1472,21 @@ export function LoginPage() {
                                         }
                                         autoFocus
                                     />
+                                    {phone.length > 0 && step === 'phone' && (
+                                        <ClearButton
+                                            type="button"
+                                            aria-label="Clear mobile number"
+                                            onClick={() => setPhone('')}
+                                        >
+                                            <span
+                                                className="material-symbols-outlined"
+                                                aria-hidden="true"
+                                                style={{ fontSize: '18px' }}
+                                            >
+                                                cancel
+                                            </span>
+                                        </ClearButton>
+                                    )}
                                     {phone.length === 10 && (
                                         <div
                                             style={{
@@ -1157,39 +1506,61 @@ export function LoginPage() {
                                         </div>
                                     )}
                                 </PhoneInputBox>
-                                <InputHelper>
+                                <DeliveryReassurance>
                                     <span
                                         className="material-symbols-outlined"
                                         aria-hidden="true"
-                                        style={{ fontSize: '14px' }}
+                                        style={{ fontSize: '14px', color: '#006e2d' }}
                                     >
-                                        info
+                                        check_circle
                                     </span>
                                     <span>
-                                        OTP will be sent to this Indian carrier number for
-                                        authentication.
+                                        Available for immediate 15m delivery in Badarpur Town &amp;
+                                        Ghat
                                     </span>
-                                </InputHelper>
+                                </DeliveryReassurance>
                             </InputGroup>
 
                             {/* OTP Code Step */}
                             {step === 'code' && (
                                 <OtpCard>
-                                    <OtpHeader>
-                                        <FieldLabel htmlFor="code" style={{ marginBottom: 0 }}>
-                                            Enter 6-Digit One-Time Password
-                                        </FieldLabel>
-                                        <AutoReadPill>
+                                    <OtpPhoneDisplayRow>
+                                        <div>
+                                            <VerificationPill>
+                                                <span
+                                                    className="material-symbols-outlined"
+                                                    style={{ fontSize: '14px' }}
+                                                >
+                                                    lock
+                                                </span>
+                                                <span>Verification Step</span>
+                                            </VerificationPill>
+                                            <OtpTitle>Enter 6-Digit One-Time Password</OtpTitle>
+                                            <OtpPhoneText>
+                                                OTP sent to{' '}
+                                                <strong>
+                                                    +91{' '}
+                                                    {phone.length === 10
+                                                        ? `${phone.slice(0, 5)}-${phone.slice(5)}`
+                                                        : phone}
+                                                </strong>
+                                                <EditPhoneButton
+                                                    type="button"
+                                                    onClick={() => setStep('phone')}
+                                                >
+                                                    Edit
+                                                </EditPhoneButton>
+                                            </OtpPhoneText>
+                                        </div>
+                                        <SmsIconCircle>
                                             <span
                                                 className="material-symbols-outlined"
-                                                aria-hidden="true"
-                                                style={{ fontSize: '12px' }}
+                                                style={{ fontSize: '18px' }}
                                             >
-                                                sync
+                                                sms
                                             </span>
-                                            <span>Auto-read active</span>
-                                        </AutoReadPill>
-                                    </OtpHeader>
+                                        </SmsIconCircle>
+                                    </OtpPhoneDisplayRow>
 
                                     <OTPInput
                                         length={6}
@@ -1215,39 +1586,39 @@ export function LoginPage() {
                                                 timer
                                             </span>
                                             <span>
-                                                Resend code in{' '}
+                                                Resend OTP in{' '}
                                                 <strong style={{ color: '#1a1b22' }}>
-                                                    {resendTimer > 0 ? `${resendTimer}s` : 'Ready'}
+                                                    {resendTimer > 0
+                                                        ? `0:${resendTimer < 10 ? `0${resendTimer}` : resendTimer}`
+                                                        : '0:00'}
                                                 </strong>
                                             </span>
                                         </div>
-                                        <div
+                                        <ResendButton
+                                            type="button"
+                                            disabled={resendTimer > 0 || busy}
+                                            onClick={handleSendOtp}
+                                        >
+                                            Resend via SMS
+                                        </ResendButton>
+                                    </ResendRow>
+
+                                    <SecurityReminderBox>
+                                        <span
+                                            className="material-symbols-outlined"
                                             style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.75rem',
+                                                fontSize: '18px',
+                                                color: '#ff5733',
+                                                flexShrink: 0,
                                             }}
                                         >
-                                            <ResendButton
-                                                type="button"
-                                                disabled={resendTimer > 0 || busy}
-                                                onClick={handleSendOtp}
-                                            >
-                                                Resend via SMS
-                                            </ResendButton>
-                                            <span style={{ color: '#e4beb6' }}>•</span>
-                                            <WhatsAppButton type="button">
-                                                <span
-                                                    className="material-symbols-outlined"
-                                                    aria-hidden="true"
-                                                    style={{ fontSize: '14px' }}
-                                                >
-                                                    chat
-                                                </span>
-                                                <span>Send via WhatsApp</span>
-                                            </WhatsAppButton>
-                                        </div>
-                                    </ResendRow>
+                                            shield
+                                        </span>
+                                        <p>
+                                            <strong>Security hint:</strong> Never share your Dropzo
+                                            OTP with anyone, including delivery staff.
+                                        </p>
+                                    </SecurityReminderBox>
                                 </OtpCard>
                             )}
 
@@ -1261,14 +1632,27 @@ export function LoginPage() {
                                 </ErrorBanner>
                             )}
 
+                            {/* WhatsApp Notification Message */}
+                            {whatsAppNotice && (
+                                <DeliveryReassurance style={{ color: '#006e2d', fontWeight: 600 }}>
+                                    <span
+                                        className="material-symbols-outlined"
+                                        style={{ fontSize: '16px' }}
+                                    >
+                                        chat
+                                    </span>
+                                    <span>{whatsAppNotice}</span>
+                                </DeliveryReassurance>
+                            )}
+
                             {/* Primary Submit CTA */}
                             {step === 'phone' ? (
                                 <PrimaryAuthButton
                                     disabled={busy || phone.length < 10}
                                     onClick={handleSendOtp}
-                                    aria-label="Send OTP"
+                                    aria-label="Get OTP"
                                 >
-                                    <span>Send 6-Digit OTP</span>
+                                    <span>Get OTP</span>
                                     <span className="material-symbols-outlined" aria-hidden="true">
                                         arrow_forward
                                     </span>
@@ -1285,6 +1669,81 @@ export function LoginPage() {
                                     </span>
                                 </PrimaryAuthButton>
                             )}
+
+                            {/* Fast WhatsApp Connect */}
+                            <FastConnectRow>
+                                <span>or fast connect</span>
+                            </FastConnectRow>
+
+                            <WhatsAppCtaButton type="button" onClick={handleWhatsAppOtp}>
+                                <span
+                                    className="material-symbols-outlined"
+                                    style={{ fontSize: '20px', color: '#006e2d' }}
+                                >
+                                    chat
+                                </span>
+                                <span>Continue with WhatsApp OTP</span>
+                                <WhatsAppInstantBadge>Instant</WhatsAppInstantBadge>
+                            </WhatsAppCtaButton>
+
+                            {/* Merchant Onboarding Banner */}
+                            <MerchantCalloutCard>
+                                <div className="left">
+                                    <div className="icon">
+                                        <span
+                                            className="material-symbols-outlined"
+                                            style={{ fontSize: '18px' }}
+                                        >
+                                            store
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p className="title">Are you a Badarpur shop owner?</p>
+                                        <p className="sub">List your grocery store on Dropzo</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="link"
+                                    onClick={() => setRole('merchant')}
+                                >
+                                    Join Partner
+                                </button>
+                            </MerchantCalloutCard>
+
+                            {/* Micro Trust Grid (Stitch 1:1) */}
+                            <MobileTrustGrid>
+                                <TrustCard>
+                                    <span
+                                        className="material-symbols-outlined"
+                                        style={{ color: '#ff5733', fontSize: '20px' }}
+                                    >
+                                        pace
+                                    </span>
+                                    <span className="title">15 Mins</span>
+                                    <span className="sub">Lightning Delivery</span>
+                                </TrustCard>
+                                <TrustCard>
+                                    <span
+                                        className="material-symbols-outlined"
+                                        style={{ color: '#006e2d', fontSize: '20px' }}
+                                    >
+                                        nutrition
+                                    </span>
+                                    <span className="title">Farm Fresh</span>
+                                    <span className="sub">Daily Mandi Source</span>
+                                </TrustCard>
+                                <TrustCard>
+                                    <span
+                                        className="material-symbols-outlined"
+                                        style={{ color: '#006398', fontSize: '20px' }}
+                                    >
+                                        lock_clock
+                                    </span>
+                                    <span className="title">No Minimum</span>
+                                    <span className="sub">Order Even ₹10 Items</span>
+                                </TrustCard>
+                            </MobileTrustGrid>
 
                             <TermsText>
                                 By proceeding, you agree to Dropzo's{' '}

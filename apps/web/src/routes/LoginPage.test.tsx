@@ -31,14 +31,17 @@ function renderPage() {
 }
 
 describe('LoginPage', () => {
-    it('renders the split canvas branding and hero elements', () => {
+    it('renders the split canvas branding, trust badges, and hero elements', () => {
         renderPage();
 
         expect(screen.getByText(/Fresh harvest to your kitchen in/)).toBeInTheDocument();
-        expect(screen.getByText('Badarpur')).toBeInTheDocument();
+        expect(screen.getAllByText('Badarpur').length).toBeGreaterThan(0);
         expect(screen.getByText('15-Min Hyper-Local Delivery')).toBeInTheDocument();
         expect(screen.getByText('Welcome to Dropzo')).toBeInTheDocument();
         expect(screen.getByText('Mobile Number')).toBeInTheDocument();
+        expect(screen.getByText('15 Mins')).toBeInTheDocument();
+        expect(screen.getByText('Farm Fresh')).toBeInTheDocument();
+        expect(screen.getByText('No Minimum')).toBeInTheDocument();
     });
 
     it('switches roles and updates title and button labels', () => {
@@ -60,10 +63,10 @@ describe('LoginPage', () => {
 
         renderPage();
 
-        const phoneInput = screen.getByPlaceholderText('98765 43210');
+        const phoneInput = screen.getByPlaceholderText('94351 00000');
         fireEvent.change(phoneInput, { target: { value: '9435028410' } });
 
-        const sendButton = screen.getByRole('button', { name: /Send OTP/ });
+        const sendButton = screen.getByRole('button', { name: /Get OTP/ });
         fireEvent.click(sendButton);
 
         await waitFor(() => expect(sendOtp).toHaveBeenCalledWith('9435028410'));
@@ -82,5 +85,38 @@ describe('LoginPage', () => {
         fireEvent.click(verifyButton);
 
         await waitFor(() => expect(verifyOtp).toHaveBeenCalledWith('9435028410', '123456'));
+    });
+
+    it('clears phone input with the clear button', () => {
+        renderPage();
+
+        const phoneInput = screen.getByPlaceholderText('94351 00000') as HTMLInputElement;
+        fireEvent.change(phoneInput, { target: { value: '9435012345' } });
+        expect(phoneInput.value).toBe('9435012345');
+
+        const clearBtn = screen.getByRole('button', { name: /Clear mobile number/ });
+        fireEvent.click(clearBtn);
+        expect(phoneInput.value).toBe('');
+    });
+
+    it('allows editing phone number from the OTP verification step', async () => {
+        sendOtp.mockResolvedValue({ message: 'OTP sent' });
+        renderPage();
+
+        const phoneInput = screen.getByPlaceholderText('94351 00000');
+        fireEvent.change(phoneInput, { target: { value: '9435028410' } });
+
+        const sendButton = screen.getByRole('button', { name: /Get OTP/ });
+        fireEvent.click(sendButton);
+
+        await waitFor(() =>
+            expect(screen.getByText('Enter 6-Digit One-Time Password')).toBeInTheDocument(),
+        );
+
+        const editBtn = screen.getByRole('button', { name: 'Edit' });
+        fireEvent.click(editBtn);
+
+        // Should be back to phone step with Get OTP button visible
+        expect(screen.getByRole('button', { name: /Get OTP/ })).toBeInTheDocument();
     });
 });

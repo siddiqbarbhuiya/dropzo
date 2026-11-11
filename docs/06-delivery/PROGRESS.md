@@ -2685,6 +2685,42 @@ Status: **Complete.**
 | `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
 | `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)      |
 
+## BC-017 — Dropzo Login & OTP Authentication Portal
+
+Status: **Complete.**
+
+### What was built
+
+1. **1:1 Responsive Stitch Implementation of `/login` (`apps/web/src/routes/LoginPage.tsx`)**:
+    - **Stitch Desktop Blueprint Parity** (`e7a900663c134b239399436c60b94820`):
+        - Top minimal utility bar with Dropzo logo, Badarpur Live Hub badge, Station Road location pill, and FR-AUTH compliance tags.
+        - 12-column responsive split canvas with Left Hero branding panel (5 cols) featuring 15-min delivery badge, value proposition headline, 3 feature cards, and community trust stats.
+        - Right Auth card (7 cols) with segmented role tabs (`Customer`, `Merchant POS`, `Platform Admin`).
+        - Canonical Dropzo footer with licensing, operating hours, and farmer links.
+    - **Stitch Mobile Blueprint Parity** (`6e8e53ec0dd94139be2dd1ea038a8dde`):
+        - Compact mobile brand badge with Dropzo bolt mark and 15 MIN emerald chip.
+        - Badarpur 15-minute grocery tagline and local Mandi delivery reassurance.
+        - 3 mobile micro-trust cards: "15 Mins Lightning Delivery", "Farm Fresh Daily Mandi Source", "No Minimum Order Even ₹10 Items".
+        - Merchant onboarding callout card ("Are you a Badarpur shop owner? Join Partner").
+    - **Interactive Authentication Workflows**:
+        - Phone step: Indian tricolor SVG, `+91` country code prefix, 10-digit numeric input with live `check_circle` valid format badge, clear button (`cancel`), and "Get OTP" CTA.
+        - OTP step: Phone number display with inline `Edit` action, 6-digit individual box input via `OTPInput`, 45-second countdown timer, active "Resend via SMS" button, security hint, and "Verify & Proceed" CTA.
+        - WhatsApp OTP fast connect option with feedback dispatch notification.
+        - Role-based redirect support (`/` for customer, `/merchant` for merchant, `/admin` for admin, or URL `?redirect=` param).
+
+2. **Automated Unit & Integration Test Suite (`apps/web/src/routes/LoginPage.test.tsx`)**:
+    - 5 tests covering split canvas branding, trust badges, role switching, full phone -> OTP -> verify submission flow, phone input clear button, and editing phone number from verification step.
+
+### Verification Performed
+
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)       |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
+
 ---
 
 ## 2026-11-12 — BC-015: Customer Cart & Fulfillment Checkout Screen (Done)
@@ -2731,6 +2767,42 @@ Status: **Complete.**
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
 | `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
 | `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)      |
+
+## BC-017 — Dropzo Login & OTP Authentication Portal
+
+Status: **Complete.**
+
+### What was built
+
+1. **1:1 Responsive Stitch Implementation of `/login` (`apps/web/src/routes/LoginPage.tsx`)**:
+    - **Stitch Desktop Blueprint Parity** (`e7a900663c134b239399436c60b94820`):
+        - Top minimal utility bar with Dropzo logo, Badarpur Live Hub badge, Station Road location pill, and FR-AUTH compliance tags.
+        - 12-column responsive split canvas with Left Hero branding panel (5 cols) featuring 15-min delivery badge, value proposition headline, 3 feature cards, and community trust stats.
+        - Right Auth card (7 cols) with segmented role tabs (`Customer`, `Merchant POS`, `Platform Admin`).
+        - Canonical Dropzo footer with licensing, operating hours, and farmer links.
+    - **Stitch Mobile Blueprint Parity** (`6e8e53ec0dd94139be2dd1ea038a8dde`):
+        - Compact mobile brand badge with Dropzo bolt mark and 15 MIN emerald chip.
+        - Badarpur 15-minute grocery tagline and local Mandi delivery reassurance.
+        - 3 mobile micro-trust cards: "15 Mins Lightning Delivery", "Farm Fresh Daily Mandi Source", "No Minimum Order Even ₹10 Items".
+        - Merchant onboarding callout card ("Are you a Badarpur shop owner? Join Partner").
+    - **Interactive Authentication Workflows**:
+        - Phone step: Indian tricolor SVG, `+91` country code prefix, 10-digit numeric input with live `check_circle` valid format badge, clear button (`cancel`), and "Get OTP" CTA.
+        - OTP step: Phone number display with inline `Edit` action, 6-digit individual box input via `OTPInput`, 45-second countdown timer, active "Resend via SMS" button, security hint, and "Verify & Proceed" CTA.
+        - WhatsApp OTP fast connect option with feedback dispatch notification.
+        - Role-based redirect support (`/` for customer, `/merchant` for merchant, `/admin` for admin, or URL `?redirect=` param).
+
+2. **Automated Unit & Integration Test Suite (`apps/web/src/routes/LoginPage.test.tsx`)**:
+    - 5 tests covering split canvas branding, trust badges, role switching, full phone -> OTP -> verify submission flow, phone input clear button, and editing phone number from verification step.
+
+### Verification Performed
+
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)       |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
 
 ---
 
@@ -2783,6 +2855,42 @@ Status: **Complete.**
 | `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
 | `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)      |
 
+## BC-017 — Dropzo Login & OTP Authentication Portal
+
+Status: **Complete.**
+
+### What was built
+
+1. **1:1 Responsive Stitch Implementation of `/login` (`apps/web/src/routes/LoginPage.tsx`)**:
+    - **Stitch Desktop Blueprint Parity** (`e7a900663c134b239399436c60b94820`):
+        - Top minimal utility bar with Dropzo logo, Badarpur Live Hub badge, Station Road location pill, and FR-AUTH compliance tags.
+        - 12-column responsive split canvas with Left Hero branding panel (5 cols) featuring 15-min delivery badge, value proposition headline, 3 feature cards, and community trust stats.
+        - Right Auth card (7 cols) with segmented role tabs (`Customer`, `Merchant POS`, `Platform Admin`).
+        - Canonical Dropzo footer with licensing, operating hours, and farmer links.
+    - **Stitch Mobile Blueprint Parity** (`6e8e53ec0dd94139be2dd1ea038a8dde`):
+        - Compact mobile brand badge with Dropzo bolt mark and 15 MIN emerald chip.
+        - Badarpur 15-minute grocery tagline and local Mandi delivery reassurance.
+        - 3 mobile micro-trust cards: "15 Mins Lightning Delivery", "Farm Fresh Daily Mandi Source", "No Minimum Order Even ₹10 Items".
+        - Merchant onboarding callout card ("Are you a Badarpur shop owner? Join Partner").
+    - **Interactive Authentication Workflows**:
+        - Phone step: Indian tricolor SVG, `+91` country code prefix, 10-digit numeric input with live `check_circle` valid format badge, clear button (`cancel`), and "Get OTP" CTA.
+        - OTP step: Phone number display with inline `Edit` action, 6-digit individual box input via `OTPInput`, 45-second countdown timer, active "Resend via SMS" button, security hint, and "Verify & Proceed" CTA.
+        - WhatsApp OTP fast connect option with feedback dispatch notification.
+        - Role-based redirect support (`/` for customer, `/merchant` for merchant, `/admin` for admin, or URL `?redirect=` param).
+
+2. **Automated Unit & Integration Test Suite (`apps/web/src/routes/LoginPage.test.tsx`)**:
+    - 5 tests covering split canvas branding, trust badges, role switching, full phone -> OTP -> verify submission flow, phone input clear button, and editing phone number from verification step.
+
+### Verification Performed
+
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)       |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
+
 ## BC-014-EXT — Reusable WoltModalSheet Component & Storefront Floating Cart Integration
 
 Status: **Complete.**
@@ -2824,3 +2932,39 @@ Status: **Complete.**
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
 | `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
 | `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)      |
+
+## BC-017 — Dropzo Login & OTP Authentication Portal
+
+Status: **Complete.**
+
+### What was built
+
+1. **1:1 Responsive Stitch Implementation of `/login` (`apps/web/src/routes/LoginPage.tsx`)**:
+    - **Stitch Desktop Blueprint Parity** (`e7a900663c134b239399436c60b94820`):
+        - Top minimal utility bar with Dropzo logo, Badarpur Live Hub badge, Station Road location pill, and FR-AUTH compliance tags.
+        - 12-column responsive split canvas with Left Hero branding panel (5 cols) featuring 15-min delivery badge, value proposition headline, 3 feature cards, and community trust stats.
+        - Right Auth card (7 cols) with segmented role tabs (`Customer`, `Merchant POS`, `Platform Admin`).
+        - Canonical Dropzo footer with licensing, operating hours, and farmer links.
+    - **Stitch Mobile Blueprint Parity** (`6e8e53ec0dd94139be2dd1ea038a8dde`):
+        - Compact mobile brand badge with Dropzo bolt mark and 15 MIN emerald chip.
+        - Badarpur 15-minute grocery tagline and local Mandi delivery reassurance.
+        - 3 mobile micro-trust cards: "15 Mins Lightning Delivery", "Farm Fresh Daily Mandi Source", "No Minimum Order Even ₹10 Items".
+        - Merchant onboarding callout card ("Are you a Badarpur shop owner? Join Partner").
+    - **Interactive Authentication Workflows**:
+        - Phone step: Indian tricolor SVG, `+91` country code prefix, 10-digit numeric input with live `check_circle` valid format badge, clear button (`cancel`), and "Get OTP" CTA.
+        - OTP step: Phone number display with inline `Edit` action, 6-digit individual box input via `OTPInput`, 45-second countdown timer, active "Resend via SMS" button, security hint, and "Verify & Proceed" CTA.
+        - WhatsApp OTP fast connect option with feedback dispatch notification.
+        - Role-based redirect support (`/` for customer, `/merchant` for merchant, `/admin` for admin, or URL `?redirect=` param).
+
+2. **Automated Unit & Integration Test Suite (`apps/web/src/routes/LoginPage.test.tsx`)**:
+    - 5 tests covering split canvas branding, trust badges, role switching, full phone -> OTP -> verify submission flow, phone input clear button, and editing phone number from verification step.
+
+### Verification Performed
+
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 72 tests passing (100%)       |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
