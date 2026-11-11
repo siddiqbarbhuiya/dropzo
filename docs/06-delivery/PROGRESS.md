@@ -2638,3 +2638,50 @@ Status: **Complete.**
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                     |
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
 | `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
+
+
+---
+
+## 2026-11-12 — BC-014: Customer Storefront & Product Catalogue Screen (Done)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Client-Side Persistent Cart Store (`apps/web/src/store/useCartStore.ts`)**:
+    - Built with Zustand and `persist` middleware backed by `localStorage` (`dropzo-cart`).
+    - Enforces **Single-Store Cart Isolation**: all cart items are scoped to a single `storeId`.
+    - Detects cross-store collisions: when a customer tries to add an item from a different store, returns `{ conflict: true, existingStoreName }` so the UI can prompt for replacement per approved Option A.
+    - Provides `addItem`, `updateQuantity`, `removeItem`, `clearCart`, `replaceCart`, `totalItems`, and `subtotal`.
+    - 7 unit tests in `useCartStore.test.ts` (100% pass).
+2. **1:1 Responsive Stitch Implementation (`StorefrontPage.tsx`)**:
+    - Mobile Viewport (`2cb488d52d424bdbbcdfe08dc04eeadb`, Screen #11) & Desktop Viewport (`b283620466664737aa9f1405ae410d14`, Screen #33).
+    - Top Navigation: Mobile sticky app bar with back arrow, store title, Station Road subtitle, search, share, favorite buttons; Desktop sticky header with Dropzo branding, location selector, in-store search (`Cmd+K`), navigation links, cart summary button, and avatar.
+    - Breadcrumbs & Ticker: Badarpur Central Hub / Local Kirana Stores / Store Name, FSSAI Lic badge, and live inventory sync indicator.
+    - Store Showcase Hero Card: Store thumbnail, Verified Partner badge, Stall No, full address, rating badge (4.8 / 184+ reviews), operating hours status (`Open Now • Closes 9:30 PM`), average prep time, and dual fulfillment mode switcher cards (Store Pickup vs Local Delivery).
+    - Category Aisles Navigation: Mobile horizontal scrollable pill rail; Desktop left sticky sidebar with item counts, active aisle highlight, quick filter chips (`Assam Local`, `100% Vegetarian`, `Super Savers`), and "Call Store" support card.
+    - Main Product Catalogue: Bento promotional offer banner, sort dropdown (Relevance, Price Low-High, Price High-Low), responsive product cards (2 columns mobile, 3 columns desktop) with variant tags, stock badges, pricing, interactive "+ ADD" pill button, and quantity stepper `[- count +]`.
+    - Floating Cart Preview Dock: Mobile bottom floating strip (`fixed bottom-20`), Desktop bottom-right dock (`fixed bottom-6 right-6`), showing active item count, subtotal, and "View Cart & Checkout" CTA.
+    - Cross-Store Cart Replacement Modal: Confirmation modal asking whether to clear the current cart and start a fresh cart when adding from a different store.
+    - Fallback Badarpur Kirana Catalogue: Guarantees zero blank screens if the store inventory is offline or empty.
+3. **App Wiring (`apps/web/src/App.tsx`)**:
+    - Replaced `StorePlaceholderPage` with `StorefrontPage` at `/stores/:storeId`.
+    - Deleted temporary `StorePlaceholderPage.tsx`.
+4. **Integration Test Suite (`StorefrontPage.test.tsx`)**:
+    - Verified store details, verified partner badge, address, rating, and open status.
+    - Verified product rendering with selling prices and ADD buttons.
+    - Verified cart integration: clicking ADD switches to stepper, updates floating cart dock total and item count.
+    - Verified category switching and in-store search.
+    - Verified cross-store collision confirmation modal and cart replacement.
+    - All 6/6 tests passing.
+
+### Verification Performed
+
+| Check                              | Result                                                    |
+| :--------------------------------- | :-------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 15 test files, 52 tests passing (100%)         |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                       |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                           |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"   |
+| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)      |
+| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)       |

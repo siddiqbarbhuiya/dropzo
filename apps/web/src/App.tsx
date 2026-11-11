@@ -3,7 +3,7 @@ import { HomePage } from './routes/HomePage';
 import { LoginPage } from './routes/LoginPage';
 import { LandingRedirect } from './routes/LandingRedirect';
 import { RequireAuth } from './routes/RequireAuth';
-import { StorePlaceholderPage } from './routes/customer/StorePlaceholderPage';
+import { StorefrontPage } from './routes/customer/StorefrontPage';
 import { CustomerOrdersPage } from './routes/customer/CustomerOrdersPage';
 import { CustomerOrderDetailPage } from './routes/customer/CustomerOrderDetailPage';
 import { MerchantOrdersPage } from './routes/merchant/MerchantOrdersPage';
@@ -19,7 +19,7 @@ export function App() {
         <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/redirect" element={<LandingRedirect />} />
-            <Route path="/stores/:storeId" element={<StorePlaceholderPage />} />
+            <Route path="/stores/:storeId" element={<StorefrontPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route
                 path="/orders"

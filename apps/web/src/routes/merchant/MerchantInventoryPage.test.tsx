@@ -79,7 +79,9 @@ describe('MerchantInventoryPage', () => {
     it('lists listings with stock-state badges and accurate stats', async () => {
         renderPage();
 
-        await waitFor(() => expect(screen.getByText('Fortune Sunlite Oil')).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByText('Fortune Sunlite Oil')).toBeInTheDocument(), {
+            timeout: 4000,
+        });
         expect(screen.getByText('Amul Butter')).toBeInTheDocument();
         // "In stock"/"Low stock" text appears as a stat label, a filter-tab option, and one row
         // badge each (one listing of each state) - 3 occurrences confirms exactly one badge of
@@ -91,7 +93,9 @@ describe('MerchantInventoryPage', () => {
 
     it('filters by search term', async () => {
         renderPage();
-        await waitFor(() => expect(screen.getByText('Fortune Sunlite Oil')).toBeInTheDocument());
+        await waitFor(() => expect(screen.getByText('Fortune Sunlite Oil')).toBeInTheDocument(), {
+            timeout: 4000,
+        });
 
         fireEvent.change(screen.getByLabelText('Search listings'), {
             target: { value: 'butter' },

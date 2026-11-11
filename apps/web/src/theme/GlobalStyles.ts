@@ -2,8 +2,6 @@ import { createGlobalStyle } from 'styled-components';
 
 /** Global resets, font loading and focus/state rules shared by every screen. */
 export const GlobalStyles = createGlobalStyle`
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
     *, *::before, *::after {
         box-sizing: border-box;
     }

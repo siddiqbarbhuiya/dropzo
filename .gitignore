@@ -22,3 +22,4 @@ backups/*.dump
 .claude/settings.local.json
 vite.config.*.timestamp*
 audit/
+.playwright-mcp/
