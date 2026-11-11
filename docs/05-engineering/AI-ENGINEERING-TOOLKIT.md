@@ -48,6 +48,15 @@ repository, once the workspace trust dialog has been accepted. Claude Code keeps
 file body load only when a skill is actually invoked — either automatically (the request matches
 the description) or manually.
 
+## How Antigravity (AGY) discovers these skills and MCP servers
+
+Per the [official Google Antigravity documentation](https://antigravity.google/docs):
+customizations and integrations load automatically from `.agents/` at the repository root:
+
+- **Skills**: Discovered automatically under `.agents/skills/<name>/SKILL.md` (and external paths registered via `.agents/skills.json`).
+- **MCP Servers**: Configured in `.agents/mcp_config.json` and bundled plugins under `.agents/plugins/` (e.g., Google Stitch MCP).
+- **Rules**: Enforced automatically via [`AGENTS.md`](../../AGENTS.md) and [`GEMINI.md`](../../GEMINI.md).
+
 ## How to invoke a skill
 
 - **Automatically**: just describe the task normally (e.g. "review this PR" or "add a Prisma

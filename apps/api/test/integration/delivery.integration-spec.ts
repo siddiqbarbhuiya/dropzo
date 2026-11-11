@@ -458,6 +458,20 @@ describe("Partner's own workflow and ownership isolation", () => {
             workflow.confirmMerchantHandover(otherOwner.id, ctx.store.id, ctx.order.id),
         ).rejects.toThrow(ForbiddenException);
     });
+
+    it("never lets a different merchant view another merchant's delivery assignment", async () => {
+        const ctx = await makeReadyDeliveryOrder();
+        await assignAndAccept(ctx, ctx.admin);
+
+        await expect(
+            assignments.getOwnedByMerchant(ctx.owner.id, ctx.store.id, ctx.order.id),
+        ).resolves.toMatchObject({ order_id: ctx.order.id });
+
+        const otherOwner = (await makeDeliveryStoreWithListing()).owner;
+        await expect(
+            assignments.getOwnedByMerchant(otherOwner.id, ctx.store.id, ctx.order.id),
+        ).rejects.toThrow(ForbiddenException);
+    });
 });
 
 describe('Customer delivery-code retrieval', () => {

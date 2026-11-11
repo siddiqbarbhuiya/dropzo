@@ -84,7 +84,9 @@ export class DeliveryAssignmentService {
         storeId: string,
         orderId: string,
     ): Promise<DeliveryAssignment> {
-        const order = await this.prisma.order.findFirst({ where: { id: orderId, store_id: storeId } });
+        const order = await this.prisma.order.findFirst({
+            where: { id: orderId, store_id: storeId },
+        });
         if (!order) {
             throw new NotFoundException('Order not found.');
         }

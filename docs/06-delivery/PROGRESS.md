@@ -1975,6 +1975,19 @@ previously discovered, since no earlier task's tests exercised these code paths)
    covers only tables that existed at that migration's own run time, the exact situation BC-005
    found for `otp_challenges`. Fixed with an explicit `GRANT` migration, following that precedent.
 
+**A third bug - a real IDOR - was caught by an automated post-implementation security review and
+fixed in this same session**: `MerchantDeliveryController.getOne` (`GET .../orders/:orderId/delivery`)
+ignored `storeId` entirely and called `DeliveryAssignmentService.getAssignment(orderId)` directly -
+any authenticated `MERCHANT_OWNER` who knew or guessed another merchant's order id could view that
+order's delivery assignment (partner name/phone, COD amounts, event history). Fixed by adding
+`DeliveryAssignmentService.getOwnedByMerchant(userId, storeId, orderId)`, which resolves the order
+scoped to `storeId` and checks `merchant.owner_user_id === userId` before ever touching the
+assignment - the same ownership-check shape `confirmMerchantHandover` already used correctly on the
+sibling endpoint. A new regression test ("never lets a different merchant view another merchant's
+delivery assignment") was added to `delivery.integration-spec.ts` and passes; the full suite was
+re-verified after the fix (22/22 integration tests in this file, 154/154 across the whole
+integration suite, 184/184 unit tests, lint/typecheck/format/build all clean).
+
 **Frontend**: first admin UI in the web app - `routes/admin/AdminDeliveryPartnersPage`,
 `AdminDeliveryQueuePage`, `AdminCodHandoverPage`; a new `routes/delivery-partner/
 DeliveryPartnerInboxPage` (a single screen suffices - a partner has at most one active assignment
@@ -1986,17 +1999,19 @@ primitives, motivated directly by this task's ~8 new pages.
 
 **Testing**: 7 new unit tests (`ledger.service.spec.ts`, covering the balanced delivery-fee leg,
 never commissioning the delivery fee, and omitting the leg when there is no delivery fee) plus a
-21-test real-database integration suite (`delivery.integration-spec.ts`) covering partner
+22-test real-database integration suite (`delivery.integration-spec.ts`) covering partner
 onboarding/activation, pickup/delivery exclusivity, concurrency-safe assignment (two admins racing,
 one partner double-booked), reassignment-with-preserved-history after a rejection, admin
-cancellation, ownership isolation (a partner can't see or act on another partner's assignment),
-the full accept/collect/out-for-delivery/verify lifecycle, hash-only code storage, customer
-code-visibility rules, concurrent double-verification safety, cross-partner verification rejection,
-failed-delivery handling (no reservation release, no payment change, reassignable afterward), COD
-handover reconciliation (balance reduction, duplicate-handover rejection, not-yet-collected
-rejection), and a regression check that plain pickup-COD accounting is unchanged (still exactly 2
-ledger legs, no delivery-fee leg). Full local verification: format/lint/typecheck/build pass across
-every workspace (API, web, both shared packages); the full existing suite (23 unit test files,
+cancellation, ownership isolation (a partner can't see or act on another partner's assignment, a
+merchant can't view another merchant's assignment - the latter a genuine IDOR a post-implementation
+security review caught and this session fixed, see below), the full
+accept/collect/out-for-delivery/verify lifecycle, hash-only code storage, customer code-visibility
+rules, concurrent double-verification safety, cross-partner verification rejection, failed-delivery
+handling (no reservation release, no payment change, reassignable afterward), COD handover
+reconciliation (balance reduction, duplicate-handover rejection, not-yet-collected rejection), and a
+regression check that plain pickup-COD accounting is unchanged (still exactly 2 ledger legs, no
+delivery-fee leg). Full local verification: format/lint/typecheck/build pass across every workspace
+(API, web, both shared packages); the full existing suite (23 unit test files,
 all pre-existing integration suites) was re-run and still passes with no regressions; the new
 migrations were applied to both `dropzo` and `dropzo_test`.
 

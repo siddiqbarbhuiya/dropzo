@@ -206,6 +206,15 @@ integration tests: `StoreService.createStore`'s raw `INSERT` passed `serviceZone
 `::uuid` cast, which fails as soon as any caller actually supplies one (no existing test had -
 BC-010's delivery-eligibility tests are the first). Fixed with a one-line cast; see `PROGRESS.md`.
 
+## A note on a security finding
+
+An automated post-implementation security review caught a real IDOR:
+`MerchantDeliveryController.getOne` originally ignored `storeId` and read the assignment by
+`orderId` alone, letting any merchant view another merchant's delivery assignment given its order
+id. Fixed with `DeliveryAssignmentService.getOwnedByMerchant` - the same ownership-check shape
+`confirmMerchantHandover` on the sibling endpoint already used correctly - with a regression test
+added. See `PROGRESS.md` for the full detail.
+
 ## Out of scope (unchanged from ADR-0010 and the task brief)
 
 Automatic matching/dispatch, GPS/live tracking, route optimization, multi-stop routing, dynamic

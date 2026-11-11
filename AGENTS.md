@@ -127,6 +127,9 @@ controls, or test procedures.
 - **Claude Code**: see [`CLAUDE.md`](CLAUDE.md) — it points back here and preserves the official
   Nx integration. Claude Code also loads the repository-managed skills under `.claude/skills/` —
   see section 10.
+- **Antigravity / Gemini CLI**: see [`GEMINI.md`](GEMINI.md) — points back here. Antigravity loads
+  skills from `.agents/skills/` (and `.claude/skills/` via `.agents/skills.json`) and MCP servers
+  from `.agents/mcp_config.json` and `.agents/plugins/`.
 - **GitHub Copilot**: see
   [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — short, points back here.
 - Any other assistant should be directed to read this file and `docs/README.md` first. Do not
