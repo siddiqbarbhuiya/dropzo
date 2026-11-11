@@ -26,28 +26,29 @@ tests, use `withTheme(ui)` from `apps/web/src/test/renderWithProviders.tsx`.
 Generic, presentation-only building blocks with no business meaning. Each is its own file; import
 from the barrel `components/ui/index.ts`.
 
-| Component             | Notes                                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `Button`              | Variants `primary` / `secondary` / `danger` / `ghost`; sizes `sm` / `md`; `$fullWidth`.                      |
-| `IconButton`          | Square pill tap target for a single icon, with an `$active` state.                                           |
-| `Input`               | Labelled text input with optional helper/error text.                                                         |
-| `OTPInput`            | N-digit code entry with auto-advance, backspace-back, and paste-splitting.                                   |
-| `Select`              | Labelled native `<select>`.                                                                                  |
-| `Checkbox`            | Labelled checkbox using theme-accent color.                                                                  |
-| `Switch`              | Binary toggle (e.g. merchant terminal's loud-alert switch).                                                  |
-| `Badge`               | Tonal pill (`neutral`/`success`/`warning`/`error`/`info`/`brand`).                                           |
-| `Card`                | Base surface container; `$padded`, `$hoverable`.                                                             |
-| `Modal`               | Centered dialog; closes on Escape or overlay click.                                                          |
-| `Toast`               | Inline tonal alert banner (`success`/`error`/`warning`/`info`).                                              |
-| `Skeleton`            | Pulsing placeholder block for loading content.                                                               |
-| `EmptyState`          | "Nothing here yet" panel (built on the internal `StatusPanel`).                                              |
-| `ErrorState`          | Failure panel with an optional retry action (built on `StatusPanel`).                                        |
-| `LoadingState`        | Centered spinner.                                                                                            |
-| `QuantityStepper`     | Toggles between an "ADD +" pill and a −/count/+ stepper.                                                     |
-| `SegmentedControl`    | Generic 2+-option pill switcher (typed by a string union).                                                   |
-| `PageHeader`          | Standard screen title row, with optional back arrow and trailing action.                                     |
-| `ResponsiveContainer` | Page-width wrapper: mobile gutter, desktop margin, 1280px max width.                                         |
-| `Keypad`              | Touch-friendly numeric keypad for entering a fixed-length code (BC-011 continuation, Merchant POS Terminal). |
+| Component             | Notes                                                                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`              | Variants `primary` / `secondary` / `danger` / `ghost`; sizes `sm` / `md`; `$fullWidth`.                                                                                                                       |
+| `IconButton`          | Square pill tap target for a single icon, with an `$active` state.                                                                                                                                            |
+| `Input`               | Labelled text input with optional helper/error text.                                                                                                                                                          |
+| `OTPInput`            | N-digit code entry with auto-advance, backspace-back, and paste-splitting.                                                                                                                                    |
+| `Select`              | Labelled native `<select>`.                                                                                                                                                                                   |
+| `Checkbox`            | Labelled checkbox using theme-accent color.                                                                                                                                                                   |
+| `Switch`              | Binary toggle (e.g. merchant terminal's loud-alert switch).                                                                                                                                                   |
+| `Badge`               | Tonal pill (`neutral`/`success`/`warning`/`error`/`info`/`brand`).                                                                                                                                            |
+| `Card`                | Base surface container; `$padded`, `$hoverable`.                                                                                                                                                              |
+| `Modal`               | Centered dialog; closes on Escape or overlay click.                                                                                                                                                           |
+| `Toast`               | Inline tonal alert banner (`success`/`error`/`warning`/`info`).                                                                                                                                               |
+| `Skeleton`            | Pulsing placeholder block for loading content.                                                                                                                                                                |
+| `EmptyState`          | "Nothing here yet" panel (built on the internal `StatusPanel`).                                                                                                                                               |
+| `ErrorState`          | Failure panel with an optional retry action (built on `StatusPanel`).                                                                                                                                         |
+| `LoadingState`        | Centered spinner.                                                                                                                                                                                             |
+| `QuantityStepper`     | Toggles between an "ADD +" pill and a −/count/+ stepper.                                                                                                                                                      |
+| `SegmentedControl`    | Generic 2+-option pill switcher (typed by a string union).                                                                                                                                                    |
+| `PageHeader`          | Standard screen title row, with optional back arrow and trailing action.                                                                                                                                      |
+| `ResponsiveContainer` | Page-width wrapper: mobile gutter, desktop margin, 1280px max width.                                                                                                                                          |
+| `Keypad`              | Touch-friendly numeric keypad for entering a fixed-length code (BC-011 continuation, Merchant POS Terminal).                                                                                                  |
+| `WoltModalSheet`      | Dynamic multi-page bottom sheet with top drag pill, floating close button, spring slide-up, backdrop blur, scrollable content, and sticky bottom action bar (Stitch Screens #91f80188, #cc71d8ec, #cf400530). |
 
 `StatusPanel` is an internal layout shared by `EmptyState`/`ErrorState`/`LoadingState` — it is not
 exported from the barrel and should not be used directly by screens.

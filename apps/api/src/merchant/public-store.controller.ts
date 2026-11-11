@@ -29,9 +29,7 @@ export class PublicStoreController {
         type: PublicStoreDto,
         isArray: true,
     })
-    async list(
-        @Query() query: ListPublicStoresQueryDto,
-    ): Promise<PaginatedResult<PublicStoreDto>> {
+    async list(@Query() query: ListPublicStoresQueryDto): Promise<PaginatedResult<PublicStoreDto>> {
         return this.stores.listPublicStores(query);
     }
 
@@ -44,8 +42,7 @@ export class PublicStoreController {
 
     @Get(':storeId/products')
     @ApiOperation({
-        summary:
-            'List available product variants for a store with pricing and in-stock indicator.',
+        summary: 'List available product variants for a store with pricing and in-stock indicator.',
     })
     @ApiOkResponse({
         description: 'Paginated list of published store products.',

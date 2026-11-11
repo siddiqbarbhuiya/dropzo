@@ -305,7 +305,11 @@ describe('StoreService', () => {
             });
             const service = new StoreService(prisma, makeAudit(), makeMerchantApplications());
 
-            const result = await service.listPublicStores({ page: 1, limit: 10, locality: 'Station Road' });
+            const result = await service.listPublicStores({
+                page: 1,
+                limit: 10,
+                locality: 'Station Road',
+            });
             expect(result.data).toHaveLength(1);
             expect(result.data[0].name).toBe('Maa Tara Groceries');
             expect(result.data[0].is_open).toBe(true);
@@ -318,7 +322,9 @@ describe('StoreService', () => {
             });
             const service = new StoreService(prisma, makeAudit(), makeMerchantApplications());
 
-            await expect(service.getPublicStore('missing-store')).rejects.toThrow(NotFoundException);
+            await expect(service.getPublicStore('missing-store')).rejects.toThrow(
+                NotFoundException,
+            );
         });
     });
 });

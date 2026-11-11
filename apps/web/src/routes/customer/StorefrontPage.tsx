@@ -6,6 +6,7 @@ import { apiClient } from '../../lib/apiClient';
 import { media } from '../../theme/media';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore, CartItem } from '../../store/useCartStore';
+import { WoltModalSheet, QuantityStepper } from '../../components/ui';
 
 // ================= TYPES =================
 
@@ -859,6 +860,75 @@ const ModalButton = styled.button<{ $primary?: boolean }>`
     }
 `;
 
+// --- Wolt Modal Sheet Cart Summary Styled Elements ---
+const CartSheetItemList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    padding: 0.5rem 0;
+`;
+
+const CartSheetItemRow = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.875rem;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.surfaceContainerHighest};
+
+    &:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+`;
+
+const CartSheetItemInfo = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+`;
+
+const CartSheetItemThumb = styled.div`
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    background: ${({ theme }) => theme.colors.surfaceContainerLow};
+    border: 1px solid ${({ theme }) => theme.colors.surfaceContainerHighest};
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+`;
+
+const CartSheetBillCard = styled.div`
+    background: ${({ theme }) => theme.colors.surfaceContainerLowest};
+    border: 1px solid ${({ theme }) => theme.colors.surfaceContainerHighest};
+    border-radius: 1rem;
+    padding: 0.875rem 1rem;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+`;
+
+const CartSheetBillRow = styled.div<{ $bold?: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: ${({ $bold }) => ($bold ? '0.9375rem' : '0.8125rem')};
+    font-weight: ${({ $bold }) => ($bold ? 800 : 500)};
+    color: ${({ $bold, theme }) => ($bold ? theme.colors.textPrimary : theme.colors.textSecondary)};
+`;
+
 // --- Curated Fallback Catalogue for Badarpur Kirana ---
 const FALLBACK_PRODUCTS: ProductItemView[] = [
     {
@@ -979,6 +1049,9 @@ export function StorefrontPage() {
         item: Omit<CartItem, 'quantity'>;
         existingStoreName: string;
     } | null>(null);
+
+    // Dynamic Wolt Modal Sheet state for cart summary
+    const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
 
     // Cart store hooks
     const cartStoreId = useCartStore((s) => s.storeId);
@@ -1797,7 +1870,24 @@ export function StorefrontPage() {
             {isCartActiveForThisStore && (
                 <MobileFloatingCart aria-label="Cart Summary">
                     <MobileCartInner>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setIsCartSheetOpen(true)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    setIsCartSheetOpen(true);
+                                }
+                            }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                cursor: 'pointer',
+                                flex: 1,
+                                minWidth: 0,
+                            }}
+                        >
                             <div
                                 style={{
                                     position: 'relative',
@@ -1809,6 +1899,7 @@ export function StorefrontPage() {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     color: '#ffffff',
+                                    flexShrink: 0,
                                 }}
                             >
                                 <span
@@ -1837,43 +1928,77 @@ export function StorefrontPage() {
                                     {cartTotalItems}
                                 </span>
                             </div>
-                            <div>
+                            <div style={{ minWidth: 0 }}>
                                 <div style={{ fontSize: '0.9375rem', fontWeight: 800 }}>
                                     ₹{cartSubtotal}
                                 </div>
-                                <div style={{ fontSize: '0.6875rem', color: '#7CF994' }}>
+                                <div
+                                    style={{
+                                        fontSize: '0.6875rem',
+                                        color: '#7CF994',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    }}
+                                >
                                     Free store pickup or ₹20 delivery
                                 </div>
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                navigate(isAuthenticated ? '/cart' : '/login?redirect=/cart')
-                            }
-                            style={{
-                                background: '#B72301',
-                                color: '#ffffff',
-                                border: 'none',
-                                borderRadius: '0.5rem',
-                                padding: '0.5rem 0.875rem',
-                                fontSize: '0.8125rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.25rem',
-                            }}
-                        >
-                            <span>View Cart</span>
-                            <span
-                                className="material-symbols-outlined"
-                                style={{ fontSize: '15px' }}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <button
+                                type="button"
+                                aria-label="View items in cart"
+                                onClick={() => setIsCartSheetOpen(true)}
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.12)',
+                                    color: '#ffffff',
+                                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                                    borderRadius: '0.5rem',
+                                    width: '2.25rem',
+                                    height: '2.25rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                }}
                             >
-                                arrow_forward
-                            </span>
-                        </button>
+                                <span
+                                    className="material-symbols-outlined"
+                                    style={{ fontSize: '18px' }}
+                                >
+                                    format_list_bulleted
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setIsCartSheetOpen(true)}
+                                style={{
+                                    background: '#B72301',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '0.5rem',
+                                    padding: '0.5rem 0.875rem',
+                                    fontSize: '0.8125rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                <span>View Cart</span>
+                                <span
+                                    className="material-symbols-outlined"
+                                    style={{ fontSize: '15px' }}
+                                >
+                                    expand_less
+                                </span>
+                            </button>
+                        </div>
                     </MobileCartInner>
                 </MobileFloatingCart>
             )}
@@ -1936,7 +2061,9 @@ export function StorefrontPage() {
                             <button
                                 type="button"
                                 onClick={() =>
-                                    navigate(isAuthenticated ? '/cart' : '/login?redirect=/cart')
+                                    navigate(
+                                        isAuthenticated ? '/checkout' : '/login?redirect=/checkout',
+                                    )
                                 }
                                 style={{
                                     flex: 1,
@@ -1955,7 +2082,7 @@ export function StorefrontPage() {
                                     boxShadow: '0 2px 4px rgba(183, 35, 1, 0.25)',
                                 }}
                             >
-                                <span>View Cart & Checkout</span>
+                                <span>Proceed to Checkout</span>
                                 <span
                                     className="material-symbols-outlined"
                                     style={{ fontSize: '16px' }}
@@ -1967,6 +2094,188 @@ export function StorefrontPage() {
                     </DesktopCartInner>
                 </DesktopFloatingCart>
             )}
+
+            {/* Wolt Modal Sheet Cart Summary Drawer */}
+            <WoltModalSheet
+                isOpen={isCartSheetOpen && isCartActiveForThisStore && cartTotalItems > 0}
+                onClose={() => setIsCartSheetOpen(false)}
+                title="Cart Summary"
+                subtitle={`${store.name} • ${cartTotalItems} ${cartTotalItems === 1 ? 'item' : 'items'}`}
+                badge={
+                    <span
+                        style={{
+                            background: '#006E2D',
+                            color: '#ffffff',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            padding: '3px 8px',
+                            borderRadius: '9999px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}
+                    >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                            bolt
+                        </span>
+                        {fulfillmentMode === 'pickup' ? 'STORE PICKUP' : '15-30 MINS'}
+                    </span>
+                }
+                stickyActionBar={
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setIsCartSheetOpen(false);
+                            navigate(isAuthenticated ? '/checkout' : '/login?redirect=/checkout');
+                        }}
+                        style={{
+                            width: '100%',
+                            padding: '0.875rem 1.25rem',
+                            background: '#B72301',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '16px',
+                            fontSize: '0.9375rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            boxShadow: '0 4px 14px rgba(183, 35, 1, 0.35)',
+                            transition: 'all 0.15s ease-in-out',
+                        }}
+                    >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>Proceed to Checkout</span>
+                            <span
+                                className="material-symbols-outlined"
+                                style={{ fontSize: '18px' }}
+                            >
+                                arrow_forward
+                            </span>
+                        </span>
+                        <span style={{ fontSize: '1.0625rem', fontWeight: 800 }}>
+                            ₹{fulfillmentMode === 'pickup' ? cartSubtotal : cartSubtotal + 20}
+                        </span>
+                    </button>
+                }
+            >
+                <CartSheetItemList>
+                    {cartItems.map((item) => (
+                        <CartSheetItemRow key={item.listingId}>
+                            <CartSheetItemInfo>
+                                <CartSheetItemThumb>
+                                    {item.imageUrl ? (
+                                        <img src={item.imageUrl} alt={item.productName} />
+                                    ) : (
+                                        <span
+                                            className="material-symbols-outlined"
+                                            style={{ color: '#8F7069', fontSize: '20px' }}
+                                        >
+                                            shopping_bag
+                                        </span>
+                                    )}
+                                </CartSheetItemThumb>
+                                <div style={{ minWidth: 0 }}>
+                                    <div
+                                        style={{
+                                            fontSize: '0.875rem',
+                                            fontWeight: 700,
+                                            color: '#1A1B22',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                        }}
+                                    >
+                                        {item.productName}
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: '0.75rem',
+                                            color: '#5B403A',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            marginTop: '2px',
+                                        }}
+                                    >
+                                        {item.variantName && <span>{item.variantName}</span>}
+                                        <span style={{ fontWeight: 800, color: '#1A1B22' }}>
+                                            ₹{item.price}
+                                        </span>
+                                    </div>
+                                </div>
+                            </CartSheetItemInfo>
+
+                            <QuantityStepper
+                                quantity={item.quantity}
+                                onIncrement={() =>
+                                    updateQuantity(item.listingId, item.quantity + 1)
+                                }
+                                onDecrement={() =>
+                                    updateQuantity(item.listingId, item.quantity - 1)
+                                }
+                            />
+                        </CartSheetItemRow>
+                    ))}
+                </CartSheetItemList>
+
+                <div
+                    style={{
+                        background: '#F4F2FD',
+                        borderRadius: '12px',
+                        padding: '10px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '12px',
+                        marginTop: '12px',
+                        color: '#1A1B22',
+                        border: '1px solid #E3E1EC',
+                    }}
+                >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: '16px', color: '#006E2D' }}
+                        >
+                            verified
+                        </span>
+                        <span>
+                            {fulfillmentMode === 'pickup'
+                                ? 'Free Store Pickup'
+                                : 'Badarpur Local Delivery'}
+                        </span>
+                    </span>
+                    <strong style={{ color: '#006E2D' }}>
+                        {fulfillmentMode === 'pickup' ? 'FREE' : '₹20'}
+                    </strong>
+                </div>
+
+                <CartSheetBillCard>
+                    <CartSheetBillRow>
+                        <span>Items Subtotal</span>
+                        <span>₹{cartSubtotal}</span>
+                    </CartSheetBillRow>
+                    <CartSheetBillRow>
+                        <span>Fulfillment Fee</span>
+                        <span
+                            style={{
+                                color: fulfillmentMode === 'pickup' ? '#006E2D' : 'inherit',
+                            }}
+                        >
+                            {fulfillmentMode === 'pickup' ? 'FREE' : '₹20'}
+                        </span>
+                    </CartSheetBillRow>
+                    <div style={{ height: '1px', background: '#E3E1EC', margin: '4px 0' }} />
+                    <CartSheetBillRow $bold>
+                        <span>Grand Total</span>
+                        <span style={{ color: '#B72301' }}>
+                            ₹{fulfillmentMode === 'pickup' ? cartSubtotal : cartSubtotal + 20}
+                        </span>
+                    </CartSheetBillRow>
+                </CartSheetBillCard>
+            </WoltModalSheet>
 
             {/* Cross-Store Conflict Confirmation Modal */}
             {pendingConflict && (

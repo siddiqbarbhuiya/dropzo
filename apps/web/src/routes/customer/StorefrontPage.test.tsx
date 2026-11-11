@@ -227,4 +227,44 @@ describe('StorefrontPage', () => {
             'Fortune Sunlite Refined Sunflower Oil',
         );
     });
+
+    it('opens WoltModalSheet cart preview from floating cart dock and adjusts item quantities', async () => {
+        renderStorefront();
+
+        await waitFor(() => {
+            expect(screen.getByText('Fortune Sunlite Refined Sunflower Oil')).toBeInTheDocument();
+        });
+
+        // Add 1 item
+        const addButtons = screen.getAllByRole('button', { name: /ADD/i });
+        fireEvent.click(addButtons[0]);
+
+        // Cart dock appears with "View Cart" and "View items in cart"
+        const listIconBtn = screen.getByRole('button', { name: /View items in cart/i });
+        expect(listIconBtn).toBeInTheDocument();
+
+        // Click the list icon button to open WoltModalSheet
+        fireEvent.click(listIconBtn);
+
+        // WoltModalSheet should be visible
+        expect(screen.getByTestId('wolt-modal-sheet')).toBeInTheDocument();
+        expect(screen.getByText('Cart Summary')).toBeInTheDocument();
+        expect(screen.getByText('Maa Tara Groceries • 1 item')).toBeInTheDocument();
+        expect(screen.getByText('Items Subtotal')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Proceed to Checkout/i })).toBeInTheDocument();
+
+        // Increment quantity inside the sheet
+        const increaseBtns = screen.getAllByRole('button', { name: /Increase quantity/i });
+        // The one inside the sheet
+        fireEvent.click(increaseBtns[increaseBtns.length - 1]);
+
+        expect(useCartStore.getState().totalItems()).toBe(2);
+        expect(screen.getByText('Maa Tara Groceries • 2 items')).toBeInTheDocument();
+
+        // Close via circular close button
+        const closeBtn = screen.getByTestId('wolt-modal-close-button');
+        fireEvent.click(closeBtn);
+
+        expect(screen.queryByTestId('wolt-modal-sheet')).not.toBeInTheDocument();
+    });
 });

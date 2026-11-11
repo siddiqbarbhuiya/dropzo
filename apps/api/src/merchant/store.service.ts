@@ -437,7 +437,10 @@ export class StoreService {
             supports_pickup: store.supports_pickup,
             supports_delivery: store.supports_delivery,
             opening_hours: store.opening_hours as StoreOperatingHoursDto | null,
-            is_open: isStoreOpen(store.status, store.opening_hours as StoreOperatingHoursDto | null),
+            is_open: isStoreOpen(
+                store.status,
+                store.opening_hours as StoreOperatingHoursDto | null,
+            ),
         };
     }
 }

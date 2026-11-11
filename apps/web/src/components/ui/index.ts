@@ -37,3 +37,5 @@ export type { PageHeaderProps } from './PageHeader';
 export { ResponsiveContainer } from './ResponsiveContainer';
 export { Keypad } from './Keypad';
 export type { KeypadProps } from './Keypad';
+export { WoltModalSheet } from './WoltModalSheet';
+export type { WoltModalSheetProps } from './WoltModalSheet';

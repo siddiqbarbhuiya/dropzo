@@ -9,40 +9,40 @@
 
 - **Problem Statement**: Complete the end-to-end customer purchasing experience by implementing the customer cart review, fulfillment method selection, delivery address input/selection, authoritative bill breakdown, and idempotent Cash on Delivery (COD) order submission.
 - **Requirements Covered**:
-  - `FR-CART-001`: View and manage single-store cart items with quantity adjustment and removal.
-  - `FR-ORD-001`: Select fulfillment mode (Store Pickup vs Home Delivery) and place order.
-  - `FR-PAY-001`: Cash on Delivery (COD) payment flow.
-  - Stitch Screen #21 (Mobile): `f0f05e05c68a43c89251ec6f567fa9a9`
-  - Stitch Screen #29 (Desktop): `57e0783864824b8ab618af95a229d5d3`
+    - `FR-CART-001`: View and manage single-store cart items with quantity adjustment and removal.
+    - `FR-ORD-001`: Select fulfillment mode (Store Pickup vs Home Delivery) and place order.
+    - `FR-PAY-001`: Cash on Delivery (COD) payment flow.
+    - Stitch Screen #21 (Mobile): `f0f05e05c68a43c89251ec6f567fa9a9`
+    - Stitch Screen #29 (Desktop): `57e0783864824b8ab618af95a229d5d3`
 
 ## 2. Research & Investigation Findings
 
 - **Existing Backend Infrastructure**:
-  - `apps/api/src/cart/cart.controller.ts`: Fully implemented under `/customers/me/cart` (`@Roles('CUSTOMER')`) supporting `GET /`, `POST /items`, `PATCH /items/:itemId`, `DELETE /items/:itemId`, and `DELETE /`.
-  - `apps/api/src/checkout/checkout.controller.ts`: Fully implemented under `/checkout` (`@Roles('CUSTOMER')`):
-    - `POST /checkout/prepare` accepting `PrepareCheckoutDto` (`fulfilmentType: 'PICKUP' | 'DELIVERY'`, `deliveryAddress?: DeliveryAddressDto`), returning `CheckoutSummary` with authoritative pricing and fulfillment validation errors.
-    - `POST /checkout` accepting `CreateOrderDto` (`fulfilmentType`, `deliveryAddress`, `expectedTotalAmount`, `customerNotes`) with required `Idempotency-Key` header, returning `Order`.
+    - `apps/api/src/cart/cart.controller.ts`: Fully implemented under `/customers/me/cart` (`@Roles('CUSTOMER')`) supporting `GET /`, `POST /items`, `PATCH /items/:itemId`, `DELETE /items/:itemId`, and `DELETE /`.
+    - `apps/api/src/checkout/checkout.controller.ts`: Fully implemented under `/checkout` (`@Roles('CUSTOMER')`):
+        - `POST /checkout/prepare` accepting `PrepareCheckoutDto` (`fulfilmentType: 'PICKUP' | 'DELIVERY'`, `deliveryAddress?: DeliveryAddressDto`), returning `CheckoutSummary` with authoritative pricing and fulfillment validation errors.
+        - `POST /checkout` accepting `CreateOrderDto` (`fulfilmentType`, `deliveryAddress`, `expectedTotalAmount`, `customerNotes`) with required `Idempotency-Key` header, returning `Order`.
 - **Frontend State & Cart Storage**:
-  - `apps/web/src/store/useCartStore.ts`: Client-side persistent Zustand store already tracking `storeId`, `storeName`, `items: CartItem[]` with single-store isolation.
-  - When user transitions from Storefront to Checkout, guest items in `useCartStore` can be synced with `/customers/me/cart` or priced dynamically via `POST /checkout/prepare`.
+    - `apps/web/src/store/useCartStore.ts`: Client-side persistent Zustand store already tracking `storeId`, `storeName`, `items: CartItem[]` with single-store isolation.
+    - When user transitions from Storefront to Checkout, guest items in `useCartStore` can be synced with `/customers/me/cart` or priced dynamically via `POST /checkout/prepare`.
 - **Stitch Design Alignment**:
-  - **Desktop (`57e0783864824b8ab618af95a229d5d3.html`)**:
-    - Dedicated Checkout Header with back link to store, trust shield, encryption badge.
-    - Breadcrumb: Cart > Fulfillment & Review > Receipt & Tracking with Order # pill.
-    - 2-Column layout:
-      - Left column: Single merchant fulfillment banner, fulfillment mode toggle (Store Pickup vs Home Delivery radio cards with Badarpur store address and home delivery address), Cart item list with thumbnails, pack size, price, Quantity Stepper, Offers/Coupon box (`DROPZO50 Applied`), and COD Payment selector.
-      - Right column: Sticky order summary card with item total, pickup/delivery fee (`FREE` vs `₹20`), packaging fee (`₹15`), coupon discount (`-₹50`), Total Payable (`₹555`), "You saved ₹60" celebration chip, high-contrast "Confirm Order" CTA, store helpline, and counter pickup instructions.
-      - Desktop footer.
-  - **Mobile (`f0f05e05c68a43c89251ec6f567fa9a9.html`)**:
-    - Compact header with back button, "Checkout & Cart", store name subtitle, cart count badge.
-    - Single-store constraint banner.
-    - Segmented pill toggle: Store Pickup (Ready in 20 min • Free) vs Home Delivery (30-45 min • ₹20).
-    - Contextual card (Store address or Home delivery address).
-    - Item list cards with quantity steppers.
-    - Promo voucher input with applied chip.
-    - Bill breakdown card with item total, delivery fee, taxes, total payable.
-    - Payment method radio list (COD selected, Online Payment disabled "Coming Soon").
-    - Fixed bottom sticky bar with total amount and "Confirm Order" button.
+    - **Desktop (`57e0783864824b8ab618af95a229d5d3.html`)**:
+        - Dedicated Checkout Header with back link to store, trust shield, encryption badge.
+        - Breadcrumb: Cart > Fulfillment & Review > Receipt & Tracking with Order # pill.
+        - 2-Column layout:
+            - Left column: Single merchant fulfillment banner, fulfillment mode toggle (Store Pickup vs Home Delivery radio cards with Badarpur store address and home delivery address), Cart item list with thumbnails, pack size, price, Quantity Stepper, Offers/Coupon box (`DROPZO50 Applied`), and COD Payment selector.
+            - Right column: Sticky order summary card with item total, pickup/delivery fee (`FREE` vs `₹20`), packaging fee (`₹15`), coupon discount (`-₹50`), Total Payable (`₹555`), "You saved ₹60" celebration chip, high-contrast "Confirm Order" CTA, store helpline, and counter pickup instructions.
+            - Desktop footer.
+    - **Mobile (`f0f05e05c68a43c89251ec6f567fa9a9.html`)**:
+        - Compact header with back button, "Checkout & Cart", store name subtitle, cart count badge.
+        - Single-store constraint banner.
+        - Segmented pill toggle: Store Pickup (Ready in 20 min • Free) vs Home Delivery (30-45 min • ₹20).
+        - Contextual card (Store address or Home delivery address).
+        - Item list cards with quantity steppers.
+        - Promo voucher input with applied chip.
+        - Bill breakdown card with item total, delivery fee, taxes, total payable.
+        - Payment method radio list (COD selected, Online Payment disabled "Coming Soon").
+        - Fixed bottom sticky bar with total amount and "Confirm Order" button.
 
 ## 3. Potential Blockers, Risks & Security Boundaries
 

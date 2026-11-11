@@ -2639,7 +2639,6 @@ Status: **Complete.**
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
 | `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
 
-
 ---
 
 ## 2026-11-12 — BC-014: Customer Storefront & Product Catalogue Screen (Done)
@@ -2677,15 +2676,14 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                    |
-| :--------------------------------- | :-------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 15 test files, 52 tests passing (100%)         |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                       |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                           |
-| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"   |
-| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)      |
-| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)       |
-
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 15 test files, 52 tests passing (100%)       |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
+| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)      |
 
 ---
 
@@ -2725,15 +2723,14 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                    |
-| :--------------------------------- | :-------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 16 test files, 58 tests passing (100%)         |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                       |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                           |
-| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"   |
-| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)      |
-| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)        |
-
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 16 test files, 58 tests passing (100%)       |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
+| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)      |
 
 ---
 
@@ -2777,11 +2774,53 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                    |
-| :--------------------------------- | :-------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 17 test files, 63 tests passing (100%)         |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                       |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                           |
-| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"   |
-| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)      |
-| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)        |
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 17 test files, 63 tests passing (100%)       |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
+| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)      |
+
+## BC-014-EXT — Reusable WoltModalSheet Component & Storefront Floating Cart Integration
+
+Status: **Complete.**
+
+### What was built
+
+1. **Reusable `WoltModalSheet` UI Component (`apps/web/src/components/ui/WoltModalSheet.tsx`)**:
+    - Extracted and tokenized 1:1 from Stitch specs (`91f80188c6864d2ba8cb6dd2e881faee`, `cc71d8ecb13141b38c830075af3190bf`, `cf40053070dd440196ba46416ef930c1`).
+    - **Top-Centered Circular Close Button**: Centrally split half-in/half-out circular close button with smooth hover scale and tap microinteractions (`CloseButton`).
+    - **Draggable Handle Pill**: Top pill affordance (`DragPill`).
+    - **Backdrop Blur & Dismiss**: Fixed overlay with dark translucent backdrop, `backdrop-filter: blur(6px)`, and tap-to-dismiss.
+    - **Dynamic Height Constraints**: Configurable `maxHeight` prop (defaults to `calc(100vh - 48px)`) with hidden scrollbar.
+    - **Pinned Action Bar**: Sticky action bar (`stickyActionBar`) pinned beneath scrollable content.
+    - **iOS Home Indicator**: Native mobile home indicator bar (`HomeIndicator`).
+    - **Accessibility & Focus**: Keyboard `Escape` dismiss listener and document body scroll-lock during presentation.
+    - Exported from component barrel `apps/web/src/components/ui/index.ts`.
+
+2. **Storefront Floating Cart Dock Integration (`apps/web/src/routes/customer/StorefrontPage.tsx`)**:
+    - Floating Cart Dock updated to match Stitch Screen `2cb488d52d424bdbbcdfe08dc04eeadb`.
+    - Added interactive `format_list_bulleted` preview button and "View Cart" toggle that pops up the `WoltModalSheet`.
+    - **Cart Summary Inside Modal**:
+        - Store name and live item count badge.
+        - Itemized row list with product thumbnails, variant pills, and reactive `QuantityStepper` controls.
+        - Order price breakdown with Subtotal, Fulfillment Fee (Free store pickup or ₹20 delivery), and Grand Total.
+        - Delivery guarantee badge ("Free Store Pickup" or "Badarpur Local Delivery").
+        - Sticky action button: "Proceed to Checkout • ₹{total}" routing directly to `/checkout`.
+
+3. **Test Suites**:
+    - Added `WoltModalSheet.test.tsx` verifying open/close states, title, subtitle, badge, content, backdrop dismiss, close button click, and escape key listener (6/6 tests passing).
+    - Updated `StorefrontPage.test.tsx` with end-to-end integration test verifying the floating cart dock opens `WoltModalSheet` and adjusts quantities (7/7 tests passing).
+
+### Verification Performed
+
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 18 test files, 70 tests passing (100%)       |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                         |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!" |
+| `npm run build -w @dropzo/web`     | **Pass** — Production build succeeded (Vite v5.4.21)    |
+| `npm run test -w @dropzo/api`      | **Pass** — 25 test files, 196 tests passing (100%)      |
