@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { ApiError } from '@dropzo/api-client';
 import type { StoreListing } from '@dropzo/api-client';
 import { apiClient } from '../../lib/apiClient';
@@ -30,6 +31,93 @@ const PageContainer = styled.div`
     display: flex;
     flex-direction: column;
     user-select: none;
+    padding-bottom: 7rem;
+
+    ${media.desktop} {
+        padding-bottom: 2rem;
+    }
+`;
+
+// Floating Barcode Scanner Dock (Mobile)
+const FloatingBarcodeDock = styled.aside`
+    position: fixed;
+    bottom: 4.5rem;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    padding: 0 1rem;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+
+    ${media.desktop} {
+        display: none;
+    }
+`;
+
+const FloatingBarcodePill = styled.div`
+    pointer-events: auto;
+    background: #2f3038;
+    color: #f1effa;
+    padding: 0.625rem 1.25rem;
+    border-radius: 9999px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.15s ease;
+
+    &:active {
+        transform: scale(0.98);
+    }
+`;
+
+const BarcodeIconBadge = styled.div`
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    background: #b72301;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+`;
+
+// Mobile Bottom Navigation Bar
+const MobileNav = styled.nav`
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 50;
+    background: ${({ theme }) => theme.colors.surfaceContainerLowest};
+    border-top: 1px solid ${({ theme }) => theme.colors.surfaceContainerHighest};
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0.375rem 0.5rem;
+
+    ${media.desktop} {
+        display: none;
+    }
+`;
+
+const MobileNavItem = styled(Link)<{ $active?: boolean }>`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    text-decoration: none;
+    color: ${({ $active }) => ($active ? '#b72301' : '#64748b')};
+    background: ${({ $active }) => ($active ? 'rgba(183, 35, 1, 0.1)' : 'transparent')};
+    font-size: 0.6875rem;
+    font-weight: 700;
 `;
 
 // Top Navigation Bar
@@ -1239,6 +1327,72 @@ export function MerchantInventoryPage() {
                     onClose={() => setSelectedListingId(null)}
                 />
             )}
+
+            {/* Quick Barcode Scan Floating Action Bar (Mobile) */}
+            <FloatingBarcodeDock>
+                <FloatingBarcodePill
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                        const input = document.querySelector(
+                            'input[placeholder*="Search"]',
+                        ) as HTMLInputElement;
+                        if (input) input.focus();
+                    }}
+                >
+                    <BarcodeIconBadge>
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                            qr_code_scanner
+                        </span>
+                    </BarcodeIconBadge>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#ffffff' }}>
+                        Scan Barcode to Adjust Stock
+                    </span>
+                    <span
+                        style={{
+                            background: 'rgba(255, 255, 255, 0.2)',
+                            color: '#ffffff',
+                            fontSize: '0.625rem',
+                            fontWeight: 800,
+                            padding: '0.125rem 0.375rem',
+                            borderRadius: '9999px',
+                        }}
+                    >
+                        F2 / Camera
+                    </span>
+                </FloatingBarcodePill>
+            </FloatingBarcodeDock>
+
+            {/* Mobile Bottom Navigation */}
+            <MobileNav>
+                <MobileNavItem to="/merchant/orders">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                        receipt_long
+                    </span>
+                    <span>Orders</span>
+                </MobileNavItem>
+
+                <MobileNavItem to="/merchant/inventory" $active>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                        inventory_2
+                    </span>
+                    <span>Inventory</span>
+                </MobileNavItem>
+
+                <MobileNavItem to="/merchant/metrics">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                        monitoring
+                    </span>
+                    <span>Metrics</span>
+                </MobileNavItem>
+
+                <MobileNavItem to="/merchant/store">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                        store
+                    </span>
+                    <span>Store</span>
+                </MobileNavItem>
+            </MobileNav>
         </PageContainer>
     );
 }

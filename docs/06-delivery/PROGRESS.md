@@ -3042,3 +3042,42 @@ Status: **Complete.**
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
 | Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
+
+## BC-020 — Merchant Inventory & Stock Management Screen
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprints Reference & Download**:
+    - Mobile Blueprint (`163bcf5a0ab944368c6bf51cc47b791e`): "Dropzo Merchant - Inventory & Stock - Mobile" (Stitch screen #25)
+    - Desktop Blueprint (`9b6c3d01c8bc43938a1534186b076266`): "Dropzo Merchant - Inventory & Stock Management Desktop" (Stitch screen #30)
+    - Assets saved to `audit/stitch-audit/screenshots/` and `audit/stitch-audit/html/`.
+
+2. **1:1 Responsive Stitch Implementation of `/merchant/inventory` (`apps/web/src/routes/merchant/MerchantInventoryPage.tsx`)**:
+    - **Header & Store Context**: Dropzo Merchant brand badge, LIVE store indicator, store selector (`Maa Tara Groceries • Badarpur Hub`), volume alert switch, notifications badge, and profile avatar.
+    - **Glanceable Metric Cards**: Total SKUs (142), In Stock (128, 90.1% Healthy), Low Stock (8, Reorder soon), and Out of Stock (6, Auto-hidden).
+    - **Sticky Search & Category Bar**: Search SKU / name / barcode, Scan button, horizontal category filter chips (`All`, `Low Stock`, `Atta & Rice`, `Oils & Ghee`, `Dairy & Chilled`, `Spices`, `🌿 Barak Specials`).
+    - **Inventory Feed Cards**:
+        - Product thumbnails, shelf slot chips (`Shelf #A-04`, `Shelf #R-02`, `Chiller #C-01`).
+        - Stock state badges with real-time health indicator.
+        - In-stock availability toggle switch (instantly updates client catalog).
+        - Touch quantity stepper `[- count +]` for on-shelf inventory adjustments.
+        - Fast restock and inward shipment triggers (`+12 Restock`, `+20 Crate Inward`).
+        - Stock reservation notes (orders currently picking on shelf).
+        - Stock movements log modal trigger (`Logs`).
+    - **Mobile Bottom App Navigation**: Fast navigation between Orders (`/merchant/orders`), Inventory (`/merchant/inventory`, active highlighted pill), Metrics, and Store.
+    - **Quick Barcode Scanner Floating Action Bar**: Fixed floating pill (`Scan Barcode to Adjust Stock [F2 / Camera]`) with bottom scroll clearance (`padding-bottom: 7rem`).
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/merchant/MerchantInventoryPage.test.tsx`)**:
+    - 4 tests covering listing rendering with stock state badges, search filtering, real-time availability toggle, and quick barcode scanner dock & mobile navigation.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 20 test files, 83 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
+| `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
+| Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |

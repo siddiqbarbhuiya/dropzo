@@ -119,4 +119,20 @@ describe('MerchantInventoryPage', () => {
             }),
         );
     });
+
+    it('renders quick barcode scan floating bar and mobile bottom navigation', async () => {
+        renderPage();
+        await waitFor(() => expect(screen.getByText('Fortune Sunlite Oil')).toBeInTheDocument());
+
+        expect(screen.getByText('Scan Barcode to Adjust Stock')).toBeInTheDocument();
+        expect(screen.getByText('F2 / Camera')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Orders/i })).toHaveAttribute(
+            'href',
+            '/merchant/orders',
+        );
+        expect(screen.getByRole('link', { name: /Inventory/i })).toHaveAttribute(
+            'href',
+            '/merchant/inventory',
+        );
+    });
 });
