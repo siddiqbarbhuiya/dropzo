@@ -36,6 +36,20 @@ This remains one canonical file, by decision (BC-003.2) — not split across `02
 - Idempotency keys are scoped to the requesting user and operation, never globally unique across
   unrelated users or endpoints (corrected in this revision).
 
+## Change log for BC-009
+
+Added one forward-only migration (`20261111090000_bc009_pickup_workflow_checks`): one `CHECK`
+constraint on the previously-unconstrained `payment_status_history.source` column, extending its
+documented value list from `(SYSTEM, WEBHOOK, ADMIN, CUSTOMER)` to add `MERCHANT` - the value this
+milestone's COD-collection flow writes when a merchant physically collects cash at pickup (the same
+class of gap BC-006/007/008 closed for other previously-unconstrained status/category columns). No
+new tables and no enum changes: the full `CREATED -> ACCEPTED -> PREPARING -> READY -> COMPLETED`
+order lifecycle, `order_status.REJECTED`/`CANCELLED`, and `pickup_verifications` (`code_hash,
+expires_at, verified_at, attempt_count, max_attempts`) were all already fully modeled by BC-004's
+init migration - this milestone is the first application code to actually use most of them. See
+[`ORDER-FULFILMENT-DESIGN.md`](ORDER-FULFILMENT-DESIGN.md) and
+[`PICKUP-WORKFLOW-DESIGN.md`](PICKUP-WORKFLOW-DESIGN.md) for the design this supports.
+
 ## Change log for BC-008
 
 Added one forward-only migration (`20261109120000_bc008_cart_checkout_order_checks`): three

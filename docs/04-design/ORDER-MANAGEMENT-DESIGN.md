@@ -1,13 +1,17 @@
 # Order creation and management design
 
-**Status:** Implemented (BC-008). See [`API-SPECIFICATION.md`](API-SPECIFICATION.md) for exact
-endpoints and [`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) for the `orders`/`order_items`/
-`order_status_history`/`payments`/`idempotency_records` table specs (all modeled by BC-004). Builds
-on [`CART-CHECKOUT-DESIGN.md`](CART-CHECKOUT-DESIGN.md) - read that first for cart/checkout/
+**Status:** Implemented (BC-008 order creation; BC-009 adds the merchant acceptance/pickup
+fulfilment flow). See [`API-SPECIFICATION.md`](API-SPECIFICATION.md) for exact endpoints and
+[`DATABASE-DESIGN.md`](DATABASE-DESIGN.md) for the `orders`/`order_items`/`order_status_history`/
+`payments`/`idempotency_records` table specs (all modeled by BC-004). Builds on
+[`CART-CHECKOUT-DESIGN.md`](CART-CHECKOUT-DESIGN.md) - read that first for cart/checkout/
 reservation lifecycle up to the point an order is created. Covers order creation, idempotency,
-price snapshots, COD handling, reservation expiry, and customer-facing order retrieval only - no
-merchant acceptance/fulfilment flow, no delivery assignment, no online payment (all later
-milestones, per the task's explicit scope boundary).
+price snapshots, COD handling, reservation expiry, and customer-facing order retrieval. **The
+merchant acceptance, preparation, pickup-code, and COD-collection flow this doc used to list as
+out of scope is now implemented - see [`ORDER-FULFILMENT-DESIGN.md`](ORDER-FULFILMENT-DESIGN.md)
+and [`PICKUP-WORKFLOW-DESIGN.md`](PICKUP-WORKFLOW-DESIGN.md) for that milestone (BC-009).** No
+delivery assignment or online payment yet (later milestones, per the task's explicit scope
+boundary).
 
 ## Abuse resistance: COD hoarding
 
@@ -165,8 +169,9 @@ results support the existing `PaginationDto` convention plus an optional `status
 
 ## Scope boundary (explicit exclusions, per the task)
 
-No cart-side reservation, no merchant accept/reject, no delivery-partner assignment or route
-optimization, no merchant fulfilment dashboard, no online payment gateway/webhooks, no order
-cancellation endpoint (FR-ORD-003 stays Planned), no coupons/loyalty/subscriptions, no multi-store
-checkout, no Redis/Kafka/microservices. These are later milestones building on this one, not gaps in
-this one.
+No cart-side reservation, no delivery-partner assignment or route optimization, no online payment
+gateway/webhooks, no general order cancellation endpoint beyond merchant rejection (FR-ORD-003
+stays Planned), no coupons/loyalty/subscriptions, no multi-store checkout, no Redis/Kafka/
+microservices. Merchant accept/reject/prepare/pickup-collection is implemented as of BC-009 - see
+[`ORDER-FULFILMENT-DESIGN.md`](ORDER-FULFILMENT-DESIGN.md). These remaining items are later
+milestones building on this one, not gaps in this one.

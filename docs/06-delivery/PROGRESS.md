@@ -1861,3 +1861,67 @@ untouched, isolating the bug precisely to the one new line. Fixed by using `$exe
 pass - including every pre-existing BC-004 through BC-007 suite, now genuinely verified locally for
 the first time, not just assumed consistent with a CI badge.** `npm run verify` (all 13 checks) now
 passes completely end to end on this machine. `RISK-013`/`TD-014` updated to reflect this.
+
+**BC-008's remaining commits were then pushed and the milestone closed out**: `aa825c8` (initial
+implementation) -> `ca8eda6` (CI run #16 fixes) -> `ecc7ec7` (throttle revert) -> `688ea4b` (the
+permanent throttle-mock fix + open-order cap) -> `01171eb` (the `pg_advisory_xact_lock` fix found
+above). `origin/main` is confirmed at `01171eb` - BC-008 is **Done**, not merely "In Review"; the
+task tracker and roadmap previously lagged the actual repository state and have been corrected to
+match (no CI run number is claimed for `01171eb` specifically beyond what the commit history and
+the owner's own confirmation establish - this session did not independently re-query the GitHub
+Actions API for it).
+
+## BC-009 — Merchant order processing and customer pickup (first end-to-end workflow)
+
+Implements the full lifecycle a BC-008 order now goes through after creation: merchant acceptance/
+rejection/preparation/ready, a one-time hash-only pickup code, and verified-pickup COD collection
+with ledger posting. Design: `ORDER-FULFILMENT-DESIGN.md`, `PICKUP-WORKFLOW-DESIGN.md`. New
+migration `20261111090000_bc009_pickup_workflow_checks` (one additive `CHECK` constraint on
+`payment_status_history.source`, adding `MERCHANT`) - every table, enum value, and column this
+milestone needed (`order_status`'s full lifecycle including `REJECTED`, `pickup_verifications`,
+`Merchant.commission_percent`) already existed from BC-004's init migration; confirmed by direct
+schema inspection before writing any code, per the task's explicit "never invent a new enum value"
+instruction.
+
+**New services**: `LedgerService` (`postCodCollection` - the first application code anywhere in the
+repository to write to `ledger_transactions`/`ledger_entries`/`financial_accounts`; find-or-creates
+platform/merchant accounts rather than depending on `seed.ts`, which never runs against the
+integration-test database), `OutboxService` (the first application code to write to
+`outbox_events` - a transactional write only, no dispatch worker yet, see `PICKUP-WORKFLOW-DESIGN.md`'s
+"Notifications" section), `PickupVerificationService` (mirrors `OtpService`'s exact cryptographic
+pattern: `randomInt` generation, HMAC-SHA256 hashing with a new, dedicated `PICKUP_CODE_HASH_SECRET`,
+`timingSafeEqual` comparison, a `SELECT ... FOR UPDATE` row lock before verifying), and
+`MerchantOrdersService` (the order-status compare-and-swap machine, reusing the exact
+`updateMany({where: {id, status: expected}})` pattern BC-005/006/008 established).
+
+**Reservation-lifecycle fix**: `ReservationService.releaseExpiredOrderReservations`'s query gained
+an `order: {status: 'CREATED'}` join filter - without it, an `ACCEPTED` order whose reservation's
+`expires_at` had passed (a merchant can take longer than 24 hours to act) would have had its stock
+silently released out from under it by the same job that correctly cancels an abandoned, never-
+accepted order. Proven directly in `fulfilment.integration-spec.ts`: force-expire an accepted
+order's reservation, run the real expiry job, assert nothing was released.
+
+**A real design tension, resolved and documented rather than silently dropped**: hash-only pickup-
+code storage is irreversible, but the task also requires a customer be able to view their own code
+more than once. Resolved with a process-local, in-memory plaintext cache
+(`PickupVerificationService.plaintextCache`, keyed by order id, evicted at the code's own expiry) -
+the durable record stays hash-only always; the cache is a documented, accepted single-instance-MVP
+limitation (not a security compromise), covered in `PICKUP-WORKFLOW-DESIGN.md`'s "Code retrieval
+after the first view" and tracked for a Redis-backed fix in `TECHNICAL-DEBT.md` if this project
+ever scales beyond one instance.
+
+**Testing**: 32 new unit tests (`ledger.service.spec.ts` 4, `pickup-verification.service.spec.ts`
+11, `reservation.service.spec.ts` +5 new, `merchant-orders.service.spec.ts` 17) plus an 18-test
+real-database integration suite (`fulfilment.integration-spec.ts`) covering merchant/customer
+ownership isolation both directions, the full accept/reject/prepare/ready/complete lifecycle and
+its compare-and-swap concurrency safety (two simultaneous accepts, two simultaneous pickup
+verifications - exactly one wins each time), the reservation-expiry-vs-acceptance race described
+above, pickup-code hash-only storage and retrieval, COD payment capture atomicity with order
+completion, balanced ledger postings, and platform-account reuse across separate orders. Full local
+verification run against the Docker PostgreSQL+PostGIS environment set up in BC-008's follow-up:
+lint, typecheck, build, all 23 unit suites (181 tests), and all 10 integration suites (132 tests,
+including the 18 new ones) pass. The new migration was applied to both `dropzo` and `dropzo_test`,
+and the deterministic seed re-run cleanly afterward.
+
+Not yet committed or pushed, per the task's explicit instruction - the working tree is left for the
+owner's review and authorization.

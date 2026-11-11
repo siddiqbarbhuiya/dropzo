@@ -18,6 +18,9 @@ const schema = Joi.object({
     // predictable signing/hashing secret would defeat the point of having one.
     JWT_ACCESS_SECRET: Joi.string().min(32).required(),
     OTP_HASH_SECRET: Joi.string().min(32).required(),
+    // Required since BC-009 - hashes one-time pickup codes (pickup_verifications.code_hash).
+    // Deliberately separate from OTP_HASH_SECRET: a different purpose should never share a secret.
+    PICKUP_CODE_HASH_SECRET: Joi.string().min(32).required(),
 
     ACCESS_TOKEN_TTL_SECONDS: Joi.number().integer().positive().default(900),
     REFRESH_TOKEN_TTL_DAYS: Joi.number().integer().positive().default(30),

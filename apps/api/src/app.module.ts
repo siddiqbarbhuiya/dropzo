@@ -7,6 +7,8 @@ import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuditModule } from './common/audit/audit.module.js';
 import { IdempotencyModule } from './common/idempotency/idempotency.module.js';
+import { LedgerModule } from './common/ledger/ledger.module.js';
+import { OutboxModule } from './common/outbox/outbox.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { MerchantModule } from './merchant/merchant.module.js';
 import { CatalogueModule } from './catalogue/catalogue.module.js';
@@ -14,6 +16,7 @@ import { InventoryModule } from './inventory/inventory.module.js';
 import { CartModule } from './cart/cart.module.js';
 import { CheckoutModule } from './checkout/checkout.module.js';
 import { OrdersModule } from './orders/orders.module.js';
+import { FulfilmentModule } from './fulfilment/fulfilment.module.js';
 
 // process.cwd() is apps/api regardless of how `nest start`/Jest/Nx invoke this app, so the
 // repository-root .env (the single source of truth documented in DEVELOPMENT-SETUP.md) is
@@ -31,6 +34,8 @@ const repoRootEnvPath = resolve(__dirname, '..', '..', '..', '.env');
         PrismaModule,
         AuditModule,
         IdempotencyModule,
+        LedgerModule,
+        OutboxModule,
         AuthModule,
         MerchantModule,
         CatalogueModule,
@@ -38,6 +43,7 @@ const repoRootEnvPath = resolve(__dirname, '..', '..', '..', '.env');
         CartModule,
         CheckoutModule,
         OrdersModule,
+        FulfilmentModule,
         HealthModule,
     ],
 })
