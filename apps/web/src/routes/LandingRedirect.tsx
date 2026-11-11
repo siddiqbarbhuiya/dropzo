@@ -8,6 +8,12 @@ export function LandingRedirect() {
     if (!tokens) {
         return <Navigate to="/login" replace />;
     }
+    if (hasRole(user, 'ADMIN') || hasRole(user, 'SUPER_ADMIN')) {
+        return <Navigate to="/admin/delivery-partners" replace />;
+    }
+    if (hasRole(user, 'DELIVERY_PARTNER')) {
+        return <Navigate to="/delivery/inbox" replace />;
+    }
     if (hasRole(user, 'MERCHANT_OWNER')) {
         return <Navigate to="/merchant/orders" replace />;
     }

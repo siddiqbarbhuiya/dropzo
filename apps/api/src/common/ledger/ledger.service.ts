@@ -89,6 +89,95 @@ export class LedgerService {
     }
 
     /**
+     * BC-010's delivery-fee leg, the one `DATABASE-DESIGN.md`'s "What posts, and when" table
+     * already specified but BC-009 explicitly skipped ("no delivery-fee leg - this milestone is
+     * pickup-only"). For home delivery the delivery partner always collects the cash at the
+     * doorstep (never the merchant), so the full `total_amount` - including `delivery_fee` -
+     * enters `COD_CASH_CLEARING` exactly as pickup COD does (that account represents "cash out in
+     * the field, not yet reconciled," collector-agnostic). Three legs in one balanced transaction:
+     *
+     * - `DEBIT COD_CASH_CLEARING` / `CREDIT MERCHANT_PAYABLE`, the merchandise amount only
+     *   (`total_amount - delivery_fee`).
+     * - `CREDIT PLATFORM_DELIVERY_REVENUE`, the `delivery_fee` (also debited from
+     *   `COD_CASH_CLEARING` as part of the same gross collection).
+     * - `DEBIT MERCHANT_PAYABLE` / `CREDIT PLATFORM_COMMISSION_REVENUE`, computed on the
+     *   merchandise amount only - the delivery fee is never commissioned.
+     */
+    async postDeliveryCodCollection(tx: Tx, order: Order, merchant: Merchant): Promise<void> {
+        const gross = Number(order.total_amount);
+        const deliveryFee = Number(order.delivery_fee);
+        const merchandise = round2(gross - deliveryFee);
+        const commission = round2(merchandise * (Number(merchant.commission_percent) / 100));
+
+        const merchantPayable = await this.findOrCreateMerchantAccount(
+            tx,
+            'MERCHANT_PAYABLE',
+            merchant.id,
+        );
+        const codClearing = await this.findOrCreatePlatformAccount(tx, 'COD_CASH_CLEARING');
+        const commissionRevenue = await this.findOrCreatePlatformAccount(
+            tx,
+            'PLATFORM_COMMISSION_REVENUE',
+        );
+        const deliveryRevenue = await this.findOrCreatePlatformAccount(
+            tx,
+            'PLATFORM_DELIVERY_REVENUE',
+        );
+
+        const transaction = await tx.ledgerTransaction.create({
+            data: {
+                transaction_type: 'ORDER_SALE_COD_DELIVERY',
+                reference_type: 'ORDER',
+                reference_id: order.id,
+                description: `COD delivery collection for order ${order.order_number}`,
+            },
+        });
+
+        await tx.ledgerEntry.createMany({
+            data: [
+                {
+                    transaction_id: transaction.id,
+                    account_id: codClearing.id,
+                    direction: 'DEBIT',
+                    amount: gross,
+                },
+                {
+                    transaction_id: transaction.id,
+                    account_id: merchantPayable.id,
+                    direction: 'CREDIT',
+                    amount: merchandise,
+                },
+                ...(deliveryFee > 0
+                    ? [
+                          {
+                              transaction_id: transaction.id,
+                              account_id: deliveryRevenue.id,
+                              direction: 'CREDIT' as const,
+                              amount: deliveryFee,
+                          },
+                      ]
+                    : []),
+                ...(commission > 0
+                    ? [
+                          {
+                              transaction_id: transaction.id,
+                              account_id: merchantPayable.id,
+                              direction: 'DEBIT' as const,
+                              amount: commission,
+                          },
+                          {
+                              transaction_id: transaction.id,
+                              account_id: commissionRevenue.id,
+                              direction: 'CREDIT' as const,
+                              amount: commission,
+                          },
+                      ]
+                    : []),
+            ],
+        });
+    }
+
+    /**
      * `financial_accounts` has no seed-independent guarantee of existing - the deterministic seed
      * (which creates the four platform accounts) only ever runs against the development database,
      * never the integration-test database (see `jest.integration.config.cjs`'s own CI step), and a

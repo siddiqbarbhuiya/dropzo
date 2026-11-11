@@ -121,6 +121,7 @@ model User {
   refunds_initiated              Refund[]
   ledger_transactions            LedgerTransaction[]
   stock_movements_created        StockMovement[]
+  delivery_cod_handovers_recorded DeliveryCodHandover[]
   notification_devices           NotificationDevice[]
   notifications                  Notification[]
   complaints                     Complaint[]
@@ -705,23 +706,39 @@ model DeliveryPartner {
 
   user        User                 @relation(fields: [user_id], references: [id], onDelete: Restrict)
   assignments DeliveryAssignment[]
+  cod_handovers DeliveryCodHandover[]
 
   @@map("delivery_partners")
 }
 
 model DeliveryAssignment {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id            String    @unique @db.Uuid
-  delivery_partner_id String    @db.Uuid
-  assigned_at         DateTime  @default(now()) @db.Timestamptz(6)
-  picked_up_at        DateTime? @db.Timestamptz(6)
-  delivered_at        DateTime? @db.Timestamptz(6)
-  delivery_status     String    @default("ASSIGNED") @db.VarChar(30)
+  id                                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id                            String    @unique @db.Uuid
+  delivery_partner_id                 String    @db.Uuid
+  assigned_at                         DateTime  @default(now()) @db.Timestamptz(6)
+  accepted_at                         DateTime? @db.Timestamptz(6)
+  rejected_at                         DateTime? @db.Timestamptz(6)
+  rejected_reason                     String?   @db.Text
+  picked_up_at                        DateTime? @db.Timestamptz(6)
+  picked_up_confirmed_by_merchant_at  DateTime? @db.Timestamptz(6)
+  out_for_delivery_at                 DateTime? @db.Timestamptz(6)
+  delivered_at                        DateTime? @db.Timestamptz(6)
+  failed_at                           DateTime? @db.Timestamptz(6)
+  failed_reason                       String?   @db.Text
+  cancelled_at                        DateTime? @db.Timestamptz(6)
+  delivery_status                     String    @default("ASSIGNED") @db.VarChar(30)
+  cod_amount_due                      Decimal?  @db.Decimal(12, 2)
+  cod_collected_amount                Decimal?  @db.Decimal(12, 2)
+  cod_collected_at                    DateTime? @db.Timestamptz(6)
+  handover_id                         String?   @db.Uuid
 
-  order            Order           @relation(fields: [order_id], references: [id], onDelete: Restrict)
-  delivery_partner DeliveryPartner @relation(fields: [delivery_partner_id], references: [id], onDelete: Restrict)
-  events           DeliveryEvent[]
+  order               Order               @relation(fields: [order_id], references: [id], onDelete: Restrict)
+  delivery_partner    DeliveryPartner     @relation(fields: [delivery_partner_id], references: [id], onDelete: Restrict)
+  handover            DeliveryCodHandover? @relation(fields: [handover_id], references: [id], onDelete: Restrict)
+  events              DeliveryEvent[]
+  verification        DeliveryVerification?
 
+  @@index([delivery_partner_id, delivery_status])
   @@map("delivery_assignments")
 }
 
@@ -735,6 +752,42 @@ model DeliveryEvent {
   delivery_assignment DeliveryAssignment @relation(fields: [delivery_assignment_id], references: [id], onDelete: Restrict)
 
   @@map("delivery_events")
+}
+
+// ---------------------------------------------------------------------------
+// BC-010 - delivery verification and COD handover reconciliation. Mirrors
+// `PickupVerification`'s structure deliberately but is its own table/secret/cache - see
+// docs/04-design/DELIVERY-MANAGEMENT-DESIGN.md.
+// ---------------------------------------------------------------------------
+
+model DeliveryVerification {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  delivery_assignment_id  String    @unique @db.Uuid
+  code_hash               String    @db.Text
+  expires_at              DateTime  @db.Timestamptz(6)
+  verified_at             DateTime? @db.Timestamptz(6)
+  attempt_count           Int       @default(0)
+  max_attempts            Int       @default(5)
+
+  delivery_assignment DeliveryAssignment @relation(fields: [delivery_assignment_id], references: [id], onDelete: Restrict)
+
+  @@map("delivery_verifications")
+}
+
+model DeliveryCodHandover {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  delivery_partner_id String   @db.Uuid
+  amount              Decimal  @db.Decimal(12, 2)
+  recorded_by         String   @db.Uuid
+  notes               String?  @db.Text
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  delivery_partner DeliveryPartner      @relation(fields: [delivery_partner_id], references: [id], onDelete: Restrict)
+  recorded_by_user User                 @relation(fields: [recorded_by], references: [id], onDelete: Restrict)
+  assignments      DeliveryAssignment[]
+
+  @@index([delivery_partner_id, created_at])
+  @@map("delivery_cod_handovers")
 }
 
 // ---------------------------------------------------------------------------

@@ -65,12 +65,12 @@ For traceability from requirement to task to test, see
 | ----------- | -------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | FR-PICK-001 | Pickup is verified with a one-time code that expires and cannot be reused. | A used or expired pickup code is rejected on a second attempt. | **Implemented** (BC-009; `PickupVerificationService` - hash-only storage, 48h expiry, 5-attempt lockout - see `PICKUP-WORKFLOW-DESIGN.md`) |
 
-## Delivery (Planned)
+## Delivery
 
-| ID         | Requirement                                               | Acceptance criteria                                                                  | Status  |
-| ---------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------- |
-| FR-DEL-001 | Delivery assignment is manual (admin-assigned) at launch. | An order needing delivery appears in an admin queue; no automatic assignment occurs. | Planned |
-| FR-DEL-002 | Delivery completion requires proof (OTP or equivalent).   | An order cannot be marked `DELIVERED` without the proof step succeeding.             | Planned |
+| ID         | Requirement                                               | Acceptance criteria                                                                  | Status                                                                                                                                                                           |
+| ---------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FR-DEL-001 | Delivery assignment is manual (admin-assigned) at launch. | An order needing delivery appears in an admin queue; no automatic assignment occurs. | **Implemented** (BC-010; `DeliveryAssignmentService.listEligibleOrders`/`assign` - no matching algorithm, admin always chooses the partner; see `DELIVERY-MANAGEMENT-DESIGN.md`) |
+| FR-DEL-002 | Delivery completion requires proof (OTP or equivalent).   | An order cannot be marked `DELIVERED` without the proof step succeeding.             | **Implemented** (BC-010; `DeliveryVerificationService` + `DeliveryWorkflowService.completeDelivery` - hash-only one-time code, same cryptographic pattern as `FR-PICK-001`)      |
 
 ## Payments (Planned)
 

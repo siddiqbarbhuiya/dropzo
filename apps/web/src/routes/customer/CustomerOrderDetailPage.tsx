@@ -5,6 +5,7 @@ import { ApiError } from '@dropzo/api-client';
 import { apiClient } from '../../lib/apiClient';
 import { AppShell } from '../layout/AppShell';
 import { OrderStatusBadge } from '../components/OrderStatusBadge';
+import { ErrorText } from '../components/FormPrimitives';
 
 const Section = styled.section`
     border: 1px solid #e2e8f0;
@@ -40,7 +41,24 @@ export function CustomerOrderDetailPage() {
     const pickupCode = useQuery({
         queryKey: ['customer-pickup-code', orderId],
         queryFn: () => apiClient.getOwnPickupCode(orderId!),
-        enabled: !!orderId && order.data?.status === 'READY',
+        enabled:
+            !!orderId && order.data?.status === 'READY' && order.data.fulfilment_type === 'PICKUP',
+        retry: false,
+    });
+
+    const isDelivery = order.data?.fulfilment_type === 'DELIVERY';
+    const deliveryStatus = useQuery({
+        queryKey: ['customer-delivery-status', orderId],
+        queryFn: () => apiClient.getOwnDeliveryStatus(orderId!),
+        enabled: !!orderId && isDelivery,
+        // Delivery status changes are partner-driven, out-of-band - unlike the pickup code, this
+        // is worth polling so the customer sees progress without manually refreshing.
+        refetchInterval: 15_000,
+    });
+    const deliveryCode = useQuery({
+        queryKey: ['customer-delivery-code', orderId],
+        queryFn: () => apiClient.getOwnDeliveryCode(orderId!),
+        enabled: !!orderId && order.data?.status === 'OUT_FOR_DELIVERY',
         retry: false,
     });
 
@@ -85,7 +103,56 @@ export function CustomerOrderDetailPage() {
                 </Section>
             )}
 
-            {data.status === 'READY' && (
+            {isDelivery && (
+                <Section>
+                    <h3>Delivery progress</h3>
+                    {deliveryStatus.isLoading && <p>Loading delivery progress…</p>}
+                    {deliveryStatus.data?.assignment ? (
+                        <>
+                            <p>Delivery status: {deliveryStatus.data.assignment.deliveryStatus}</p>
+                            {deliveryStatus.data.assignment.partnerName && (
+                                <p>
+                                    Delivery partner: {deliveryStatus.data.assignment.partnerName} (
+                                    {deliveryStatus.data.assignment.partnerPhone})
+                                </p>
+                            )}
+                        </>
+                    ) : (
+                        <p>Waiting for a delivery partner to be assigned.</p>
+                    )}
+                    {data.status === 'DELIVERY_FAILED' && (
+                        <ErrorText>
+                            Delivery was unsuccessful. Our support team will contact you shortly.
+                        </ErrorText>
+                    )}
+                    {data.status === 'OUT_FOR_DELIVERY' && (
+                        <>
+                            {deliveryCode.isLoading && <p>Loading your delivery code…</p>}
+                            {deliveryCode.data?.codeAvailable && deliveryCode.data.code && (
+                                <CodeBox>
+                                    <p>
+                                        Share this code with the delivery partner only after you
+                                        receive your order:
+                                    </p>
+                                    <CodeDigits>{deliveryCode.data.code}</CodeDigits>
+                                    <small>
+                                        Expires{' '}
+                                        {new Date(deliveryCode.data.expiresAt).toLocaleString()}
+                                    </small>
+                                </CodeBox>
+                            )}
+                            {deliveryCode.data && !deliveryCode.data.codeAvailable && (
+                                <p>
+                                    Your code was already generated but can&apos;t be shown again
+                                    here. Please contact support for help.
+                                </p>
+                            )}
+                        </>
+                    )}
+                </Section>
+            )}
+
+            {data.status === 'READY' && data.fulfilment_type === 'PICKUP' && (
                 <Section>
                     <h3>Pickup code</h3>
                     {pickupCode.isLoading && <p>Loading your code…</p>}

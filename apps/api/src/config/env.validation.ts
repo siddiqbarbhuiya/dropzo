@@ -21,6 +21,10 @@ const schema = Joi.object({
     // Required since BC-009 - hashes one-time pickup codes (pickup_verifications.code_hash).
     // Deliberately separate from OTP_HASH_SECRET: a different purpose should never share a secret.
     PICKUP_CODE_HASH_SECRET: Joi.string().min(32).required(),
+    // Required since BC-010 - hashes one-time delivery-completion codes
+    // (delivery_verifications.code_hash). Deliberately separate from PICKUP_CODE_HASH_SECRET: a
+    // compromised pickup secret must never also compromise delivery verification.
+    DELIVERY_CODE_HASH_SECRET: Joi.string().min(32).required(),
 
     ACCESS_TOKEN_TTL_SECONDS: Joi.number().integer().positive().default(900),
     REFRESH_TOKEN_TTL_DAYS: Joi.number().integer().positive().default(30),

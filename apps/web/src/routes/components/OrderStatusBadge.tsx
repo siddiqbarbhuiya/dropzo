@@ -6,8 +6,14 @@ const colors: Record<string, { bg: string; fg: string }> = {
     ACCEPTED: { bg: '#fef9c3', fg: '#854d0e' },
     PREPARING: { bg: '#fef9c3', fg: '#854d0e' },
     READY: { bg: '#dcfce7', fg: '#15803d' },
+    ASSIGNED: { bg: '#ede9fe', fg: '#6d28d9' },
+    PICKED_UP: { bg: '#ede9fe', fg: '#6d28d9' },
+    OUT_FOR_DELIVERY: { bg: '#fdf4ff', fg: '#a21caf' },
+    DELIVERED: { bg: '#dcfce7', fg: '#15803d' },
+    DELIVERY_FAILED: { bg: '#fee2e2', fg: '#b91c1c' },
     COMPLETED: { bg: '#dcfce7', fg: '#15803d' },
     REJECTED: { bg: '#fee2e2', fg: '#b91c1c' },
+    FAILED: { bg: '#fee2e2', fg: '#b91c1c' },
     CANCELLED: { bg: '#f1f5f9', fg: '#475569' },
 };
 

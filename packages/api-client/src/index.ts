@@ -35,7 +35,18 @@ export interface PaginatedResult<T> {
 }
 
 export type OrderStatus =
-    'CREATED' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
+    | 'CREATED'
+    | 'ACCEPTED'
+    | 'PREPARING'
+    | 'READY'
+    | 'ASSIGNED'
+    | 'PICKED_UP'
+    | 'OUT_FOR_DELIVERY'
+    | 'DELIVERED'
+    | 'DELIVERY_FAILED'
+    | 'COMPLETED'
+    | 'REJECTED'
+    | 'CANCELLED';
 
 export interface OrderItem {
     id: string;
@@ -74,6 +85,98 @@ export interface CompletePickupResult {
     verified: boolean;
     order?: Order;
     attemptsRemaining?: number;
+}
+
+// --- BC-010: home delivery management ---
+
+export interface DeliveryPartnerUser {
+    id: string;
+    full_name: string | null;
+    phone: string;
+}
+
+export interface DeliveryPartner {
+    id: string;
+    vehicle_type: string | null;
+    is_approved: boolean;
+    is_available: boolean;
+    user: DeliveryPartnerUser;
+}
+
+export type DeliveryStatus =
+    | 'ASSIGNED'
+    | 'ACCEPTED'
+    | 'REJECTED'
+    | 'PICKED_UP'
+    | 'OUT_FOR_DELIVERY'
+    | 'DELIVERED'
+    | 'FAILED'
+    | 'CANCELLED';
+
+export interface DeliveryEvent {
+    id: string;
+    event_type: string;
+    notes: string | null;
+    created_at: string;
+}
+
+export interface DeliveryAssignment {
+    id: string;
+    order_id: string;
+    delivery_status: DeliveryStatus;
+    assigned_at: string;
+    accepted_at: string | null;
+    rejected_at: string | null;
+    rejected_reason: string | null;
+    picked_up_at: string | null;
+    picked_up_confirmed_by_merchant_at: string | null;
+    out_for_delivery_at: string | null;
+    delivered_at: string | null;
+    failed_at: string | null;
+    failed_reason: string | null;
+    cod_amount_due: string | number | null;
+    cod_collected_amount: string | number | null;
+    cod_collected_at: string | null;
+    order?: Order;
+    delivery_partner?: DeliveryPartner;
+    events?: DeliveryEvent[];
+}
+
+export interface DeliveryCodeResponse {
+    expiresAt: string;
+    codeAvailable: boolean;
+    code: string | null;
+}
+
+export interface CompleteDeliveryResult {
+    verified: boolean;
+    order?: Order;
+    attemptsRemaining?: number;
+}
+
+export interface CodSummary {
+    outstandingBalance: string;
+    uncollectedAssignments: Array<{ orderId: string; amount: string; collectedAt: string | null }>;
+}
+
+export interface CodHandover {
+    id: string;
+    delivery_partner_id: string;
+    amount: string | number;
+    notes: string | null;
+    created_at: string;
+}
+
+export interface DeliveryStatusView {
+    orderStatus: OrderStatus;
+    assignment: {
+        deliveryStatus: DeliveryStatus;
+        partnerName: string | null;
+        partnerPhone: string;
+        pickedUpAt: string | null;
+        outForDeliveryAt: string | null;
+        deliveredAt: string | null;
+    } | null;
 }
 
 export interface ApiClientOptions {
@@ -206,6 +309,112 @@ export function createApiClient(baseUrl: string, options?: ApiClientOptions) {
         getOwnOrder: (idOrNumber: string) => getJson<Order>(`/customers/me/orders/${idOrNumber}`),
         getOwnPickupCode: (orderId: string) =>
             getJson<PickupCodeResponse>(`/customers/me/orders/${orderId}/pickup-code`),
+
+        // --- Customer: delivery progress and verification code ---
+        getOwnDeliveryStatus: (orderId: string) =>
+            getJson<DeliveryStatusView>(`/customers/me/orders/${orderId}/delivery-status`),
+        getOwnDeliveryCode: (orderId: string) =>
+            getJson<DeliveryCodeResponse>(`/customers/me/orders/${orderId}/delivery-code`),
+
+        // --- Merchant: delivery handover ---
+        getMerchantDelivery: (storeId: string, orderId: string) =>
+            getJson<DeliveryAssignment>(
+                `/merchants/me/stores/${storeId}/orders/${orderId}/delivery`,
+            ),
+        confirmMerchantHandover: (storeId: string, orderId: string) =>
+            patchJson<DeliveryAssignment>(
+                `/merchants/me/stores/${storeId}/orders/${orderId}/delivery/confirm-handover`,
+            ),
+
+        // --- Admin: delivery-partner management ---
+        createDeliveryPartner: (userId: string, vehicleType?: string) =>
+            postJson<DeliveryPartner>('/admin/delivery-partners', { userId, vehicleType }),
+        listDeliveryPartners: (
+            params: { isActive?: boolean; page?: number; limit?: number } = {},
+        ) =>
+            getJson<PaginatedResult<DeliveryPartner>>(
+                `/admin/delivery-partners?${new URLSearchParams(
+                    params as unknown as Record<string, string>,
+                ).toString()}`,
+            ),
+        getDeliveryPartner: (id: string) =>
+            getJson<DeliveryPartner>(`/admin/delivery-partners/${id}`),
+        activateDeliveryPartner: (id: string) =>
+            patchJson<DeliveryPartner>(`/admin/delivery-partners/${id}/activate`),
+        deactivateDeliveryPartner: (id: string) =>
+            patchJson<DeliveryPartner>(`/admin/delivery-partners/${id}/deactivate`),
+        getDeliveryPartnerCodSummary: (id: string) =>
+            getJson<CodSummary>(`/admin/delivery-partners/${id}/cod-summary`),
+        listDeliveryPartnerHandovers: (
+            id: string,
+            params: { page?: number; limit?: number } = {},
+        ) =>
+            getJson<PaginatedResult<CodHandover>>(
+                `/admin/delivery-partners/${id}/cod-handovers?${new URLSearchParams(
+                    params as unknown as Record<string, string>,
+                ).toString()}`,
+            ),
+
+        // --- Admin: manual delivery assignment ---
+        listEligibleDeliveryOrders: (params: { page?: number; limit?: number } = {}) =>
+            getJson<PaginatedResult<Order>>(
+                `/admin/delivery-assignments/eligible-orders?${new URLSearchParams(
+                    params as Record<string, string>,
+                ).toString()}`,
+            ),
+        getDeliveryAssignment: (orderId: string) =>
+            getJson<DeliveryAssignment>(`/admin/delivery-assignments/${orderId}`),
+        assignDelivery: (orderId: string, deliveryPartnerId: string) =>
+            postJson<DeliveryAssignment>(`/admin/delivery-assignments/${orderId}/assign`, {
+                deliveryPartnerId,
+            }),
+        cancelDeliveryAssignment: (orderId: string, reason: string) =>
+            patchJson<DeliveryAssignment>(`/admin/delivery-assignments/${orderId}/cancel`, {
+                reason,
+            }),
+        recordCodHandover: (deliveryPartnerId: string, orderIds: string[], notes?: string) =>
+            postJson<CodHandover>('/admin/delivery-assignments/cod-handovers', {
+                deliveryPartnerId,
+                orderIds,
+                notes,
+            }),
+        listCodHandovers: (params: { page?: number; limit?: number } = {}) =>
+            getJson<PaginatedResult<CodHandover>>(
+                `/admin/delivery-assignments/cod-handovers?${new URLSearchParams(
+                    params as Record<string, string>,
+                ).toString()}`,
+            ),
+
+        // --- Delivery partner: own profile and workflow ---
+        getOwnDeliveryProfile: () => getJson<DeliveryPartner>('/delivery-partners/me/profile'),
+        setOwnAvailability: (isAvailable: boolean) =>
+            patchJson<DeliveryPartner>('/delivery-partners/me/availability', { isAvailable }),
+        getOwnCurrentAssignment: () =>
+            getJson<DeliveryAssignment | null>('/delivery-partners/me/assignments/current'),
+        getOwnCodSummary: () => getJson<CodSummary>('/delivery-partners/me/cod-summary'),
+        getOwnAssignment: (orderId: string) =>
+            getJson<DeliveryAssignment>(`/delivery-partners/me/assignments/${orderId}`),
+        acceptAssignment: (orderId: string) =>
+            patchJson<DeliveryAssignment>(`/delivery-partners/me/assignments/${orderId}/accept`),
+        rejectAssignment: (orderId: string, reason: string) =>
+            patchJson<DeliveryAssignment>(`/delivery-partners/me/assignments/${orderId}/reject`, {
+                reason,
+            }),
+        collectAssignment: (orderId: string) =>
+            patchJson<DeliveryAssignment>(`/delivery-partners/me/assignments/${orderId}/collect`),
+        markOutForDelivery: (orderId: string) =>
+            patchJson<DeliveryAssignment>(
+                `/delivery-partners/me/assignments/${orderId}/out-for-delivery`,
+            ),
+        verifyDeliveryCode: (orderId: string, code: string) =>
+            postJson<CompleteDeliveryResult>(
+                `/delivery-partners/me/assignments/${orderId}/verify-delivery`,
+                { code },
+            ),
+        reportDeliveryFailure: (orderId: string, reason: string) =>
+            patchJson<DeliveryAssignment>(`/delivery-partners/me/assignments/${orderId}/fail`, {
+                reason,
+            }),
     };
 }
 

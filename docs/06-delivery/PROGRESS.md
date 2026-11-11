@@ -1925,3 +1925,85 @@ and the deterministic seed re-run cleanly afterward.
 
 Not yet committed or pushed, per the task's explicit instruction - the working tree is left for the
 owner's review and authorization.
+
+## BC-010 — Home delivery management
+
+Implements the full home-delivery lifecycle BC-009 deliberately excluded: admin-controlled manual
+assignment (ADR-0010), delivery-partner onboarding/activation, the partner's own
+accept/reject/collect/out-for-delivery/verify/fail workflow, hash-only one-time delivery
+verification codes, the delivery-fee ledger leg `DATABASE-DESIGN.md` had left open, and COD
+cash-handover reconciliation. Design: `DELIVERY-MANAGEMENT-DESIGN.md`, `DELIVERY-PARTNER-DESIGN.md`,
+`COD-DELIVERY-RECONCILIATION-DESIGN.md`.
+
+**No table-creation migration needed for the core tables.** `delivery_partners`,
+`delivery_assignments`, `delivery_events`, `service_zones`, and the `order_status` enum values this
+milestone needed (`ASSIGNED`, `PICKED_UP`, `OUT_FOR_DELIVERY`, `DELIVERED`, `DELIVERY_FAILED`) were
+all already modeled by BC-004 and left completely unused until now - confirmed by direct schema
+inspection before writing any code, same discipline BC-009 followed. Three small, additive
+migrations: `20261111115032_bc010_delivery_workflow` (new columns on `delivery_assignments` for the
+full lifecycle/COD tracking, two new tables - `delivery_verifications`, `delivery_cod_handovers` -
+a `CHECK` constraint on `delivery_status`, and a partial unique index enforcing one active
+assignment per partner), `20261111120500_bc010_delivery_payment_source_check` (adds
+`'DELIVERY_PARTNER'` to `payment_status_history.source`, the same kind of gap BC-009 found for
+`'MERCHANT'`), and `20261111120600_bc010_delivery_grants` (see "Two real bugs found" below).
+
+**New services** (`apps/api/src/delivery/`): `DeliveryPartnerService` (onboarding/activation,
+reuses `is_approved` as the single active flag rather than a separate KYC pipeline),
+`DeliveryAssignmentService` (admin eligible-queue/assign/reassign/cancel - one `DeliveryAssignment`
+row per order, reused across reassignments; a partner's one-active-assignment limit is DB-enforced
+via a partial unique index, not just application logic), `DeliveryWorkflowService` (the partner's
+own compare-and-swap state machine, reusing `MerchantOrdersService.transition()`'s exact pattern;
+`completeDelivery` atomically verifies the code, consumes the reservation, captures COD, posts the
+ledger, and transitions the order `OUT_FOR_DELIVERY -> DELIVERED -> COMPLETED` in one transaction -
+mirrors `completePickup` precisely), `DeliveryVerificationService` (structurally mirrors
+`PickupVerificationService` - same `randomInt`/HMAC-SHA256/`timingSafeEqual`/row-lock pattern - but
+its own table, its own `DELIVERY_CODE_HASH_SECRET`, its own in-memory plaintext cache), and
+`DeliveryCodService` (derives a partner's cash-in-custody balance from collection records, never a
+stored counter; records handovers with duplicate/not-yet-collected/wrong-partner validation).
+`LedgerService` gained `postDeliveryCodCollection` - the delivery partner always collects the cash
+at the doorstep, so gross (including delivery fee) enters `COD_CASH_CLEARING` exactly like pickup
+COD; the delivery fee itself is a separate `PLATFORM_DELIVERY_REVENUE` credit, never commissioned.
+
+**Two real bugs found and fixed while building this task's own integration tests** (neither
+previously discovered, since no earlier task's tests exercised these code paths):
+
+1. `StoreService.createStore`'s raw SQL `INSERT` passed `serviceZoneId` without a `::uuid` cast -
+   fails the instant any caller actually supplies a service zone (every pre-BC-010 test created
+   stores with no service zone at all). One-line fix.
+2. The restricted runtime role (`dropzo_app`, which `PrismaService` actually connects as) had no
+   privileges on the two new tables - the init migration's blanket `GRANT ... ON ALL TABLES`
+   covers only tables that existed at that migration's own run time, the exact situation BC-005
+   found for `otp_challenges`. Fixed with an explicit `GRANT` migration, following that precedent.
+
+**Frontend**: first admin UI in the web app - `routes/admin/AdminDeliveryPartnersPage`,
+`AdminDeliveryQueuePage`, `AdminCodHandoverPage`; a new `routes/delivery-partner/
+DeliveryPartnerInboxPage` (a single screen suffices - a partner has at most one active assignment
+at a time, DB-enforced); delivery sections added to the existing `MerchantOrderDetailPage` and
+`CustomerOrderDetailPage`; `LandingRedirect` gained `ADMIN`/`DELIVERY_PARTNER` branches. A small
+shared-primitives file (`routes/components/FormPrimitives.tsx`) was extracted from
+`MerchantOrderDetailPage`'s original inline styled-components - the app's first shared UI
+primitives, motivated directly by this task's ~8 new pages.
+
+**Testing**: 7 new unit tests (`ledger.service.spec.ts`, covering the balanced delivery-fee leg,
+never commissioning the delivery fee, and omitting the leg when there is no delivery fee) plus a
+21-test real-database integration suite (`delivery.integration-spec.ts`) covering partner
+onboarding/activation, pickup/delivery exclusivity, concurrency-safe assignment (two admins racing,
+one partner double-booked), reassignment-with-preserved-history after a rejection, admin
+cancellation, ownership isolation (a partner can't see or act on another partner's assignment),
+the full accept/collect/out-for-delivery/verify lifecycle, hash-only code storage, customer
+code-visibility rules, concurrent double-verification safety, cross-partner verification rejection,
+failed-delivery handling (no reservation release, no payment change, reassignable afterward), COD
+handover reconciliation (balance reduction, duplicate-handover rejection, not-yet-collected
+rejection), and a regression check that plain pickup-COD accounting is unchanged (still exactly 2
+ledger legs, no delivery-fee leg). Full local verification: format/lint/typecheck/build pass across
+every workspace (API, web, both shared packages); the full existing suite (23 unit test files,
+all pre-existing integration suites) was re-run and still passes with no regressions; the new
+migrations were applied to both `dropzo` and `dropzo_test`.
+
+FR-ADM-002 (admin-configurable commission/delivery-fee **rules**) stays out of scope - this task
+implements the delivery-fee _accounting_ the design already specified, not a configuration screen
+for the rates themselves; `ROADMAP.md`'s "next" item is updated to reflect that distinction rather
+than silently expanding this task's scope to cover it.
+
+Not committed or pushed, per the task's explicit instruction - the working tree is left for the
+owner's review and authorization.

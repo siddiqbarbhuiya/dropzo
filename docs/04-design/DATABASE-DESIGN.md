@@ -208,6 +208,8 @@ merchant-owned inventory at launch, still COD-first, still no microservices.
 | Fulfilment    | `delivery_partners`             | MVP-required                   | Delivery partner profile                             |
 | Fulfilment    | `delivery_assignments`          | MVP-required                   | Partner-to-order assignment                          |
 | Fulfilment    | `delivery_events`               | MVP-required                   | Append-only delivery status trail                    |
+| Fulfilment    | `delivery_verifications`        | **MVP-required (new, BC-010)** | Hashed, expiring delivery-completion codes           |
+| Fulfilment    | `delivery_cod_handovers`        | **MVP-required (new, BC-010)** | Recorded cash handovers from delivery partners       |
 | Finance       | `financial_accounts`            | **MVP-required (new)**         | The MVP chart of accounts                            |
 | Finance       | `ledger_transactions`           | **MVP-required (new)**         | A balanced group of ledger entries                   |
 | Finance       | `ledger_entries`                | MVP-required (redesigned)      | Individual debit/credit journal lines                |
@@ -288,6 +290,9 @@ erDiagram
 
     DELIVERY_PARTNERS ||--o{ DELIVERY_ASSIGNMENTS : receives
     DELIVERY_ASSIGNMENTS ||--o{ DELIVERY_EVENTS : logs
+    DELIVERY_ASSIGNMENTS ||--o| DELIVERY_VERIFICATIONS : verified_by
+    DELIVERY_PARTNERS ||--o{ DELIVERY_COD_HANDOVERS : hands_over
+    DELIVERY_COD_HANDOVERS ||--o{ DELIVERY_ASSIGNMENTS : settles
 
     FINANCIAL_ACCOUNTS ||--o{ LEDGER_ENTRIES : posted_to
     LEDGER_TRANSACTIONS ||--|{ LEDGER_ENTRIES : contains
@@ -835,7 +840,8 @@ Unchanged.
 
 #### `delivery_partners` — MVP-required
 
-Unchanged.
+Unchanged — `is_approved` is reused by BC-010 as the single admin-controlled active/inactive flag
+(no new column added; see `DELIVERY-PARTNER-DESIGN.md`).
 
 | Column         | Type        | Null     | Default             | Notes                                        |
 | -------------- | ----------- | -------- | ------------------- | -------------------------------------------- |
@@ -848,29 +854,71 @@ Unchanged.
 
 #### `delivery_assignments` — MVP-required
 
-Unchanged.
+**Extended in BC-010** (additive only — see migration `20261111115032_bc010_delivery_workflow`).
+One row per order (`UNIQUE(order_id)` unchanged) — reassignment reuses this same row rather than
+creating a new one; see `DELIVERY-MANAGEMENT-DESIGN.md`.
 
-| Column                | Type        | Null     | Default             | Notes                                            |
-| --------------------- | ----------- | -------- | ------------------- | ------------------------------------------------ |
-| `id`                  | UUID        | NOT NULL | `gen_random_uuid()` | PK                                               |
-| `order_id`            | UUID        | NOT NULL | —                   | FK → `orders.id` `ON DELETE RESTRICT`, UNIQUE    |
-| `delivery_partner_id` | UUID        | NOT NULL | —                   | FK → `delivery_partners.id` `ON DELETE RESTRICT` |
-| `assigned_at`         | TIMESTAMPTZ | NOT NULL | `NOW()`             | manual, per ADR-0010                             |
-| `picked_up_at`        | TIMESTAMPTZ | NULL     | —                   |                                                  |
-| `delivered_at`        | TIMESTAMPTZ | NULL     | —                   |                                                  |
-| `delivery_status`     | VARCHAR(30) | NOT NULL | `'ASSIGNED'`        |                                                  |
+| Column                               | Type               | Null     | Default             | Notes                                                                                                              |
+| ------------------------------------ | ------------------ | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `id`                                 | UUID               | NOT NULL | `gen_random_uuid()` | PK                                                                                                                 |
+| `order_id`                           | UUID               | NOT NULL | —                   | FK → `orders.id` `ON DELETE RESTRICT`, UNIQUE                                                                      |
+| `delivery_partner_id`                | UUID               | NOT NULL | —                   | FK → `delivery_partners.id` `ON DELETE RESTRICT`                                                                   |
+| `assigned_at`                        | TIMESTAMPTZ        | NOT NULL | `NOW()`             | manual, per ADR-0010                                                                                               |
+| `accepted_at`                        | TIMESTAMPTZ        | NULL     | —                   | BC-010                                                                                                             |
+| `rejected_at` / `rejected_reason`    | TIMESTAMPTZ / TEXT | NULL     | —                   | BC-010                                                                                                             |
+| `picked_up_at`                       | TIMESTAMPTZ        | NULL     | —                   |                                                                                                                    |
+| `picked_up_confirmed_by_merchant_at` | TIMESTAMPTZ        | NULL     | —                   | BC-010 — informational only, never drives a status transition                                                      |
+| `out_for_delivery_at`                | TIMESTAMPTZ        | NULL     | —                   | BC-010                                                                                                             |
+| `delivered_at`                       | TIMESTAMPTZ        | NULL     | —                   |                                                                                                                    |
+| `failed_at` / `failed_reason`        | TIMESTAMPTZ / TEXT | NULL     | —                   | BC-010                                                                                                             |
+| `cancelled_at`                       | TIMESTAMPTZ        | NULL     | —                   | BC-010                                                                                                             |
+| `delivery_status`                    | VARCHAR(30)        | NOT NULL | `'ASSIGNED'`        | `CHECK` added in BC-010: `ASSIGNED, ACCEPTED, REJECTED, PICKED_UP, OUT_FOR_DELIVERY, DELIVERED, FAILED, CANCELLED` |
+| `cod_amount_due`                     | NUMERIC(12,2)      | NULL     | —                   | BC-010 — snapshot of `orders.total_amount` at assignment time                                                      |
+| `cod_collected_amount`               | NUMERIC(12,2)      | NULL     | —                   | BC-010 — set atomically with delivery completion                                                                   |
+| `cod_collected_at`                   | TIMESTAMPTZ        | NULL     | —                   | BC-010                                                                                                             |
+| `handover_id`                        | UUID               | NULL     | —                   | BC-010 — FK → `delivery_cod_handovers.id` `ON DELETE RESTRICT`                                                     |
+
+A partial unique index (`uq_delivery_assignments_partner_active`, BC-010) enforces at most one
+active (`ASSIGNED`/`ACCEPTED`/`PICKED_UP`/`OUT_FOR_DELIVERY`) assignment per
+`delivery_partner_id` — DB-enforced, not just application logic.
 
 #### `delivery_events` — MVP-required
 
 Unchanged.
 
-| Column                   | Type        | Null     | Default             | Notes                                                              |
-| ------------------------ | ----------- | -------- | ------------------- | ------------------------------------------------------------------ |
-| `id`                     | UUID        | NOT NULL | `gen_random_uuid()` | PK                                                                 |
-| `delivery_assignment_id` | UUID        | NOT NULL | —                   | FK → `delivery_assignments.id` `ON DELETE RESTRICT`                |
-| `event_type`             | VARCHAR(40) | NOT NULL | —                   | `ASSIGNED`, `PICKED_UP`, `OUT_FOR_DELIVERY`, `DELIVERED`, `FAILED` |
-| `notes`                  | TEXT        | NULL     | —                   |                                                                    |
-| `created_at`             | TIMESTAMPTZ | NOT NULL | `NOW()`             |                                                                    |
+| Column                   | Type        | Null     | Default             | Notes                                                                                                                 |
+| ------------------------ | ----------- | -------- | ------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `id`                     | UUID        | NOT NULL | `gen_random_uuid()` | PK                                                                                                                    |
+| `delivery_assignment_id` | UUID        | NOT NULL | —                   | FK → `delivery_assignments.id` `ON DELETE RESTRICT`                                                                   |
+| `event_type`             | VARCHAR(40) | NOT NULL | —                   | `ASSIGNED`, `REASSIGNED`, `ACCEPTED`, `REJECTED`, `PICKED_UP`, `OUT_FOR_DELIVERY`, `DELIVERED`, `FAILED`, `CANCELLED` |
+| `notes`                  | TEXT        | NULL     | —                   |                                                                                                                       |
+| `created_at`             | TIMESTAMPTZ | NOT NULL | `NOW()`             |                                                                                                                       |
+
+#### `delivery_verifications` — MVP-required (new, BC-010)
+
+Structurally mirrors `pickup_verifications`, but its own table/secret — see
+`DELIVERY-MANAGEMENT-DESIGN.md`.
+
+| Column                   | Type        | Null     | Default             | Notes                                                       |
+| ------------------------ | ----------- | -------- | ------------------- | ----------------------------------------------------------- |
+| `id`                     | UUID        | NOT NULL | `gen_random_uuid()` | PK                                                          |
+| `delivery_assignment_id` | UUID        | NOT NULL | —                   | FK → `delivery_assignments.id` `ON DELETE RESTRICT`, UNIQUE |
+| `code_hash`              | TEXT        | NOT NULL | —                   | hashed                                                      |
+| `expires_at`             | TIMESTAMPTZ | NOT NULL | —                   |                                                             |
+| `verified_at`            | TIMESTAMPTZ | NULL     | —                   |                                                             |
+| `attempt_count`          | INTEGER     | NOT NULL | `0`                 |                                                             |
+| `max_attempts`           | INTEGER     | NOT NULL | `5`                 |                                                             |
+
+#### `delivery_cod_handovers` — MVP-required (new, BC-010)
+
+| Column                | Type          | Null     | Default             | Notes                                              |
+| --------------------- | ------------- | -------- | ------------------- | -------------------------------------------------- |
+| `id`                  | UUID          | NOT NULL | `gen_random_uuid()` | PK                                                 |
+| `delivery_partner_id` | UUID          | NOT NULL | —                   | FK → `delivery_partners.id` `ON DELETE RESTRICT`   |
+| `amount`              | NUMERIC(12,2) | NOT NULL | —                   | sum of the included assignments' collected amounts |
+| `recorded_by`         | UUID          | NOT NULL | —                   | FK → `users.id` `ON DELETE RESTRICT` (the admin)   |
+| `notes`               | TEXT          | NULL     | —                   |                                                    |
+| `created_at`          | TIMESTAMPTZ   | NOT NULL | `NOW()`             |                                                    |
 
 ### Finance
 
@@ -1126,14 +1174,14 @@ a deferred constraint trigger (see the `ledger_entries` table spec) — not mere
 
 ### What posts, and when
 
-| Event                               | When it posts                                                                                                                                       | Entries                                                                                                                                                 |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Order sale (COD)                    | When `orders.status` transitions to `COMPLETED` — **this is the point money is recognised for COD**, since that's when cash is physically collected | `DEBIT COD_CASH_CLEARING` (cash now held, pending reconciliation), `CREDIT MERCHANT_PAYABLE` (gross amount owed to merchant)                            |
-| Order sale (online payment, future) | When `payments.status` transitions to `CAPTURED`                                                                                                    | `DEBIT PLATFORM_CASH`, `CREDIT MERCHANT_PAYABLE`                                                                                                        |
-| Commission recognition              | Same transaction as the order sale                                                                                                                  | `DEBIT MERCHANT_PAYABLE` (reduces what's owed), `CREDIT PLATFORM_COMMISSION_REVENUE`                                                                    |
-| Delivery fee recognition            | Same transaction, if `fulfilment_type = DELIVERY`                                                                                                   | `DEBIT MERCHANT_PAYABLE` or `COD_CASH_CLEARING` depending on who collects it, `CREDIT PLATFORM_DELIVERY_REVENUE`                                        |
-| Refund                              | On `refunds.status` → `COMPLETED`                                                                                                                   | Proportional reversal of the original sale/commission entries — see "Partial refunds" below                                                             |
-| Settlement payout                   | When a settlement is generated and marked paid                                                                                                      | `DEBIT MERCHANT_PAYABLE`, `CREDIT PLATFORM_CASH` (or `COD_CASH_CLEARING`, if the payout nets against cash the merchant already collected and owes back) |
+| Event                               | When it posts                                                                                                                                       | Entries                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Order sale (COD)                    | When `orders.status` transitions to `COMPLETED` — **this is the point money is recognised for COD**, since that's when cash is physically collected | `DEBIT COD_CASH_CLEARING` (cash now held, pending reconciliation), `CREDIT MERCHANT_PAYABLE` (gross amount owed to merchant)                                                                                                                                                                                                                                                                                 |
+| Order sale (online payment, future) | When `payments.status` transitions to `CAPTURED`                                                                                                    | `DEBIT PLATFORM_CASH`, `CREDIT MERCHANT_PAYABLE`                                                                                                                                                                                                                                                                                                                                                             |
+| Commission recognition              | Same transaction as the order sale                                                                                                                  | `DEBIT MERCHANT_PAYABLE` (reduces what's owed), `CREDIT PLATFORM_COMMISSION_REVENUE`                                                                                                                                                                                                                                                                                                                         |
+| Delivery fee recognition            | Same transaction, if `fulfilment_type = DELIVERY`                                                                                                   | **Resolved in BC-010** (`LedgerService.postDeliveryCodCollection`): the delivery partner always collects the cash at the doorstep, so the full gross amount (merchandise + delivery fee) is `DEBIT COD_CASH_CLEARING`; `CREDIT MERCHANT_PAYABLE` for the merchandise amount only, `CREDIT PLATFORM_DELIVERY_REVENUE` for the delivery fee (never commissioned). See `COD-DELIVERY-RECONCILIATION-DESIGN.md`. |
+| Refund                              | On `refunds.status` → `COMPLETED`                                                                                                                   | Proportional reversal of the original sale/commission entries — see "Partial refunds" below                                                                                                                                                                                                                                                                                                                  |
+| Settlement payout                   | When a settlement is generated and marked paid                                                                                                      | `DEBIT MERCHANT_PAYABLE`, `CREDIT PLATFORM_CASH` (or `COD_CASH_CLEARING`, if the payout nets against cash the merchant already collected and owes back)                                                                                                                                                                                                                                                      |
 
 Every entry above is a single `ledger_transactions` row with its constituent `ledger_entries` rows
 — never a bare, ungrouped insert.

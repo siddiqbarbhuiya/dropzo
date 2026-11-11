@@ -17,6 +17,7 @@ import { CartModule } from './cart/cart.module.js';
 import { CheckoutModule } from './checkout/checkout.module.js';
 import { OrdersModule } from './orders/orders.module.js';
 import { FulfilmentModule } from './fulfilment/fulfilment.module.js';
+import { DeliveryModule } from './delivery/delivery.module.js';
 
 // process.cwd() is apps/api regardless of how `nest start`/Jest/Nx invoke this app, so the
 // repository-root .env (the single source of truth documented in DEVELOPMENT-SETUP.md) is
@@ -44,6 +45,7 @@ const repoRootEnvPath = resolve(__dirname, '..', '..', '..', '.env');
         CheckoutModule,
         OrdersModule,
         FulfilmentModule,
+        DeliveryModule,
         HealthModule,
     ],
 })

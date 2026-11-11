@@ -6,6 +6,10 @@ import { CustomerOrdersPage } from './routes/customer/CustomerOrdersPage';
 import { CustomerOrderDetailPage } from './routes/customer/CustomerOrderDetailPage';
 import { MerchantOrdersPage } from './routes/merchant/MerchantOrdersPage';
 import { MerchantOrderDetailPage } from './routes/merchant/MerchantOrderDetailPage';
+import { AdminDeliveryPartnersPage } from './routes/admin/AdminDeliveryPartnersPage';
+import { AdminDeliveryQueuePage } from './routes/admin/AdminDeliveryQueuePage';
+import { AdminCodHandoverPage } from './routes/admin/AdminCodHandoverPage';
+import { DeliveryPartnerInboxPage } from './routes/delivery-partner/DeliveryPartnerInboxPage';
 
 export function App() {
     return (
@@ -41,6 +45,38 @@ export function App() {
                 element={
                     <RequireAuth role="MERCHANT_OWNER">
                         <MerchantOrderDetailPage />
+                    </RequireAuth>
+                }
+            />
+            <Route
+                path="/admin/delivery-partners"
+                element={
+                    <RequireAuth role="ADMIN">
+                        <AdminDeliveryPartnersPage />
+                    </RequireAuth>
+                }
+            />
+            <Route
+                path="/admin/delivery-partners/:partnerId/cod"
+                element={
+                    <RequireAuth role="ADMIN">
+                        <AdminCodHandoverPage />
+                    </RequireAuth>
+                }
+            />
+            <Route
+                path="/admin/delivery-queue"
+                element={
+                    <RequireAuth role="ADMIN">
+                        <AdminDeliveryQueuePage />
+                    </RequireAuth>
+                }
+            />
+            <Route
+                path="/delivery/inbox"
+                element={
+                    <RequireAuth role="DELIVERY_PARTNER">
+                        <DeliveryPartnerInboxPage />
                     </RequireAuth>
                 }
             />

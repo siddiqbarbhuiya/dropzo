@@ -99,7 +99,7 @@ export class StoreService {
                 ${dto.locality ?? null}, ${dto.district}, ${dto.city},
                 ${dto.state ?? 'Assam'}, ${dto.postalCode ?? null},
                 ST_SetSRID(ST_MakePoint(${dto.longitude}, ${dto.latitude}), 4326)::geography,
-                ${dto.timezone ?? 'Asia/Kolkata'}, ${dto.serviceZoneId ?? null},
+                ${dto.timezone ?? 'Asia/Kolkata'}, ${dto.serviceZoneId ?? null}::uuid,
                 ${dto.supportsPickup ?? true}, ${dto.supportsDelivery ?? false},
                 ${JSON.stringify(dto.openingHours ?? {})}::jsonb, 'PENDING'
             )

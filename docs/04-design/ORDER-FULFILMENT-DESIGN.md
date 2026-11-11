@@ -9,10 +9,15 @@ collecting cash against a verified one-time pickup code. See
 and `DATABASE-DESIGN.md`'s "What posts, and when" table for the accounting side this doc's
 `completePickup` step triggers.
 
-Scope is deliberately narrow, per the task's explicit exclusions: no delivery-partner
-onboarding/assignment/GPS/routing, no online payment gateways/webhooks, no loyalty/coupons/
-subscriptions, no multi-store checkout, no new infrastructure (Redis/Kafka/Kubernetes). This
-milestone is pickup-only - a delivery order's fulfilment flow is a later milestone's concern.
+Scope was deliberately narrow at the time, per the task's explicit exclusions: no online payment
+gateways/webhooks, no loyalty/coupons/subscriptions, no multi-store checkout, no new infrastructure
+(Redis/Kafka/Kubernetes). This milestone was pickup-only - delivery-partner onboarding, manual
+assignment, the partner workflow, and the delivery-fee ledger leg were explicitly out of scope and
+have since been built in BC-010 - see
+[`DELIVERY-MANAGEMENT-DESIGN.md`](DELIVERY-MANAGEMENT-DESIGN.md),
+[`DELIVERY-PARTNER-DESIGN.md`](DELIVERY-PARTNER-DESIGN.md), and
+[`COD-DELIVERY-RECONCILIATION-DESIGN.md`](COD-DELIVERY-RECONCILIATION-DESIGN.md). Everything below
+still describes the pickup path exactly as BC-009 built it - it is unchanged by BC-010.
 
 ## Order status lifecycle
 
@@ -155,8 +160,10 @@ service's own concurrency/security guarantees):
    `ledger_transactions` row containing `DEBIT COD_CASH_CLEARING` / `CREDIT MERCHANT_PAYABLE`
    (gross) and, in the **same** transaction, `DEBIT MERCHANT_PAYABLE` / `CREDIT
 PLATFORM_COMMISSION_REVENUE` (commission, using the merchant's own `commission_percent` -
-   already a schema field with an 8% default, no new column). No delivery-fee leg - this milestone
-   is pickup-only.
+   already a schema field with an 8% default, no new column). No delivery-fee leg here - a pickup
+   order's `delivery_fee` is always `0`; the delivery-fee leg for home delivery is
+   `LedgerService.postDeliveryCodCollection`, added in BC-010 (see
+   `COD-DELIVERY-RECONCILIATION-DESIGN.md`) and never used by this pickup path.
 6. `order_status_history` (`READY -> COMPLETED`, `reason: 'Pickup code verified.'`), an audit
    record (`ORDER_PICKUP_COMPLETED`), and an `ORDER_COMPLETED` outbox event.
 
@@ -197,8 +204,10 @@ application code in the repository to use this table - see `PICKUP-WORKFLOW-DESI
 
 ## Scope boundary (explicit exclusions, per the task)
 
-No delivery-partner onboarding/assignment/GPS/routing (pickup-only), no online payment gateway/
-webhooks, no advanced analytics, no loyalty/coupons/subscriptions, no multi-store checkout, no
-microservices/Redis/Kafka/Kubernetes, no native mobile apps, no admin UI for changing
-`commission_percent` (the column and its default already exist; an admin-configuration screen is
-FR-ADM-002, still Planned). These are later milestones, not gaps in this one.
+No online payment gateway/webhooks, no advanced analytics, no loyalty/coupons/subscriptions, no
+multi-store checkout, no microservices/Redis/Kafka/Kubernetes, no native mobile apps, no admin UI
+for changing `commission_percent` (the column and its default already exist; an admin-configuration
+screen is FR-ADM-002, still Planned). Delivery-partner onboarding/assignment/workflow, previously
+excluded here, is now implemented - see `DELIVERY-MANAGEMENT-DESIGN.md`. GPS/live-tracking/route
+optimization remain excluded there too (per ADR-0010). These are later milestones, not gaps in this
+one.

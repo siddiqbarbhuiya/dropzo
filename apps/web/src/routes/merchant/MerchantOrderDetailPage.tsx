@@ -1,56 +1,19 @@
 import { useState } from 'react';
-import styled from 'styled-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { ApiError } from '@dropzo/api-client';
 import { apiClient } from '../../lib/apiClient';
 import { AppShell } from '../layout/AppShell';
 import { OrderStatusBadge } from '../components/OrderStatusBadge';
-
-const Section = styled.section`
-    border: 1px solid #e2e8f0;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
-`;
-
-const ActionRow = styled.div`
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-`;
-
-const Button = styled.button`
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    border: none;
-    background: #15803d;
-    color: white;
-    cursor: pointer;
-
-    &:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-    }
-`;
-
-const DangerButton = styled(Button)`
-    background: #b91c1c;
-`;
-
-const Field = styled.input`
-    padding: 0.5rem;
-    border-radius: 0.375rem;
-    border: 1px solid #cbd5e1;
-`;
-
-const ErrorText = styled.p`
-    color: #b91c1c;
-`;
-
-const SuccessText = styled.p`
-    color: #15803d;
-`;
+import {
+    ActionRow,
+    Button,
+    DangerButton,
+    ErrorText,
+    Field,
+    Section,
+    SuccessText,
+} from '../components/FormPrimitives';
 
 export function MerchantOrderDetailPage() {
     const { storeId, orderId } = useParams<{ storeId: string; orderId: string }>();
@@ -66,10 +29,23 @@ export function MerchantOrderDetailPage() {
         enabled: !!storeId && !!orderId,
     });
 
+    const delivery = useQuery({
+        queryKey: ['merchant-delivery', storeId, orderId],
+        queryFn: () => apiClient.getMerchantDelivery(storeId!, orderId!),
+        enabled: !!storeId && !!orderId && order.data?.fulfilment_type === 'DELIVERY',
+        retry: false,
+    });
+
     function invalidate() {
         queryClient.invalidateQueries({ queryKey: ['merchant-order', storeId, orderId] });
         queryClient.invalidateQueries({ queryKey: ['merchant-orders', storeId] });
+        queryClient.invalidateQueries({ queryKey: ['merchant-delivery', storeId, orderId] });
     }
+
+    const confirmHandover = useMutation({
+        mutationFn: () => apiClient.confirmMerchantHandover(storeId!, orderId!),
+        onSuccess: invalidate,
+    });
 
     const accept = useMutation({
         mutationFn: () => apiClient.acceptOrder(storeId!, orderId!),
@@ -221,6 +197,37 @@ export function MerchantOrderDetailPage() {
                 )}
                 {verifyMessage && <SuccessText>{verifyMessage}</SuccessText>}
             </Section>
+
+            {data.fulfilment_type === 'DELIVERY' && (
+                <Section>
+                    <h3>Delivery</h3>
+                    {delivery.isLoading && <p>Loading delivery status…</p>}
+                    {delivery.isError && <p>No delivery partner assigned yet.</p>}
+                    {delivery.data && (
+                        <>
+                            <p>
+                                Partner: {delivery.data.delivery_partner?.user.full_name ?? '—'} (
+                                {delivery.data.delivery_partner?.user.phone})
+                            </p>
+                            <p>Delivery status: {delivery.data.delivery_status}</p>
+                            {delivery.data.picked_up_confirmed_by_merchant_at ? (
+                                <SuccessText>Handover to partner confirmed.</SuccessText>
+                            ) : (
+                                delivery.data.delivery_status !== 'ASSIGNED' && (
+                                    <ActionRow>
+                                        <Button
+                                            disabled={confirmHandover.isPending}
+                                            onClick={() => confirmHandover.mutate()}
+                                        >
+                                            Confirm handover to partner
+                                        </Button>
+                                    </ActionRow>
+                                )
+                            )}
+                        </>
+                    )}
+                </Section>
+            )}
 
             {data.status_history && data.status_history.length > 0 && (
                 <Section>
