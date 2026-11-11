@@ -29,6 +29,7 @@ they're project-specific, not a general-purpose or plugin-provided skill.
 | `dropzo-frontend-e2e`      | React development, accessibility, Playwright end-to-end testing (`apps/web`)            | `CODING-STANDARDS.md`, `TESTING-STRATEGY.md`                           |
 | `dropzo-docs-and-adr`      | Documentation synchronization, requirements traceability, ADR governance                | `DOCUMENTATION-STANDARDS.md`, `03-decisions/`                          |
 | `dropzo-release-readiness` | Pre-merge/pre-commit completion gate                                                    | `AGENTS.md` ("after implementation")                                   |
+| `dropzo-stitch-to-react`   | 1:1 Stitch HTML/screenshot to React translation without layout distortion               | `STITCH-DESIGN-AUDIT.md`, `UI-SCREEN-COVERAGE.md`                      |
 
 This covers the twelve originally-requested workflows, consolidated into nine skills where two
 workflows are tightly coupled in practice (Prisma schema work with its concurrency tests; React

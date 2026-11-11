@@ -2,7 +2,7 @@ import { createGlobalStyle } from 'styled-components';
 
 /** Global resets, font loading and focus/state rules shared by every screen. */
 export const GlobalStyles = createGlobalStyle`
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
     *, *::before, *::after {
         box-sizing: border-box;
@@ -18,6 +18,34 @@ export const GlobalStyles = createGlobalStyle`
         background: ${({ theme }) => theme.colors.background};
         color: ${({ theme }) => theme.colors.textPrimary};
         -webkit-font-smoothing: antialiased;
+    }
+
+    .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined';
+        font-weight: normal;
+        font-style: normal;
+        font-size: 20px;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .5; }
+    }
+
+    @keyframes ping {
+        75%, 100% {
+            transform: scale(2);
+            opacity: 0;
+        }
     }
 
     h1, h2, h3, h4, h5, h6, p {

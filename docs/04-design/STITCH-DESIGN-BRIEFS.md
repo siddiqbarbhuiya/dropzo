@@ -27,19 +27,19 @@ otherwise invent a UI/business requirement.
 
 ## Summary table
 
-| Brief ID | Item                                                          | Role             | Gap type                        | Blocks                                             |
-| -------- | -------------------------------------------------------------- | ----------------- | ---------------------------------- | ----------------------------------------------------- |
-| DB-01    | Merchant POS Login — Desktop variant                          | Merchant         | Missing responsive variant        | Nothing functional (mobile covers the real use case); fills the audit's "no desktop pair" gap |
-| DB-02    | Delivery Partner — Current Assignment (Offer / Accept-Reject) | Delivery Partner | Missing screen (whole role absent from Stitch) | `DeliveryPartnerInboxPage.tsx` restyle |
-| DB-03    | Delivery Partner — Pickup Collection & COD Confirmation       | Delivery Partner | Missing screen                    | Same page, `collect` step |
-| DB-04    | Delivery Partner — Out for Delivery & Customer Code Verification | Delivery Partner | Missing screen                 | Same page, `out-for-delivery`/`verify-delivery` steps |
-| DB-05    | Delivery Partner — Delivery Failed / Reschedule                | Delivery Partner | Missing screen                    | Same page, `fail` step |
-| DB-06    | Admin Delivery Queue & Dispatch                                | Admin            | Missing screen (`_(None in Stitch)_` row) | `AdminDeliveryQueuePage.tsx` restyle |
-| DB-07    | Admin COD Handover & Cash Reconciliation                       | Admin            | Missing screen (`_(None in Stitch)_` row) | `AdminCodHandoverPage.tsx` restyle |
-| DB-08    | Shared — Empty Cart Drawer                                      | Customer         | Missing shared state (Gap 4)      | Future Checkout screen |
-| DB-09    | Shared — Store Closed / Outside Delivery Hours Banner           | Customer         | Missing shared state (Gap 4)      | Future Home/Catalogue screens |
-| DB-10    | Shared — No Stores Found in Service Zone                        | Customer         | Missing shared state (Gap 4)      | Future Home screen |
-| DB-11    | Shared — Network Offline Alert                                  | All roles        | Missing shared state (Gap 4)      | Every screen |
+| Brief ID | Item                                                             | Role             | Gap type                                       | Blocks                                                                                        |
+| -------- | ---------------------------------------------------------------- | ---------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| DB-01    | Merchant POS Login — Desktop variant                             | Merchant         | Missing responsive variant                     | Nothing functional (mobile covers the real use case); fills the audit's "no desktop pair" gap |
+| DB-02    | Delivery Partner — Current Assignment (Offer / Accept-Reject)    | Delivery Partner | Missing screen (whole role absent from Stitch) | `DeliveryPartnerInboxPage.tsx` restyle                                                        |
+| DB-03    | Delivery Partner — Pickup Collection & COD Confirmation          | Delivery Partner | Missing screen                                 | Same page, `collect` step                                                                     |
+| DB-04    | Delivery Partner — Out for Delivery & Customer Code Verification | Delivery Partner | Missing screen                                 | Same page, `out-for-delivery`/`verify-delivery` steps                                         |
+| DB-05    | Delivery Partner — Delivery Failed / Reschedule                  | Delivery Partner | Missing screen                                 | Same page, `fail` step                                                                        |
+| DB-06    | Admin Delivery Queue & Dispatch                                  | Admin            | Missing screen (`_(None in Stitch)_` row)      | `AdminDeliveryQueuePage.tsx` restyle                                                          |
+| DB-07    | Admin COD Handover & Cash Reconciliation                         | Admin            | Missing screen (`_(None in Stitch)_` row)      | `AdminCodHandoverPage.tsx` restyle                                                            |
+| DB-08    | Shared — Empty Cart Drawer                                       | Customer         | Missing shared state (Gap 4)                   | Future Checkout screen                                                                        |
+| DB-09    | Shared — Store Closed / Outside Delivery Hours Banner            | Customer         | Missing shared state (Gap 4)                   | Future Home/Catalogue screens                                                                 |
+| DB-10    | Shared — No Stores Found in Service Zone                         | Customer         | Missing shared state (Gap 4)                   | Future Home screen                                                                            |
+| DB-11    | Shared — Network Offline Alert                                   | All roles        | Missing shared state (Gap 4)                   | Every screen                                                                                  |
 
 All brand tokens below are from the **approved** `DESIGN-SYSTEM-EXTRACTION.md`: Coral `#FF5733` /
 `#E04826` dark / `#FFECE8` light, Forest Green `#006E2D`, Deep Blue `#006398`, Base Surface
@@ -51,6 +51,7 @@ unit `4px`. No brief below asks for a new token — reuse these exactly.
 ## DB-01 — Merchant POS Login, Desktop variant
 
 ### A. Identification
+
 - Role: Merchant.
 - Type: missing responsive variant — Stitch screen #12 (`3356568780464f91b971a22c5a4a461a`,
   "Dropzo Merchant POS Login & OTP — Mobile") has no desktop pair, confirmed in
@@ -59,11 +60,13 @@ unit `4px`. No brief below asks for a new token — reuse these exactly.
 - Milestone: BC-011 design-system follow-up; backend already supports it (BC-005 `verify-otp`).
 
 ### B. Business purpose and context
+
 A merchant staff member signs in on a shop's own desktop/tablet POS terminal at store open. They
 land here before the POS Terminal screen (#18/#22 — already designed). After sign-in they go
 straight to the Merchant Order POS Terminal for their store.
 
 ### C. Functional requirements
+
 - Phone number input (reuses the OTP input already approved for shared login #9/#10).
 - Pre-selected "Merchant POS" role badge (no role-toggle — this terminal is merchant-only, unlike
   the shared login's role tabs).
@@ -74,11 +77,13 @@ straight to the Merchant Order POS Terminal for their store.
   that has nothing to call.**
 
 ### D. Data and business rules
+
 - Same `auth/verify-otp` flow as customer login — no separate merchant credential store exists.
 - No store-selection step belongs on this screen: store scoping happens after login, in the
   existing `/merchant/stores/:storeId/...` routes.
 
 ### E. Visual and responsive requirements
+
 - Desktop viewport (1280px canvas, matching every other desktop pair in the audit).
 - Reuse the shared Login/OTP desktop layout (#10) almost exactly — split-panel brand illustration
   left, form right — but swap the role-toggle tabs for the static "Merchant POS" badge.
@@ -106,6 +111,7 @@ straight to the Merchant Order POS Terminal for their store.
 ## DB-02 — Delivery Partner: Current Assignment (Offer / Accept-Reject)
 
 ### A. Identification
+
 - Role: Delivery Partner.
 - Type: missing screen — `STITCH-DESIGN-AUDIT.md` Gap 1: "the Stitch canvas has complete screens
   for Customer, Merchant, and Admin, but completely omitted the fourth core user type: Delivery
@@ -115,6 +121,7 @@ straight to the Merchant Order POS Terminal for their store.
   (`delivery-partner.controller.ts` → `DeliveryWorkflowService.getOwnCurrentAssignment`).
 
 ### B. Business purpose and context
+
 A delivery partner opens the app and sees their **one current assignment** — not a browsable list
 of multiple offers. The backend query is explicitly scoped to a single assignment whose
 `delivery_status` is one of `ASSIGNED`/`ACCEPTED`/`PICKED_UP`/`OUT_FOR_DELIVERY`; a partner is never
@@ -124,6 +131,7 @@ the backend does not support (see "Design Gap" note on the `/delivery/inbox` row
 `reject`, they return to a "waiting for next assignment" empty state.
 
 ### C. Functional requirements
+
 - When an assignment exists in `ASSIGNED` status (admin just assigned it, not yet accepted): show
   the order number, the store's pickup address (`Order.store_name_snapshot`/
   `store_address_snapshot`), the customer's delivery address (`Order.delivery_address_snapshot`),
@@ -135,6 +143,7 @@ the backend does not support (see "Design Gap" note on the `/delivery/inbox` row
   distance estimate.**
 
 ### D. Data and business rules
+
 - One active assignment per partner at a time, enforced by the backend (BC-010's partial unique
   index) — the UI should never need to render more than one assignment card.
 - COD amount may be ₹0 — the button/label copy must not assume every order is COD.
@@ -142,6 +151,7 @@ the backend does not support (see "Design Gap" note on the `/delivery/inbox` row
   action.
 
 ### E. Visual and responsive requirements
+
 - Mobile-only (no desktop delivery-partner surface is planned — this is a courier's phone app).
 - Large touch targets (delivery partners are often one-handed, outdoors, time-pressured) — reuse
   the same "large touch target" principle already applied to the Merchant POS Terminal screens
@@ -172,6 +182,7 @@ the backend does not support (see "Design Gap" note on the `/delivery/inbox` row
 ## DB-03 — Delivery Partner: Pickup Collection & COD Confirmation
 
 ### A. Identification
+
 - Role: Delivery Partner.
 - Type: missing screen (Gap 1).
 - Existing route: `/delivery/inbox` (same page, next step after Accept).
@@ -179,12 +190,14 @@ the backend does not support (see "Design Gap" note on the `/delivery/inbox` row
   (no request body — `delivery-workflow.controller.ts`).
 
 ### B. Business purpose and context
+
 After accepting, the partner travels to the store, collects the packed order (and cash, for COD
 orders), and taps "Collected" to advance `delivery_status` from `ACCEPTED` to `PICKED_UP`. This
 mirrors the merchant-side "Mark Ready"/pickup-PIN flow already designed (#18/#22) from the other
 side of the same handover.
 
 ### C. Functional requirements
+
 - Shows the same order/store/customer summary as DB-02 (now read-only — accept/reject no longer
   apply).
 - A single primary action: "Confirm pickup" / "Collected", calling `collect` (no body, no PIN entry
@@ -194,12 +207,14 @@ side of the same handover.
   (`DeliveryAssignment.cod_amount_due`) at this step, before confirming.
 
 ### D. Data and business rules
+
 - `collect` takes no request body — **do not design a confirmation code/PIN field at this
   specific step**; the code-entry step belongs to DB-04 (delivery, not pickup).
 - This action transitions `delivery_status` to `PICKED_UP`, separate from the order's own `status`
   (which the merchant-side pickup/ready flow controls).
 
 ### E. Visual and responsive requirements
+
 - Mobile-only, same visual language as DB-02 (Deep Blue accent, large single CTA).
 
 ### F. Stitch-ready prompt
@@ -219,6 +234,7 @@ side of the same handover.
 ## DB-04 — Delivery Partner: Out for Delivery & Customer Code Verification
 
 ### A. Identification
+
 - Role: Delivery Partner.
 - Type: missing screen (Gap 1).
 - Existing route: `/delivery/inbox` (same page, final delivery step).
@@ -226,33 +242,40 @@ side of the same handover.
   `POST .../verify-delivery` (`VerifyDeliveryCodeDto{code}`).
 
 ### B. Business purpose and context
+
 Once collected, the partner starts travelling (`out-for-delivery`), then at the customer's door
 asks for the customer's code and submits it to confirm handover, completing the delivery.
 
 ### C. Functional requirements
+
 - "Start delivery" action (`out-for-delivery`, no body) — this is what generates the code the
   customer sees on their own order-detail screen (the already-designed/implemented `PickupPinCard`
   pattern, reused for delivery).
-- A **6-digit** code-entry field at the door — **not 4 digits**: `VerifyDeliveryCodeDto` validates
-  a 6-digit code, unlike the customer-facing 4-digit *pickup* PIN used for in-store collection.
-  Do not reuse the 4-digit pickup-PIN visual exactly; adapt it to 6 boxes.
-  Submitting calls `verify-delivery`; a wrong code should show an inline error with attempts
+- A **6-digit** code-entry field at the door (`VerifyDeliveryCodeDto`, `Length(6, 6)`). **Correction
+  (2026-11-11, BC-011 continuation)**: this document previously said the customer-facing in-store
+  pickup PIN is 4 digits and only the delivery code is 6 — that was wrong. Direct code inspection
+  (`VerifyPickupCodeDto`, `pickup-verification.service.ts`'s `CODE_LENGTH = 6`) confirms the pickup
+  code is **also 6 digits** — both codes use the identical mechanism and length; only the Stitch
+  visual mockup for pickup (screen #13/#38) happens to show 4 boxes. Reuse the same 6-box pattern
+  for both. Submitting calls `verify-delivery`; a wrong code should show an inline error with attempts
   remaining (the backend enforces `max_attempts`, exact number not surfaced via API — show a
   generic "incorrect code, try again" message, not a specific remaining-attempts count unless
   that number is confirmed to be returned by the API response).
 - On success: a confirmation/success state ("Delivered!") before returning to the waiting state.
 
 ### D. Data and business rules
+
 - Code is hash-only server-side, 48-hour TTL, shown to the customer once — the delivery partner
   never sees the code itself, only enters what the customer tells them.
-- This is a distinct code from the customer's *pickup* code (in-store collection) — same mechanism
-  (`CODE_TTL_MS` 48h, hash-only) but a separate secret/table, and a different digit count (6 vs 4).
+- This is a distinct code from the customer's _pickup_ code (in-store collection) — same mechanism
+  (`CODE_TTL_MS` 48h, hash-only, **6 digits each**) but a separate secret/table/value per order.
 
 ### E. Visual and responsive requirements
+
 - Mobile-only, same visual language as DB-02/DB-03.
-- The 6-digit entry should visually echo the existing `OTPInput`/pickup-PIN component pattern
-  (individual boxed digits) already implemented in `components/ui/OTPInput.tsx`, just sized for 6
-  boxes instead of 4.
+- The 6-digit entry should visually echo the existing `OTPInput`/`PickupPinCard` component pattern
+  (individual boxed digits) already implemented in `components/ui/OTPInput.tsx`, sized for 6 boxes
+  — the same count the customer-facing pickup PIN actually uses once corrected (see above).
 
 ### F. Stitch-ready prompt
 
@@ -261,27 +284,30 @@ asks for the customer's code and submits it to confirm handover, completing the 
 > `16px` card radius, `9999px` pill buttons): (1) an "Out for Delivery" screen showing the
 > customer's delivery address and a single "Start Delivery" button, and (2) a "Verify Delivery"
 > screen shown once the partner has arrived, with the text "Ask the customer for their 6-digit
-> delivery code" and **six individual boxed digit inputs** (not four — this code is longer than the
-> in-store pickup PIN used elsewhere in this app), a "Confirm Delivery" button, and an inline error
-> state for a wrong code ("Incorrect code — please try again"). On success, show a simple "Delivered
-> successfully" confirmation state with a checkmark. Do not show the plaintext code anywhere on the
-> delivery partner's own screen — they only receive it verbally from the customer and type it in.
+> delivery code" and **six individual boxed digit inputs**, a "Confirm Delivery" button, and an
+> inline error state for a wrong code ("Incorrect code — please try again"). On success, show a
+> simple "Delivered successfully" confirmation state with a checkmark. Do not show the plaintext
+> code anywhere on the delivery partner's own screen — they only receive it verbally from the
+> customer and type it in.
 
 ---
 
 ## DB-05 — Delivery Partner: Delivery Failed / Reschedule
 
 ### A. Identification
+
 - Role: Delivery Partner.
 - Type: missing screen (Gap 1).
 - Existing route: `/delivery/inbox` (same page, failure branch).
 - Backend: `PATCH /api/v1/delivery-partners/me/assignments/:orderId/fail` (`ReasonDto{reason}`).
 
 ### B. Business purpose and context
+
 The partner cannot complete a delivery (customer unreachable, wrong address, refused, etc.) and
 needs an explicit, reasoned way to mark it failed rather than abandoning the app mid-task.
 
 ### C. Functional requirements
+
 - A "Can't complete this delivery?" link/button available from the Out-for-Delivery screen (DB-04),
   leading to a reason-selection step: a short list of common reasons (e.g. "Customer not
   reachable", "Wrong address", "Customer refused") plus a free-text field, since `ReasonDto` is
@@ -292,11 +318,13 @@ needs an explicit, reasoned way to mark it failed rather than abandoning the app
   failed delivery does not get reassigned to the same partner automatically.
 
 ### D. Data and business rules
+
 - `delivery_status` becomes `FAILED`; this does not auto-release the reservation or change payment
   — handled entirely server-side, matching BC-010's documented failed-delivery behavior.
 - No reassignment UI belongs here — reassignment is an **admin** action (see DB-06).
 
 ### E. Visual and responsive requirements
+
 - Mobile-only. Use the warning/error tone already in the design system for the confirmation step
   (not the primary Coral — this is a negative-outcome action).
 
@@ -317,6 +345,7 @@ needs an explicit, reasoned way to mark it failed rather than abandoning the app
 ## DB-06 — Admin Delivery Queue & Dispatch
 
 ### A. Identification
+
 - Role: Admin.
 - Type: missing screen — `UI-SCREEN-COVERAGE.md` row "Admin Delivery Queue & Dispatch" is marked
   `_(None in Stitch)_`.
@@ -327,10 +356,12 @@ needs an explicit, reasoned way to mark it failed rather than abandoning the app
   (`admin-delivery-assignment.controller.ts`).
 
 ### B. Business purpose and context
+
 An admin (today, manual dispatch per ADR-0010 — no auto-assignment algorithm exists) reviews orders
 ready for delivery and assigns each to an available delivery partner.
 
 ### C. Functional requirements
+
 - A table/list of eligible orders — `fulfilment_type: DELIVERY`, `status` in `READY` or
   `DELIVERY_FAILED`, ordered by `placed_at` ascending (oldest first). Columns: order number,
   placed-at time, status, (optionally a client-computed "waiting for Xm" badge — **the backend
@@ -344,12 +375,14 @@ ready for delivery and assigns each to an available delivery partner.
   dispatch map.**
 
 ### D. Data and business rules
+
 - One active assignment per partner — the partner-picker should reflect real availability, but the
   exact "available partners" list endpoint was not in scope of this research; confirm its shape
   before building the picker, rather than assuming partner status fields not verified here.
 - Assignment and cancellation are the only two admin actions on this queue — no bulk-assign.
 
 ### E. Visual and responsive requirements
+
 - Desktop-first (admin back-office tool) — reuse the general admin-table visual language that the
   Platform Admin Merchant Approvals screens (#1/#27) already establish for consistency.
 - A mobile/tablet-responsive fallback is lower priority but should not break.
@@ -374,6 +407,7 @@ ready for delivery and assigns each to an available delivery partner.
 ## DB-07 — Admin COD Handover & Cash Reconciliation
 
 ### A. Identification
+
 - Role: Admin.
 - Type: missing screen — `UI-SCREEN-COVERAGE.md` row "Admin COD Handover & Cash Reconciliation" is
   marked `_(None in Stitch)_`.
@@ -384,11 +418,13 @@ ready for delivery and assigns each to an available delivery partner.
   (`admin-delivery-partner.controller.ts`, `admin-delivery-assignment.controller.ts`).
 
 ### B. Business purpose and context
+
 A delivery partner collects cash from customers across several COD deliveries during the day; an
 admin periodically reconciles — recording that a specific set of already-collected cash amounts
 have been physically handed over to the business.
 
 ### C. Functional requirements
+
 - A summary panel per partner: `outstandingBalance` (total cash still owed to the business) and a
   list of `uncollectedAssignments`, each with `{ orderId, amount, collectedAt }` — **no denomination
   breakdown field exists anywhere in the API** (confirmed) — do not design a ₹2000/₹500/₹100-note
@@ -399,12 +435,14 @@ have been physically handed over to the business.
 - A history view of past handovers (`GET .../cod-handovers`).
 
 ### D. Data and business rules
+
 - `orderIds` must be a non-empty, unique set of the assignments actually being reconciled in this
   handover — the UI must prevent selecting zero items or submitting duplicates.
 - No partial-amount handover exists — an assignment is either included (its full
   `cod_collected_amount` counted) or not; **do not design a partial/split-amount input.**
 
 ### E. Visual and responsive requirements
+
 - Desktop-first admin tool, consistent with DB-06's admin visual language.
 
 ### F. Stitch-ready prompt
@@ -426,15 +464,18 @@ have been physically handed over to the business.
 ## DB-08 — Shared state: Empty Cart Drawer
 
 ### A. Identification
+
 - Role: Customer.
 - Type: missing shared state (`UI-SCREEN-COVERAGE.md` Gap 4).
 - Related route: future `/checkout` and the cart drawer on Home/Catalogue (none implemented yet).
 
 ### B. Business purpose and context
+
 Shown when a customer opens the cart drawer/sheet with zero items — the very first state every
 customer sees before adding anything, and the state they return to after checkout completes.
 
 ### C. Functional requirements
+
 - Illustration or icon, "Your cart is empty" headline, one line of supporting copy, and a single
   primary CTA "Browse stores" that closes the drawer and returns to Home.
 - No price/line-item area rendered in this state.
@@ -442,9 +483,11 @@ customer sees before adding anything, and the state they return to after checkou
   Catalogue desktop screen #33, which has a "cart preview sidebar").
 
 ### D. Data and business rules
+
 - No cart line items; no totals; no fulfillment-method selector. Do not pre-fill mock products.
 
 ### E. Visual and responsive requirements
+
 - Use the project's standard empty-state pattern (icon + headline + description + action) already
   implemented in code as `components/ui/EmptyState` — the Stitch design should match that
   anatomy so the two stay visually consistent.
@@ -466,16 +509,19 @@ customer sees before adding anything, and the state they return to after checkou
 ## DB-09 — Shared state: Store Closed / Outside Delivery Hours Banner
 
 ### A. Identification
+
 - Role: Customer.
 - Type: missing shared state (Gap 4).
 - Related routes: future Home (`/`) and Store Catalogue (`/stores/:storeId`).
 
 ### B. Business purpose and context
+
 A store exists and is browsable, but is currently closed (owner-toggled) or outside its configured
 operating hours (`PATCH .../hours` from BC-010's Store Settings screen). The customer should see
 this clearly before trying to add items, not discover it only at checkout.
 
 ### C. Functional requirements
+
 - An inline banner (not a full-page takeover) at the top of the Store Catalogue screen and on each
   closed store's card on Home: "Closed now" or "Opens at {time}" label, in a muted/neutral tone
   (not an error color — this is normal, expected state, not a failure).
@@ -485,12 +531,14 @@ this clearly before trying to add items, not discover it only at checkout.
   the owner wants that nuance confirmed with real `hours` data before this is built.
 
 ### D. Data and business rules
+
 - Backed by the real store `status`/`hours` fields already exposed via
   `PATCH /api/v1/merchants/me/stores/:storeId/status` and `.../hours` (BC-010, confirmed in code).
   **Do not invent a different closed/open computation** — use whatever the store-hours schema
   actually returns once the public store-listing endpoint (Stage 1 blocker) exists.
 
 ### E. Visual and responsive requirements
+
 - Reuse the `Badge`/banner visual language already in the design system (neutral tone, `label-lg`
   typography). Mobile and desktop both need it — same banner, full-width on mobile, inline on the
   desktop store header.
@@ -513,26 +561,31 @@ this clearly before trying to add items, not discover it only at checkout.
 ## DB-10 — Shared state: No Stores Found in Service Zone
 
 ### A. Identification
+
 - Role: Customer.
 - Type: missing shared state (Gap 4).
 - Related route: future Home (`/`).
 
 ### B. Business purpose and context
+
 Dropzo launches in a single service zone (Badarpur). A customer whose detected/selected location
 falls outside that zone, or whose zone currently has zero active stores, needs an honest
 "not available here yet" message instead of a blank or broken-looking grid.
 
 ### C. Functional requirements
+
 - Full-section empty state (not a toast): icon/illustration, headline "Dropzo isn't in your area
   yet", supporting copy naming Badarpur as the current launch area, and (optionally) a "Notify me"
   action only if a real notify-signup endpoint is confirmed to exist — **do not design a capture
   form against an endpoint that doesn't exist; if none exists, omit the action entirely.**
 
 ### D. Data and business rules
+
 - Depends on the same not-yet-built public store-listing endpoint as DB-08/Home itself — this
   state is what that endpoint returns zero stores for the resolved `service_zone`.
 
 ### E. Visual and responsive requirements
+
 - Centered, full-viewport-height section replacing the store grid. Mobile and desktop both need a
   version; desktop can be narrower/centered rather than full-bleed.
 
@@ -553,16 +606,19 @@ falls outside that zone, or whose zone currently has zero active stores, needs a
 ## DB-11 — Shared state: Network Offline Alert
 
 ### A. Identification
+
 - Role: All (Customer, Merchant, Admin, Delivery Partner).
 - Type: missing shared state (Gap 4).
 - Related routes: every screen — this is a global, cross-cutting component.
 
 ### B. Business purpose and context
+
 Badarpur is a connectivity-variable area; any screen can lose network mid-session. The user needs
 a clear, non-blocking signal and a manual retry, rather than a silent hang or a confusing empty
 list that looks like "no data" instead of "no connection".
 
 ### C. Functional requirements
+
 - A persistent top banner (not a modal) that appears when a request fails due to network loss, with
   the text "You're offline — check your connection" and a "Retry" button.
 - Must not replace in-place content — existing cached data (e.g. a previously loaded order list)
@@ -570,11 +626,13 @@ list that looks like "no data" instead of "no connection".
 - Dismisses automatically once a retried request succeeds.
 
 ### D. Data and business rules
+
 - Purely a client-side network-state concern — no backend endpoint involved. Must not be confused
   with the existing `ErrorState`/`ApiError` component, which represents a real server error with
   connectivity present; this state applies specifically to network loss.
 
 ### E. Visual and responsive requirements
+
 - Full-width banner pinned to the top of the viewport, below any existing page header, in a warning
   tone (not error-red — matches the "warning" badge/toast tone already in the design system).
   Same banner on mobile and desktop; only the width changes.
@@ -655,9 +713,14 @@ data dependencies (noted per-screen) are resolved.
 - No merchant analytics data source exists at all.
 - No "available delivery partners" listing endpoint was confirmed during this session's research —
   verify its shape before building DB-06's partner-picker control.
-- The customer-facing *pickup* code is 4 digits; the delivery-partner-facing *delivery-verification*
-  code is 6 digits — these are different mechanisms with different digit counts. Keep this
-  distinction in any future design work; do not assume they share one component as-is.
+- **Correction (2026-11-11, BC-011 continuation)**: this document originally said the customer-facing
+  _pickup_ code is 4 digits and the delivery-verification code is 6 — direct code inspection
+  (`VerifyPickupCodeDto`/`VerifyDeliveryCodeDto`, both `Length(6,6)`/`CODE_LENGTH = 6`) shows
+  **both are 6-digit codes**, generated and verified by the same mechanism, just separate secrets
+  per order. There is no 4-digit code anywhere in this system — only the Stitch visual mockup for
+  pickup (#13/#38) happens to show 4 boxes. A found bug from the same root cause: `LoginPage.tsx`'s
+  `OTPInput` was defaulting to `length={4}` while the real OTP defaults to 6 digits
+  (`OTP_CODE_LENGTH`, default 6) — fixed in this continuation session.
 
 ### 8. Numbered list of required owner actions
 

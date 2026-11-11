@@ -7,7 +7,7 @@
 
 > **Audit correction (2026-11-11, BC-011 Stage 1):** Tokens, colors and typography below are
 > unchanged (approved visual direction, not re-litigated). Note only: this document's mention of
-> "DigiLocker/FSSAI" is a description of what the *Stitch visual design* depicts, not a claim that
+> "DigiLocker/FSSAI" is a description of what the _Stitch visual design_ depicts, not a claim that
 > DigiLocker or FSSAI/FoSCoS verification is implemented in the backend — it is not (see
 > `UI-SCREEN-COVERAGE.md`'s corrected Backend API Status rows). Do not build those integrations
 > without confirmed scope.
@@ -159,11 +159,21 @@ Dropzo's visual identity balances high-velocity instant delivery aesthetics with
 - **Container**: Pill background `#EEEDF7`, `4px` inset padding
 - **Active Item**: `#FFFFFF` card with soft shadow, active green text `#006E2D` for Pickup or coral `#FF5733` for Delivery
 
-### 3.4 4-Digit Pickup PIN Card
+### 3.4 Pickup PIN Card
+
+> **Correction (2026-11-11, BC-011 continuation):** The Stitch screen's own visual mockup shows
+> four digit boxes, but the real backend (`VerifyPickupCodeDto`, `pickup-verification.service.ts`'s
+> `CODE_LENGTH = 6`) generates and validates a **6-digit** code, not 4 — and so does the
+> delivery-verification code (`delivery-verification.service.ts`, same `CODE_LENGTH = 6`). Both
+> codes use the identical 6-digit mechanism; there is no 4-digit code anywhere in this system. The
+> digit-box anatomy below is still correct and reusable — render **six** boxes, not four. The
+> implemented `PickupPinCard` component (`apps/web/src/components/domain/PickupPinCard.tsx`)
+> already renders however many digits the real code string contains, so it was not affected by this
+> naming error — only this document's and some other docs' prose description of it was.
 
 - **Background**: Inset `#F4F2FD` container surrounded by `#E3E1EC` border
-- **PIN Display**: Four individual rounded square digit boxes (`48px × 56px`), centered bold digits `32px` with letter spacing `0.3em`
-- **Security Helper**: "Share this 4-digit code at the store counter upon arrival to collect your order."
+- **PIN Display**: Six individual rounded square digit boxes (`48px × 56px`), centered bold digits `32px` with letter spacing `0.3em`
+- **Security Helper**: "Share this 6-digit code at the store counter upon arrival to collect your order."
 
 ### 3.5 POS Terminal Audio & Alert Bar
 

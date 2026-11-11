@@ -26,27 +26,28 @@ tests, use `withTheme(ui)` from `apps/web/src/test/renderWithProviders.tsx`.
 Generic, presentation-only building blocks with no business meaning. Each is its own file; import
 from the barrel `components/ui/index.ts`.
 
-| Component           | Notes                                                                                   |
-| -------------------- | ---------------------------------------------------------------------------------------- |
-| `Button`              | Variants `primary` / `secondary` / `danger` / `ghost`; sizes `sm` / `md`; `$fullWidth`.   |
-| `IconButton`          | Square pill tap target for a single icon, with an `$active` state.                       |
-| `Input`               | Labelled text input with optional helper/error text.                                      |
-| `OTPInput`            | N-digit code entry with auto-advance, backspace-back, and paste-splitting.               |
-| `Select`              | Labelled native `<select>`.                                                                |
-| `Checkbox`            | Labelled checkbox using theme-accent color.                                               |
-| `Switch`              | Binary toggle (e.g. merchant terminal's loud-alert switch).                               |
-| `Badge`               | Tonal pill (`neutral`/`success`/`warning`/`error`/`info`/`brand`).                        |
-| `Card`                | Base surface container; `$padded`, `$hoverable`.                                          |
-| `Modal`               | Centered dialog; closes on Escape or overlay click.                                       |
-| `Toast`               | Inline tonal alert banner (`success`/`error`/`warning`/`info`).                           |
-| `Skeleton`            | Pulsing placeholder block for loading content.                                            |
-| `EmptyState`          | "Nothing here yet" panel (built on the internal `StatusPanel`).                           |
-| `ErrorState`          | Failure panel with an optional retry action (built on `StatusPanel`).                     |
-| `LoadingState`        | Centered spinner.                                                                          |
-| `QuantityStepper`     | Toggles between an "ADD +" pill and a −/count/+ stepper.                                  |
-| `SegmentedControl`    | Generic 2+-option pill switcher (typed by a string union).                                 |
-| `PageHeader`          | Standard screen title row, with optional back arrow and trailing action.                  |
-| `ResponsiveContainer` | Page-width wrapper: mobile gutter, desktop margin, 1280px max width.                       |
+| Component             | Notes                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `Button`              | Variants `primary` / `secondary` / `danger` / `ghost`; sizes `sm` / `md`; `$fullWidth`.                      |
+| `IconButton`          | Square pill tap target for a single icon, with an `$active` state.                                           |
+| `Input`               | Labelled text input with optional helper/error text.                                                         |
+| `OTPInput`            | N-digit code entry with auto-advance, backspace-back, and paste-splitting.                                   |
+| `Select`              | Labelled native `<select>`.                                                                                  |
+| `Checkbox`            | Labelled checkbox using theme-accent color.                                                                  |
+| `Switch`              | Binary toggle (e.g. merchant terminal's loud-alert switch).                                                  |
+| `Badge`               | Tonal pill (`neutral`/`success`/`warning`/`error`/`info`/`brand`).                                           |
+| `Card`                | Base surface container; `$padded`, `$hoverable`.                                                             |
+| `Modal`               | Centered dialog; closes on Escape or overlay click.                                                          |
+| `Toast`               | Inline tonal alert banner (`success`/`error`/`warning`/`info`).                                              |
+| `Skeleton`            | Pulsing placeholder block for loading content.                                                               |
+| `EmptyState`          | "Nothing here yet" panel (built on the internal `StatusPanel`).                                              |
+| `ErrorState`          | Failure panel with an optional retry action (built on `StatusPanel`).                                        |
+| `LoadingState`        | Centered spinner.                                                                                            |
+| `QuantityStepper`     | Toggles between an "ADD +" pill and a −/count/+ stepper.                                                     |
+| `SegmentedControl`    | Generic 2+-option pill switcher (typed by a string union).                                                   |
+| `PageHeader`          | Standard screen title row, with optional back arrow and trailing action.                                     |
+| `ResponsiveContainer` | Page-width wrapper: mobile gutter, desktop margin, 1280px max width.                                         |
+| `Keypad`              | Touch-friendly numeric keypad for entering a fixed-length code (BC-011 continuation, Merchant POS Terminal). |
 
 `StatusPanel` is an internal layout shared by `EmptyState`/`ErrorState`/`LoadingState` — it is not
 exported from the barrel and should not be used directly by screens.
@@ -56,28 +57,35 @@ exported from the barrel and should not be used directly by screens.
 Typed, presentation-only components that encode one specific Dropzo concept by composing the `ui/`
 primitives. None of them fetch data or hold mock business data — screens pass in real values.
 
-| Component                | Composes                         | Notes                                                                 |
-| ------------------------- | --------------------------------- | ---------------------------------------------------------------------- |
-| `StoreCard`                | `Card`, `Badge`                    | Customer home/discovery store tile.                                    |
-| `ProductCard`              | `Card`, `ProductQuantityControl`   | Catalogue product tile.                                                 |
-| `ProductQuantityControl`   | `QuantityStepper`                  | Binds a stepper to a product's stock ceiling.                          |
-| `OrderStatusStepper`       | —                                   | Horizontal lifecycle progress; terminal failures render as a banner.   |
-| `FulfillmentSelector`      | `SegmentedControl`                 | "Express Delivery" vs "Store Pickup".                                  |
-| `PickupPinCard`            | —                                   | The 4-digit pickup/delivery handover code card.                        |
+| Component                | Composes                         | Notes                                                                                                                                                     |
+| ------------------------ | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `StoreCard`              | `Card`, `Badge`                  | Customer home/discovery store tile.                                                                                                                       |
+| `ProductCard`            | `Card`, `ProductQuantityControl` | Catalogue product tile.                                                                                                                                   |
+| `ProductQuantityControl` | `QuantityStepper`                | Binds a stepper to a product's stock ceiling.                                                                                                             |
+| `OrderStatusStepper`     | —                                | Horizontal lifecycle progress; terminal failures render as a banner.                                                                                      |
+| `FulfillmentSelector`    | `SegmentedControl`               | "Express Delivery" vs "Store Pickup".                                                                                                                     |
+| `PickupPinCard`          | —                                | The 6-digit pickup/delivery handover code card (renders however many digits the real code has; see `DESIGN-SYSTEM-EXTRACTION.md` §3.4's correction note). |
 
 `StoreCard`, `ProductCard` and `FulfillmentSelector` are not yet wired into a route: there is no
 public store/product-listing backend endpoint today (see `UI-SCREEN-COVERAGE.md`'s "Dropzo
 Marketplace Home" and "Store Catalogue" rows), so they exist as library components ready for the
 customer catalogue screens once that endpoint exists — not bound to any mock data.
 
-## 4. Migrated screens (BC-011 Stage 4)
+## 4. Migrated screens (BC-011 Stage 4, continued in the BC-011 continuation task)
 
-`AppShell.tsx`, `LoginPage.tsx`, `CustomerOrdersPage.tsx`, `CustomerOrderDetailPage.tsx`,
-`routes/components/FormPrimitives.tsx` and `routes/components/OrderStatusBadge.tsx`. The last two
-now delegate to the themed `Button`/`Badge` rather than duplicating styles, so every other screen
-that imports them (merchant, admin, delivery-partner pages) already picks up the new button and
-badge look without a full rewrite. Full screen-by-screen migration (merchant POS terminal, admin
-queues, delivery partner inbox) is tracked as follow-up work — see `UI-SCREEN-COVERAGE.md`.
+`AppShell.tsx`, `LoginPage.tsx`, `CustomerOrdersPage.tsx`, `CustomerOrderDetailPage.tsx` (Stage 4),
+and `MerchantOrderDetailPage.tsx` (BC-011 continuation — the Merchant Order POS Terminal, see
+`UI-SCREEN-COVERAGE.md`'s updated row). `routes/components/FormPrimitives.tsx` and
+`routes/components/OrderStatusBadge.tsx` delegate to the themed `Button`/`Badge` rather than
+duplicating styles, so every other screen that imports them (admin, delivery-partner pages) already
+picks up the new button and badge look without a full rewrite. Full screen-by-screen migration
+(merchant inventory/settings/analytics, admin queues, delivery partner inbox) is tracked as
+follow-up work — see `UI-SCREEN-COVERAGE.md`.
+
+**Rule**: inheriting a shared primitive's restyle is not the same as a page being migrated. A page
+only counts as "migrated" once it is rebuilt against this library's layout primitives
+(`ResponsiveContainer`, `PageHeader`, `Card`, etc.) — not merely because it imports a component that
+itself got restyled. As of this writing only the four screens listed above have been migrated.
 
 ## 5. Conventions
 

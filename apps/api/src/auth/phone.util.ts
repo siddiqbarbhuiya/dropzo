@@ -5,7 +5,7 @@
 // 2-argument call form. Passing metadata explicitly works the same regardless of which physical
 // file actually gets loaded.
 import { parsePhoneNumberWithError, ParseError } from 'libphonenumber-js/core';
-import metadata from 'libphonenumber-js/metadata.full.json' with { type: 'json' };
+import metadata from 'libphonenumber-js/metadata.full.json';
 
 export class InvalidPhoneNumberError extends Error {
     constructor(message = 'Invalid phone number.') {

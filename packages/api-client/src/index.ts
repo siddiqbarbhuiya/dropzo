@@ -52,8 +52,11 @@ export interface OrderItem {
     id: string;
     product_name_snapshot: string;
     variant_snapshot: string;
+    sku_snapshot: string | null;
     quantity: string | number;
     unit_price: string | number;
+    tax_amount: string | number;
+    line_total: string | number;
 }
 
 export interface OrderStatusHistoryEntry {
@@ -69,7 +72,21 @@ export interface Order {
     order_number: string;
     status: OrderStatus;
     total_amount: string | number;
+    subtotal: string | number;
+    discount_amount: string | number;
+    delivery_fee: string | number;
+    tax_amount: string | number;
     fulfilment_type: 'PICKUP' | 'DELIVERY';
+    /** Always 'COD' today - no other payment method is implemented (see checkout.service.ts). */
+    payment_method: string;
+    store_name_snapshot: string;
+    store_address_snapshot: string;
+    delivery_recipient_name_snapshot: string | null;
+    delivery_recipient_phone_snapshot: string | null;
+    customer_notes: string | null;
+    placed_at: string;
+    estimated_ready_at: string | null;
+    completed_at: string | null;
     created_at: string;
     items?: OrderItem[];
     status_history?: OrderStatusHistoryEntry[];
@@ -152,6 +169,72 @@ export interface CompleteDeliveryResult {
     verified: boolean;
     order?: Order;
     attemptsRemaining?: number;
+}
+
+// --- Merchant: inventory and stock ---
+
+export interface Product {
+    id: string;
+    name: string;
+    brand: string | null;
+}
+
+export interface ProductVariant {
+    id: string;
+    sku: string | null;
+    variant_name: string;
+    unit: string;
+    pack_size: string | number | null;
+    product?: Product;
+}
+
+export interface StockBatch {
+    id: string;
+    batch_code: string | null;
+    received_quantity: string | number;
+    on_hand_quantity: string | number;
+    reserved_quantity: string | number;
+    received_at: string;
+    manufacture_date: string | null;
+    expiry_date: string | null;
+    cost_price: string | number | null;
+    storage_notes: string | null;
+}
+
+export interface InventorySnapshot {
+    id: string;
+    store_product_id: string;
+    on_hand_quantity: string | number;
+    reserved_quantity: string | number;
+    blocked_quantity: string | number;
+    low_stock_threshold: string | number;
+    updated_at: string;
+    stock_batches?: StockBatch[];
+}
+
+export interface StoreListing {
+    id: string;
+    store_id: string;
+    variant_id: string;
+    uses_batch_tracking: boolean;
+    selling_price: string | number;
+    mrp: string | number | null;
+    is_available: boolean;
+    created_at: string;
+    variant?: ProductVariant;
+    inventory?: InventorySnapshot;
+}
+
+export interface StockMovement {
+    id: string;
+    inventory_id: string;
+    batch_id: string | null;
+    movement_type: string;
+    quantity: string | number;
+    reference_type: string | null;
+    notes: string | null;
+    created_by: string | null;
+    created_at: string;
 }
 
 export interface CodSummary {
@@ -267,6 +350,82 @@ export function createApiClient(baseUrl: string, options?: ApiClientOptions) {
         listOwnStores: (params: { page?: number; limit?: number } = {}) =>
             getJson<PaginatedResult<Store>>(
                 `/merchants/me/stores?${new URLSearchParams(
+                    params as Record<string, string>,
+                ).toString()}`,
+            ),
+
+        // --- Merchant: inventory and stock ---
+        listOwnListings: (
+            storeId: string,
+            params: { page?: number; limit?: number; isAvailable?: boolean } = {},
+        ) =>
+            getJson<PaginatedResult<StoreListing>>(
+                `/merchants/me/stores/${storeId}/listings?${new URLSearchParams(
+                    params as unknown as Record<string, string>,
+                ).toString()}`,
+            ),
+        getOwnListing: (storeId: string, listingId: string) =>
+            getJson<StoreListing>(`/merchants/me/stores/${storeId}/listings/${listingId}`),
+        updateListing: (
+            storeId: string,
+            listingId: string,
+            dto: {
+                sellingPrice?: number;
+                mrp?: number;
+                isAvailable?: boolean;
+                lowStockThreshold?: number;
+            },
+        ) => patchJson<StoreListing>(`/merchants/me/stores/${storeId}/listings/${listingId}`, dto),
+        getInventorySnapshot: (storeId: string, listingId: string) =>
+            getJson<InventorySnapshot>(
+                `/merchants/me/stores/${storeId}/listings/${listingId}/inventory`,
+            ),
+        receiveStock: (
+            storeId: string,
+            listingId: string,
+            dto: {
+                quantity: number;
+                batchId?: string;
+                batchCode?: string;
+                manufactureDate?: string;
+                expiryDate?: string;
+                costPrice?: number;
+            },
+        ) =>
+            postJson<InventorySnapshot>(
+                `/merchants/me/stores/${storeId}/listings/${listingId}/inventory/receive`,
+                dto,
+            ),
+        adjustStock: (
+            storeId: string,
+            listingId: string,
+            dto: { quantityDelta: number; reason: string; batchId?: string },
+        ) =>
+            postJson<InventorySnapshot>(
+                `/merchants/me/stores/${storeId}/listings/${listingId}/inventory/adjustments`,
+                dto,
+            ),
+        removeStock: (
+            storeId: string,
+            listingId: string,
+            dto: {
+                type: 'DAMAGED' | 'EXPIRED';
+                quantity: number;
+                reason: string;
+                batchId?: string;
+            },
+        ) =>
+            postJson<InventorySnapshot>(
+                `/merchants/me/stores/${storeId}/listings/${listingId}/inventory/removals`,
+                dto,
+            ),
+        listStockMovements: (
+            storeId: string,
+            listingId: string,
+            params: { page?: number; limit?: number } = {},
+        ) =>
+            getJson<PaginatedResult<StockMovement>>(
+                `/merchants/me/stores/${storeId}/listings/${listingId}/inventory/movements?${new URLSearchParams(
                     params as Record<string, string>,
                 ).toString()}`,
             ),
