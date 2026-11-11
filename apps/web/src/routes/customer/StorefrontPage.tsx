@@ -2101,6 +2101,7 @@ export function StorefrontPage() {
                 onClose={() => setIsCartSheetOpen(false)}
                 title="Cart Summary"
                 subtitle={`${store.name} • ${cartTotalItems} ${cartTotalItems === 1 ? 'item' : 'items'}`}
+                enableDrag={false}
                 badge={
                     <span
                         style={{
