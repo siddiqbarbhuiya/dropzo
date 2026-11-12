@@ -511,6 +511,15 @@ export function createApiClient(baseUrl: string, options?: ApiClientOptions) {
                     params as Record<string, string>,
                 ).toString()}`,
             ),
+        getOwnStore: (storeId: string) => getJson<Store>(`/merchants/me/stores/${storeId}`),
+        updateOwnStoreHours: (storeId: string, openingHours: Record<string, unknown>) =>
+            patchJson<Store>(`/merchants/me/stores/${storeId}/hours`, { openingHours }),
+        updateOwnStoreAvailability: (
+            storeId: string,
+            dto: { supportsPickup?: boolean; supportsDelivery?: boolean },
+        ) => patchJson<Store>(`/merchants/me/stores/${storeId}/availability`, dto),
+        updateOwnStoreStatus: (storeId: string, status: 'ACTIVE' | 'PAUSED' | 'CLOSED') =>
+            patchJson<Store>(`/merchants/me/stores/${storeId}/status`, { status }),
 
         // --- Merchant: inventory and stock ---
         listOwnListings: (

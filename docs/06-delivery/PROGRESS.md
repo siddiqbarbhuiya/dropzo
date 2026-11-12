@@ -3123,3 +3123,39 @@ Status: **Complete.**
 | `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+## BC-022 — Merchant Store Settings & Operations Screen (`/merchant/settings`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprints Reference & Download**:
+    - Mobile Blueprint (`6591032fa8a4451bae3f9ee9e6e6db16`): "Dropzo Merchant - Store Settings & Operations Mobile"
+    - Desktop Blueprint (`42930197a23845dbaf477bee152a59dd`): "Dropzo Merchant - Store Settings & Operations Desktop"
+    - Assets saved to `audit/stitch-audit/screenshots/` and `audit/stitch-audit/html/`.
+
+2. **API Client Extension (`packages/api-client/src/index.ts`)**:
+    - Added merchant store operations methods: `getOwnStore`, `updateOwnStoreHours`, `updateOwnStoreAvailability`, and `updateOwnStoreStatus`.
+
+3. **1:1 Responsive Implementation of `/merchant/settings` (`apps/web/src/routes/merchant/MerchantSettingsPage.tsx`)**:
+    - **Header & Navigation**: Dropzo Merchant branding, store selector (`Maa Tara Groceries • BDP-04`), center pill navigation, status switcher (Live Orders with pulsating dot, Busy, Closed), volume alert switch, and profile avatar.
+    - **Live Operational Hours Banner**: Visual banner with closing schedule (9:30 PM) and POS timings synchronization action.
+    - **Desktop 3-Column Canvas**:
+        - Left Sidebar: Verified Partner badge, FSSAI Lic #2032400104128, settings sub-navigation, and Station Road guidelines callout.
+        - Center Panel: Weekly operating schedule table (Mon-Sun) with active day switches, Open/Close inputs, afternoon restock break tags, Apply Weekday to All CTA; temporary pause rush breaker card with 30m / 1h / Close for Today duration presets and reason selector; and fulfillment capacity steppers (max active orders [15], prep SLA benchmark [12m], express slot buffer [10m]).
+        - Right Sidebar: FR-PICK-001 counter pickup notes, strict 6-digit PIN handover switch, camera QR auto-launch toggle, staff terminal PINs list (Bikram Das, Rakesh Paul), and sticky quick-save footer with pending modification tracker.
+    - **Mobile Responsive Layout**: Quick pause rush breaker card, operational hours card, capacity steppers, staff PINs, audio alerts switches, fixed floating save bar, and BottomNavBar with active Store tab.
+
+4. **Automated Unit & Integration Test Suite (`apps/web/src/routes/merchant/MerchantSettingsPage.test.tsx`)**:
+    - 5 tests covering store branding & FSSAI rendering, Live/Busy/Closed status switching, weekly schedule with Apply Weekday to All, capacity steppers, and save schedule mutation feedback.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 94 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
