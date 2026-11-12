@@ -3081,3 +3081,45 @@ Status: **Complete.**
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors, 0 warnings                             |
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
 | Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
+
+
+## BC-021 — Platform Admin Merchant Approvals & Store Onboarding Workspace
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprints Reference & Download**:
+    - Mobile Blueprint (`5daffa168d524dfca9293602713df5df`): "Dropzo Admin - Merchant Application Review Mobile"
+    - Desktop Blueprint (`0692e238094a4181a8b2dd0e0c9f80e8`): "Dropzo Admin - Merchant Approvals & Onboarding Multi-pane Desktop"
+    - Assets saved to `audit/stitch-audit/screenshots/` and `audit/stitch-audit/html/`.
+
+2. **API Client Extension (`packages/api-client/src/index.ts`)**:
+    - Added `MerchantApplication`, `MerchantVerificationStatus`, and `ListMerchantApplicationsParams` interfaces.
+    - Added methods: `listMerchantApplications`, `getMerchantApplication`, `approveMerchantApplication`, `rejectMerchantApplication`, `suspendMerchant`, `reinstateMerchant`, and `updateStoreStatus`.
+
+3. **1:1 Responsive Implementation of `/admin/merchant-approvals` (`apps/web/src/routes/admin/AdminMerchantApprovalsPage.tsx`)**:
+    - **Header & Navigation**: Dropzo Admin brand, Badarpur Central Zone #01 (Active) green pulsing status pill, navigation cluster, search bar, notifications, and super-admin profile pill.
+    - **Desktop Left Sidebar**: Badarpur Hub status, "+ New Merchant" CTA, navigation tabs with counts, system health indicator, and 24/7 help desk.
+    - **4-Metric KPI Row**: Pending Review (4 Stores), Action / Resubmitted (2 Stores), Approved This Month (14 Merchants), Avg Review Turnaround (3.2 Hours).
+    - **Application Pipeline Stream**: Left filterable card stream with status badges, category pills, risk labels, and reactive selection marker.
+    - **Review Details Canvas**:
+        - FR-MER-005 customer visibility protection alert banner.
+        - Merchant overview card with proprietor details, contact, and 94% compliant automated KYC match score.
+        - Bento compliance checklist: Trade License (Assam Municipal Act 1956), FSSAI food safety, Aadhaar/PAN, and Bank account settlement penny-drop status.
+        - Storefront & Counter Inspection card (FR-PICK-001): Field agent verified façade photo and counter staging shelf, scale, printer checklist.
+        - Operational configuration matrix (FR-ADM-002): Commission tier selector, fulfillment modes checkboxes, prep time SLA target input, geo-zone radius selector.
+        - Audit trail log and supervisor decision note textarea (FR-ADM-001).
+        - Sticky decision tray with Reject modal, Resubmission request, and Approve Store & Make ACTIVE button.
+
+4. **Automated Unit & Integration Test Suite (`apps/web/src/routes/admin/AdminMerchantApprovalsPage.test.tsx`)**:
+    - 6 tests covering top brand/KPI metrics rendering, FR-MER-005/FR-ADM-002 sections, filter chips, application selection, rejection modal with mandatory reason enforcement, and approval confirmation toast.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 21 test files, 89 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |

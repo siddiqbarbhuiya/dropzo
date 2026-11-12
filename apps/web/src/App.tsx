@@ -13,6 +13,7 @@ import { MerchantInventoryPage } from './routes/merchant/MerchantInventoryPage';
 import { AdminDeliveryPartnersPage } from './routes/admin/AdminDeliveryPartnersPage';
 import { AdminDeliveryQueuePage } from './routes/admin/AdminDeliveryQueuePage';
 import { AdminCodHandoverPage } from './routes/admin/AdminCodHandoverPage';
+import { AdminMerchantApprovalsPage } from './routes/admin/AdminMerchantApprovalsPage';
 import { DeliveryPartnerInboxPage } from './routes/delivery-partner/DeliveryPartnerInboxPage';
 
 export function App() {
@@ -60,6 +61,14 @@ export function App() {
                 element={
                     <RequireAuth role="MERCHANT_OWNER">
                         <MerchantInventoryPage />
+                    </RequireAuth>
+                }
+            />
+            <Route
+                path="/admin/merchant-approvals"
+                element={
+                    <RequireAuth role="ADMIN">
+                        <AdminMerchantApprovalsPage />
                     </RequireAuth>
                 }
             />

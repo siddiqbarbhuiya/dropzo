@@ -375,6 +375,39 @@ export interface CodHandover {
     created_at: string;
 }
 
+export type MerchantVerificationStatus =
+    'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+
+export interface MerchantApplication {
+    id: string;
+    owner_user_id: string;
+    legal_name: string;
+    display_name: string;
+    business_type: string;
+    contact_person_name: string;
+    contact_phone: string;
+    business_email: string | null;
+    business_address: string;
+    city: string;
+    district: string;
+    state: string;
+    postal_code: string;
+    business_description: string | null;
+    verification_status: MerchantVerificationStatus;
+    submitted_at: string | null;
+    reviewed_at: string | null;
+    reviewed_by_user_id: string | null;
+    rejection_reason: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ListMerchantApplicationsParams {
+    status?: MerchantVerificationStatus;
+    page?: number;
+    limit?: number;
+}
+
 export interface DeliveryStatusView {
     orderStatus: OrderStatus;
     assignment: {
@@ -745,6 +778,30 @@ export function createApiClient(baseUrl: string, options?: ApiClientOptions) {
                 `/stores/${storeId}/products${qs ? `?${qs}` : ''}`,
             );
         },
+
+        // --- Admin: merchant applications & store approval ---
+        listMerchantApplications: (params: ListMerchantApplicationsParams = {}) => {
+            const query = new URLSearchParams();
+            if (params.status) query.set('status', params.status);
+            if (params.page) query.set('page', String(params.page));
+            if (params.limit) query.set('limit', String(params.limit));
+            const qs = query.toString();
+            return getJson<PaginatedResult<MerchantApplication>>(
+                `/admin/merchants${qs ? `?${qs}` : ''}`,
+            );
+        },
+        getMerchantApplication: (id: string) =>
+            getJson<MerchantApplication>(`/admin/merchants/${id}`),
+        approveMerchantApplication: (id: string) =>
+            patchJson<MerchantApplication>(`/admin/merchants/${id}/approve`),
+        rejectMerchantApplication: (id: string, reason: string) =>
+            patchJson<MerchantApplication>(`/admin/merchants/${id}/reject`, { reason }),
+        suspendMerchant: (id: string, reason: string) =>
+            patchJson<MerchantApplication>(`/admin/merchants/${id}/suspend`, { reason }),
+        reinstateMerchant: (id: string) =>
+            patchJson<MerchantApplication>(`/admin/merchants/${id}/reinstate`),
+        updateStoreStatus: (id: string, status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') =>
+            patchJson<Store>(`/admin/stores/${id}/status`, { status }),
     };
 }
 
