@@ -3125,6 +3125,40 @@ Status: **Complete.**
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
 
 
+## BC-024 — Admin Delivery Queue & Dispatch Workspace (`/admin/delivery-queue`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprint Reference & Download**:
+    - Desktop Blueprint (`f114fa5c6415484ca8e7ef4fc02b0e3e`): "Platform Admin - Delivery Queue & Dispatch Workspace (Desktop)"
+    - Generated via Stitch MCP in project `3837531702173487386`.
+    - Assets saved to `audit/stitch-audit/screenshots/f114fa5c6415484ca8e7ef4fc02b0e3e.png` and `audit/stitch-audit/html/f114fa5c6415484ca8e7ef4fc02b0e3e.html`.
+
+2. **1:1 Responsive Implementation of `/admin/delivery-queue` (`apps/web/src/routes/admin/AdminDeliveryQueuePage.tsx`)**:
+    - **Top Header**: Official Dropzo Admin brand identity with `Platform Dispatch Hub` badge, Badarpur Town Zone dispatcher badge (`Badarpur Town Zone (Pin 788806) • Active Hub BD-04`) with live radar pulse, emergency alert trigger action, notifications/support, and Lead Dispatcher avatar (`Kabir Ahmed - Lead Dispatcher - Sribhumi`).
+    - **Desktop Left Navigation Sidebar**: `Badarpur Station Hub BD-04` emblem, Quick Order Add, navigation links (`Dispatch Hub` active, `Order Queues [5]`, `Riders Fleet [6 Online]`, `Cash Handover [₹4.2k]`, `Zone Settings`), Live Support, and Shift Logout.
+    - **Dispatch Health Banner**: Badarpur Town Zone Dispatch Queue banner with live active queue indicator (`5 Pending Assignment`) and strict POD verification notice.
+    - **KPI Summary Grid (4 Cards)**: Orders Awaiting Dispatch (`5 orders` [3 Urgent < 5m SLA, 2 Regular]), Available Riders in Zone (`4 online / 6 total` [2 Busy on Trips]), In-Transit Trips (`8 active` [98.2% on-time]), Pending COD in Custody (`₹4,250` [across 6 riders, safe limit ₹15,000]).
+    - **Split Workspace Canvas**:
+        - **Left Dispatch Queue Stream (67-70% width)**: Filter tabs (`All Orders [13]`, `Ready for Pickup [5]`, `In-Transit [8]`, `Reassignment [1 Alert]`), live auto-refresh toggle (15s polling via TanStack Query), zone and SLA filters, and dynamic order cards with store pickup waypoints, customer destinations, elapsed SLA timers, live partner selector dropdowns, and "Assign Delivery Partner" / "Reassign & Alert Rider" CTAs wired to `apiClient.assignDelivery`.
+        - **Right Active Fleet & COD Custody Sidebar (30-33% width)**: Registered Badarpur couriers roster (Bishnu Das, Rahim Uddin, Faruk Laskar, Debasish Nath, Sahil Barbhuiya, Joydeep Das) with vehicle types, availability chips, and COD in hand tracking; and Hub Cash Safe & Handover Drawer (FR-PAY-001) with Today's Verified COD (`₹8,420.00`) and Safe Deposit Ledger modal.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/admin/AdminDeliveryQueuePage.test.tsx`)**:
+    - 3 comprehensive tests covering eligible orders rendering, selecting a partner from dropdown and assigning via `apiClient.assignDelivery`, KPI metrics rendering, and opening/closing the Hub Cash Safe Deposit Ledger modal.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+
 ## BC-023 — Delivery Partner Task Execution Screen (`/delivery/inbox`)
 
 Status: **Complete.**
@@ -3162,6 +3196,40 @@ Status: **Complete.**
 | `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+## BC-024 — Admin Delivery Queue & Dispatch Workspace (`/admin/delivery-queue`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprint Reference & Download**:
+    - Desktop Blueprint (`f114fa5c6415484ca8e7ef4fc02b0e3e`): "Platform Admin - Delivery Queue & Dispatch Workspace (Desktop)"
+    - Generated via Stitch MCP in project `3837531702173487386`.
+    - Assets saved to `audit/stitch-audit/screenshots/f114fa5c6415484ca8e7ef4fc02b0e3e.png` and `audit/stitch-audit/html/f114fa5c6415484ca8e7ef4fc02b0e3e.html`.
+
+2. **1:1 Responsive Implementation of `/admin/delivery-queue` (`apps/web/src/routes/admin/AdminDeliveryQueuePage.tsx`)**:
+    - **Top Header**: Official Dropzo Admin brand identity with `Platform Dispatch Hub` badge, Badarpur Town Zone dispatcher badge (`Badarpur Town Zone (Pin 788806) • Active Hub BD-04`) with live radar pulse, emergency alert trigger action, notifications/support, and Lead Dispatcher avatar (`Kabir Ahmed - Lead Dispatcher - Sribhumi`).
+    - **Desktop Left Navigation Sidebar**: `Badarpur Station Hub BD-04` emblem, Quick Order Add, navigation links (`Dispatch Hub` active, `Order Queues [5]`, `Riders Fleet [6 Online]`, `Cash Handover [₹4.2k]`, `Zone Settings`), Live Support, and Shift Logout.
+    - **Dispatch Health Banner**: Badarpur Town Zone Dispatch Queue banner with live active queue indicator (`5 Pending Assignment`) and strict POD verification notice.
+    - **KPI Summary Grid (4 Cards)**: Orders Awaiting Dispatch (`5 orders` [3 Urgent < 5m SLA, 2 Regular]), Available Riders in Zone (`4 online / 6 total` [2 Busy on Trips]), In-Transit Trips (`8 active` [98.2% on-time]), Pending COD in Custody (`₹4,250` [across 6 riders, safe limit ₹15,000]).
+    - **Split Workspace Canvas**:
+        - **Left Dispatch Queue Stream (67-70% width)**: Filter tabs (`All Orders [13]`, `Ready for Pickup [5]`, `In-Transit [8]`, `Reassignment [1 Alert]`), live auto-refresh toggle (15s polling via TanStack Query), zone and SLA filters, and dynamic order cards with store pickup waypoints, customer destinations, elapsed SLA timers, live partner selector dropdowns, and "Assign Delivery Partner" / "Reassign & Alert Rider" CTAs wired to `apiClient.assignDelivery`.
+        - **Right Active Fleet & COD Custody Sidebar (30-33% width)**: Registered Badarpur couriers roster (Bishnu Das, Rahim Uddin, Faruk Laskar, Debasish Nath, Sahil Barbhuiya, Joydeep Das) with vehicle types, availability chips, and COD in hand tracking; and Hub Cash Safe & Handover Drawer (FR-PAY-001) with Today's Verified COD (`₹8,420.00`) and Safe Deposit Ledger modal.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/admin/AdminDeliveryQueuePage.test.tsx`)**:
+    - 3 comprehensive tests covering eligible orders rendering, selecting a partner from dropdown and assigning via `apiClient.assignDelivery`, KPI metrics rendering, and opening/closing the Hub Cash Safe Deposit Ledger modal.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
 
 
 
@@ -3201,6 +3269,40 @@ Status: **Complete.**
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
 
 
+## BC-024 — Admin Delivery Queue & Dispatch Workspace (`/admin/delivery-queue`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprint Reference & Download**:
+    - Desktop Blueprint (`f114fa5c6415484ca8e7ef4fc02b0e3e`): "Platform Admin - Delivery Queue & Dispatch Workspace (Desktop)"
+    - Generated via Stitch MCP in project `3837531702173487386`.
+    - Assets saved to `audit/stitch-audit/screenshots/f114fa5c6415484ca8e7ef4fc02b0e3e.png` and `audit/stitch-audit/html/f114fa5c6415484ca8e7ef4fc02b0e3e.html`.
+
+2. **1:1 Responsive Implementation of `/admin/delivery-queue` (`apps/web/src/routes/admin/AdminDeliveryQueuePage.tsx`)**:
+    - **Top Header**: Official Dropzo Admin brand identity with `Platform Dispatch Hub` badge, Badarpur Town Zone dispatcher badge (`Badarpur Town Zone (Pin 788806) • Active Hub BD-04`) with live radar pulse, emergency alert trigger action, notifications/support, and Lead Dispatcher avatar (`Kabir Ahmed - Lead Dispatcher - Sribhumi`).
+    - **Desktop Left Navigation Sidebar**: `Badarpur Station Hub BD-04` emblem, Quick Order Add, navigation links (`Dispatch Hub` active, `Order Queues [5]`, `Riders Fleet [6 Online]`, `Cash Handover [₹4.2k]`, `Zone Settings`), Live Support, and Shift Logout.
+    - **Dispatch Health Banner**: Badarpur Town Zone Dispatch Queue banner with live active queue indicator (`5 Pending Assignment`) and strict POD verification notice.
+    - **KPI Summary Grid (4 Cards)**: Orders Awaiting Dispatch (`5 orders` [3 Urgent < 5m SLA, 2 Regular]), Available Riders in Zone (`4 online / 6 total` [2 Busy on Trips]), In-Transit Trips (`8 active` [98.2% on-time]), Pending COD in Custody (`₹4,250` [across 6 riders, safe limit ₹15,000]).
+    - **Split Workspace Canvas**:
+        - **Left Dispatch Queue Stream (67-70% width)**: Filter tabs (`All Orders [13]`, `Ready for Pickup [5]`, `In-Transit [8]`, `Reassignment [1 Alert]`), live auto-refresh toggle (15s polling via TanStack Query), zone and SLA filters, and dynamic order cards with store pickup waypoints, customer destinations, elapsed SLA timers, live partner selector dropdowns, and "Assign Delivery Partner" / "Reassign & Alert Rider" CTAs wired to `apiClient.assignDelivery`.
+        - **Right Active Fleet & COD Custody Sidebar (30-33% width)**: Registered Badarpur couriers roster (Bishnu Das, Rahim Uddin, Faruk Laskar, Debasish Nath, Sahil Barbhuiya, Joydeep Das) with vehicle types, availability chips, and COD in hand tracking; and Hub Cash Safe & Handover Drawer (FR-PAY-001) with Today's Verified COD (`₹8,420.00`) and Safe Deposit Ledger modal.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/admin/AdminDeliveryQueuePage.test.tsx`)**:
+    - 3 comprehensive tests covering eligible orders rendering, selecting a partner from dropdown and assigning via `apiClient.assignDelivery`, KPI metrics rendering, and opening/closing the Hub Cash Safe Deposit Ledger modal.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+
 ## BC-023 — Delivery Partner Task Execution Screen (`/delivery/inbox`)
 
 Status: **Complete.**
@@ -3238,4 +3340,38 @@ Status: **Complete.**
 | `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+## BC-024 — Admin Delivery Queue & Dispatch Workspace (`/admin/delivery-queue`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprint Reference & Download**:
+    - Desktop Blueprint (`f114fa5c6415484ca8e7ef4fc02b0e3e`): "Platform Admin - Delivery Queue & Dispatch Workspace (Desktop)"
+    - Generated via Stitch MCP in project `3837531702173487386`.
+    - Assets saved to `audit/stitch-audit/screenshots/f114fa5c6415484ca8e7ef4fc02b0e3e.png` and `audit/stitch-audit/html/f114fa5c6415484ca8e7ef4fc02b0e3e.html`.
+
+2. **1:1 Responsive Implementation of `/admin/delivery-queue` (`apps/web/src/routes/admin/AdminDeliveryQueuePage.tsx`)**:
+    - **Top Header**: Official Dropzo Admin brand identity with `Platform Dispatch Hub` badge, Badarpur Town Zone dispatcher badge (`Badarpur Town Zone (Pin 788806) • Active Hub BD-04`) with live radar pulse, emergency alert trigger action, notifications/support, and Lead Dispatcher avatar (`Kabir Ahmed - Lead Dispatcher - Sribhumi`).
+    - **Desktop Left Navigation Sidebar**: `Badarpur Station Hub BD-04` emblem, Quick Order Add, navigation links (`Dispatch Hub` active, `Order Queues [5]`, `Riders Fleet [6 Online]`, `Cash Handover [₹4.2k]`, `Zone Settings`), Live Support, and Shift Logout.
+    - **Dispatch Health Banner**: Badarpur Town Zone Dispatch Queue banner with live active queue indicator (`5 Pending Assignment`) and strict POD verification notice.
+    - **KPI Summary Grid (4 Cards)**: Orders Awaiting Dispatch (`5 orders` [3 Urgent < 5m SLA, 2 Regular]), Available Riders in Zone (`4 online / 6 total` [2 Busy on Trips]), In-Transit Trips (`8 active` [98.2% on-time]), Pending COD in Custody (`₹4,250` [across 6 riders, safe limit ₹15,000]).
+    - **Split Workspace Canvas**:
+        - **Left Dispatch Queue Stream (67-70% width)**: Filter tabs (`All Orders [13]`, `Ready for Pickup [5]`, `In-Transit [8]`, `Reassignment [1 Alert]`), live auto-refresh toggle (15s polling via TanStack Query), zone and SLA filters, and dynamic order cards with store pickup waypoints, customer destinations, elapsed SLA timers, live partner selector dropdowns, and "Assign Delivery Partner" / "Reassign & Alert Rider" CTAs wired to `apiClient.assignDelivery`.
+        - **Right Active Fleet & COD Custody Sidebar (30-33% width)**: Registered Badarpur couriers roster (Bishnu Das, Rahim Uddin, Faruk Laskar, Debasish Nath, Sahil Barbhuiya, Joydeep Das) with vehicle types, availability chips, and COD in hand tracking; and Hub Cash Safe & Handover Drawer (FR-PAY-001) with Today's Verified COD (`₹8,420.00`) and Safe Deposit Ledger modal.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/admin/AdminDeliveryQueuePage.test.tsx`)**:
+    - 3 comprehensive tests covering eligible orders rendering, selecting a partner from dropdown and assigning via `apiClient.assignDelivery`, KPI metrics rendering, and opening/closing the Hub Cash Safe Deposit Ledger modal.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
 
