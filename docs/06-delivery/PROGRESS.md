@@ -3125,6 +3125,46 @@ Status: **Complete.**
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
 
 
+## BC-023 — Delivery Partner Task Execution Screen (`/delivery/inbox`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprint Reference & Download**:
+    - Mobile Blueprint (`11f89b4ebe5d4de0bd37282ea27e4f51`): "Dropzo Partner - Active Delivery Task"
+    - Assets saved to `audit/stitch-audit/screenshots/11f89b4ebe5d4de0bd37282ea27e4f51.png` and `audit/stitch-audit/html/11f89b4ebe5d4de0bd37282ea27e4f51.html`.
+
+2. **1:1 Responsive Implementation of `/delivery/inbox` (`apps/web/src/routes/delivery-partner/DeliveryPartnerInboxPage.tsx`)**:
+    - **Header & Navigation**: Dropzo Partner brand lockup with green PARTNER badge, Emergency SOS action button, rider profile avatar with rating (Bishnu D. ★ 4.9), Badarpur Town Zone capsule with live radar pulse animation, and Online/Offline switcher pill wired to `apiClient.setOwnAvailability`.
+    - **Shift Performance Metrics**: 3-column dashboard strip showing Today's Earnings (₹480, 8 Trips avg ₹60), Cash in Hand (₹340 / `apiClient.getOwnCodSummary`, To Deposit), and Acceptance rate (98%, On-Time 100%).
+    - **Active Delivery Task Hero Card (#ORD-1052)**:
+        - Status chip (`Active Delivery`), estimated trip time/distance (`14 mins total trip • 2.4 km`), and trip payout badge (`₹65` [₹50 Base + ₹15 Surge]).
+        - **Point A (Pickup Waypoint)**: Store node (`storefront`), `PICKUP COMPLETED` / `PICKUP PENDING` badge, `Bay #2 Shelf`, `Maa Tara Groceries`, `Station Road, Badarpur, Sribhumi`, and 3 packed items manifest (`Oil 1L, Butter 500g, Salt 1kg`).
+        - **Point B (Drop Waypoint)**: Customer destination pin with pulsing radar dot (`CURRENT DESTINATION • 0.8 km remaining`), customer details (`Rahul S., House #42, Netaji Subhash Road, Badarpur`), one-tap call button, special customer instruction box (*"Leave at door if not answering, call once arrived"*), and Google Maps turn-by-turn navigation button.
+    - **Interactive 6-Step Fulfillment Checklist**:
+        - Step 1: Accept Delivery Assignment (with Accept & Reject options).
+        - Step 2: Arrived at Merchant Store.
+        - Step 3: Collect Parcels & Confirm Pickup (`apiClient.collectAssignment`).
+        - Step 4: Out for Delivery with live ETA badge (`apiClient.markOutForDelivery`).
+        - Step 5: Customer Delivery PIN verification cluster (6 OTP digit input boxes wired to `apiClient.verifyDeliveryCode`).
+        - Step 6: COD Cash Collection (`FR-PAY-001`) with amount due callout (`Collect ₹340.00`) and interactive customer UPI QR code modal.
+    - **Persistent Elevated CTA & Support**: Sticky bottom drawer with dynamic order action CTA, Badarpur Dispatch Desk support card with Call Hub action, and partner bottom navigation bar (Orders, Inventory, Metrics, Store).
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/delivery-partner/DeliveryPartnerInboxPage.test.tsx`)**:
+    - 3 comprehensive tests covering ASSIGNED accept/reject state, out-for-delivery 6-digit delivery PIN entry and verification, and UPI QR modal toggle.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 96 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+
 ## BC-022 — Merchant Store Settings & Operations Screen (`/merchant/settings`)
 
 Status: **Complete.**
@@ -3159,3 +3199,43 @@ Status: **Complete.**
 | `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+## BC-023 — Delivery Partner Task Execution Screen (`/delivery/inbox`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprint Reference & Download**:
+    - Mobile Blueprint (`11f89b4ebe5d4de0bd37282ea27e4f51`): "Dropzo Partner - Active Delivery Task"
+    - Assets saved to `audit/stitch-audit/screenshots/11f89b4ebe5d4de0bd37282ea27e4f51.png` and `audit/stitch-audit/html/11f89b4ebe5d4de0bd37282ea27e4f51.html`.
+
+2. **1:1 Responsive Implementation of `/delivery/inbox` (`apps/web/src/routes/delivery-partner/DeliveryPartnerInboxPage.tsx`)**:
+    - **Header & Navigation**: Dropzo Partner brand lockup with green PARTNER badge, Emergency SOS action button, rider profile avatar with rating (Bishnu D. ★ 4.9), Badarpur Town Zone capsule with live radar pulse animation, and Online/Offline switcher pill wired to `apiClient.setOwnAvailability`.
+    - **Shift Performance Metrics**: 3-column dashboard strip showing Today's Earnings (₹480, 8 Trips avg ₹60), Cash in Hand (₹340 / `apiClient.getOwnCodSummary`, To Deposit), and Acceptance rate (98%, On-Time 100%).
+    - **Active Delivery Task Hero Card (#ORD-1052)**:
+        - Status chip (`Active Delivery`), estimated trip time/distance (`14 mins total trip • 2.4 km`), and trip payout badge (`₹65` [₹50 Base + ₹15 Surge]).
+        - **Point A (Pickup Waypoint)**: Store node (`storefront`), `PICKUP COMPLETED` / `PICKUP PENDING` badge, `Bay #2 Shelf`, `Maa Tara Groceries`, `Station Road, Badarpur, Sribhumi`, and 3 packed items manifest (`Oil 1L, Butter 500g, Salt 1kg`).
+        - **Point B (Drop Waypoint)**: Customer destination pin with pulsing radar dot (`CURRENT DESTINATION • 0.8 km remaining`), customer details (`Rahul S., House #42, Netaji Subhash Road, Badarpur`), one-tap call button, special customer instruction box (*"Leave at door if not answering, call once arrived"*), and Google Maps turn-by-turn navigation button.
+    - **Interactive 6-Step Fulfillment Checklist**:
+        - Step 1: Accept Delivery Assignment (with Accept & Reject options).
+        - Step 2: Arrived at Merchant Store.
+        - Step 3: Collect Parcels & Confirm Pickup (`apiClient.collectAssignment`).
+        - Step 4: Out for Delivery with live ETA badge (`apiClient.markOutForDelivery`).
+        - Step 5: Customer Delivery PIN verification cluster (6 OTP digit input boxes wired to `apiClient.verifyDeliveryCode`).
+        - Step 6: COD Cash Collection (`FR-PAY-001`) with amount due callout (`Collect ₹340.00`) and interactive customer UPI QR code modal.
+    - **Persistent Elevated CTA & Support**: Sticky bottom drawer with dynamic order action CTA, Badarpur Dispatch Desk support card with Call Hub action, and partner bottom navigation bar (Orders, Inventory, Metrics, Store).
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/delivery-partner/DeliveryPartnerInboxPage.test.tsx`)**:
+    - 3 comprehensive tests covering ASSIGNED accept/reject state, out-for-delivery 6-digit delivery PIN entry and verification, and UPI QR modal toggle.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 96 tests passing (100%)           |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
