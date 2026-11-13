@@ -402,6 +402,23 @@ export interface MerchantApplication {
     updated_at: string;
 }
 
+export interface SubmitMerchantApplicationDto {
+    legalName: string;
+    displayName: string;
+    businessType?: string;
+    contactPersonName?: string;
+    contactPhone: string;
+    businessEmail?: string;
+    businessAddress: string;
+    city?: string;
+    district?: string;
+    state?: string;
+    postalCode?: string;
+    businessDescription?: string;
+}
+
+export type UpdateMerchantApplicationDto = Partial<SubmitMerchantApplicationDto>;
+
 export interface ListMerchantApplicationsParams {
     status?: MerchantVerificationStatus;
     page?: number;
@@ -503,6 +520,13 @@ export function createApiClient(baseUrl: string, options?: ApiClientOptions) {
         refresh: (refreshToken: string) =>
             postJson<AuthTokens>('/auth/refresh', { refreshToken }, { auth: false }),
         getMe: () => getJson<CurrentUser>('/auth/me'),
+
+        // --- Merchant: onboarding & self-service application ---
+        getMyMerchantApplication: () => getJson<MerchantApplication | null>('/merchants/me'),
+        submitMerchantApplication: (dto: SubmitMerchantApplicationDto) =>
+            postJson<MerchantApplication>('/merchants/me', dto),
+        updateOwnMerchantApplication: (dto: UpdateMerchantApplicationDto) =>
+            patchJson<MerchantApplication>('/merchants/me', dto),
 
         // --- Merchant: stores ---
         listOwnStores: (params: { page?: number; limit?: number } = {}) =>

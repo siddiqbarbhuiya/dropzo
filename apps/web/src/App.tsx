@@ -11,6 +11,7 @@ import { MerchantOrdersPage } from './routes/merchant/MerchantOrdersPage';
 import { MerchantOrderDetailPage } from './routes/merchant/MerchantOrderDetailPage';
 import { MerchantInventoryPage } from './routes/merchant/MerchantInventoryPage';
 import { MerchantSettingsPage } from './routes/merchant/MerchantSettingsPage';
+import { MerchantOnboardingPage } from './routes/merchant/MerchantOnboardingPage';
 import { AdminDeliveryPartnersPage } from './routes/admin/AdminDeliveryPartnersPage';
 import { AdminDeliveryQueuePage } from './routes/admin/AdminDeliveryQueuePage';
 import { AdminCodHandoverPage } from './routes/admin/AdminCodHandoverPage';
@@ -70,6 +71,14 @@ export function App() {
                 element={
                     <RequireAuth role="MERCHANT_OWNER">
                         <MerchantSettingsPage />
+                    </RequireAuth>
+                }
+            />
+            <Route
+                path="/merchant/onboarding"
+                element={
+                    <RequireAuth>
+                        <MerchantOnboardingPage />
                     </RequireAuth>
                 }
             />

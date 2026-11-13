@@ -3375,3 +3375,40 @@ Status: **Complete.**
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
 
 
+
+
+## BC-025 — Merchant Onboarding & Multi-Step KYC Application Wizard (`/merchant/onboarding`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprint Reference**:
+    - Mobile & Desktop Blueprints matching Stitch `#6`, `#8`, `#20`, `#34`, `#35`, `#36`.
+    - 4-step progressive merchant onboarding journey.
+
+2. **API Client Integration (`packages/api-client/src/index.ts`)**:
+    - Added `SubmitMerchantApplicationDto` and `UpdateMerchantApplicationDto` interfaces.
+    - Added `getMyMerchantApplication()`, `submitMerchantApplication()`, and `updateOwnMerchantApplication()` methods.
+
+3. **1:1 Responsive Implementation (`apps/web/src/routes/merchant/MerchantOnboardingPage.tsx`)**:
+    - **Header & Navigation**: Dropzo Merchant Hub logo, step progress counter (`Step X of 4`), Badarpur Hub support hotline (`+91 94351 00000`), and Save & Exit draft trigger.
+    - **4-Step Registration Wizard**:
+        - **Step 1: Store Identity & Geofencing**: Store name, display name, merchant category pills, primary phone, email, Badarpur address, ward, pin code selector (788806, 788803), landmark, and store description.
+        - **Step 2: Business Registration & Compliance**: Entity type, 14-digit FSSAI license number with instant validation, Trade License number, GSTIN (optional/mandatory flag), and registered proprietor name.
+        - **Step 3: Banking, Settlement & UPI**: Account holder name, bank account number, 11-character IFSC code with instant lookup preview, account type, and VPA / UPI ID for daily local payouts.
+        - **Step 4: Operational Model & Documents Upload**: Operating hours, weekly holidays, delivery mode support (Counter Pickup only vs Local Delivery), façade storefront photo upload, FSSAI certificate upload, and declaration agreement checkbox.
+    - **Draft Auto-save & Status Notice**: Continuous sync to `localStorage` and dynamic API submission via `apiClient.submitMerchantApplication`. If an existing application exists, renders a prominent verification alert banner (`APPROVED`, `REJECTED`, or `PENDING` with Badarpur SLA < 4h notice).
+    - **Route Registration**: Registered `/merchant/onboarding` in `apps/web/src/App.tsx`.
+
+4. **Automated Unit & Integration Test Suite (`apps/web/src/routes/merchant/MerchantOnboardingPage.test.tsx`)**:
+    - 4 comprehensive tests covering step 1 form fields and stepper rendering, multi-step navigation through step 4, draft submission via `apiClient.submitMerchantApplication`, and status banner rendering for existing applications.
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 23 test files, 103 tests passing (100%)          |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                         |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
