@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useQuery } from '@tanstack/react-query';
@@ -766,7 +766,7 @@ const StepperBtn = styled.button`
 
 // --- Floating Cart Docks ---
 // Mobile Dock
-const MobileFloatingCart = styled.aside`
+const MobileFloatingCart = styled.aside<{ $hidden?: boolean }>`
     position: fixed;
     bottom: 1rem;
     left: 1rem;
@@ -774,10 +774,52 @@ const MobileFloatingCart = styled.aside`
     z-index: 40;
     max-width: 28rem;
     margin: 0 auto;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    transform: ${({ $hidden }) => ($hidden ? 'translateY(calc(100% + 2rem))' : 'translateY(0)')};
+    opacity: ${({ $hidden }) => ($hidden ? 0 : 1)};
+    pointer-events: ${({ $hidden }) => ($hidden ? 'none' : 'auto')};
 
     ${media.desktop} {
         display: none;
     }
+`;
+
+const MinimizedCartPill = styled.button<{ $hidden?: boolean }>`
+    all: unset;
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 40;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 9999px;
+    background: #2f3038;
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, scale 0.15s ease;
+    transform: ${({ $hidden }) => ($hidden ? 'translateY(calc(100% + 2rem))' : 'translateY(0)')};
+    opacity: ${({ $hidden }) => ($hidden ? 0 : 1)};
+    pointer-events: ${({ $hidden }) => ($hidden ? 'none' : 'auto')};
+
+    &:active {
+        transform: scale(0.92);
+    }
+
+    ${media.desktop} {
+        display: none;
+    }
+`;
+
+const CatalogBottomSpacer = styled.div<{ $hasActiveCart?: boolean }>`
+    height: ${({ $hasActiveCart }) => ($hasActiveCart ? '7rem' : '2.5rem')};
+    width: 100%;
+    pointer-events: none;
 `;
 
 const MobileCartInner = styled.div`
@@ -1053,6 +1095,38 @@ export function StorefrontPage() {
     // Dynamic Wolt Modal Sheet state for cart summary
     const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
 
+    // Mobile cart dock scroll-direction awareness & minimize state
+    const [isDockHiddenByScroll, setIsDockHiddenByScroll] = useState(false);
+    const [isDockMinimized, setIsDockMinimized] = useState(false);
+
+    useEffect(() => {
+        let lastScrollY = window.scrollY;
+        let ticking = false;
+
+        const handleScroll = () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    const currentScrollY = window.scrollY;
+                    const diff = currentScrollY - lastScrollY;
+
+                    // Scrolling DOWN past header threshold -> smoothly hide dock
+                    if (diff > 10 && currentScrollY > 70) {
+                        setIsDockHiddenByScroll(true);
+                    } else if (diff < -8) {
+                        // Scrolling UP -> reveal dock
+                        setIsDockHiddenByScroll(false);
+                    }
+                    lastScrollY = currentScrollY;
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
     // Cart store hooks
     const cartStoreId = useCartStore((s) => s.storeId);
     const cartItems = useCartStore((s) => s.items);
@@ -1172,7 +1246,10 @@ export function StorefrontPage() {
         };
 
         const result = addItem({ id: store.id, name: store.name }, itemPayload, 1);
-        if (!result.success && result.conflict) {
+        if (result.success) {
+            setIsDockHiddenByScroll(false);
+            setIsDockMinimized(false);
+        } else if (result.conflict) {
             setPendingConflict({
                 store: { id: store.id, name: store.name },
                 item: itemPayload,
@@ -1185,6 +1262,8 @@ export function StorefrontPage() {
         if (!pendingConflict) return;
         replaceCart(pendingConflict.store, pendingConflict.item, 1);
         setPendingConflict(null);
+        setIsDockHiddenByScroll(false);
+        setIsDockMinimized(false);
     };
 
     const isCartActiveForThisStore = cartStoreId === store.id && cartTotalItems > 0;
@@ -1862,146 +1941,217 @@ export function StorefrontPage() {
                                 );
                             })}
                         </ProductGrid>
+
+                        {/* Explicit Bottom Spacer guaranteeing zero overlap with floating dock on mobile */}
+                        <CatalogBottomSpacer $hasActiveCart={isCartActiveForThisStore} aria-hidden="true" />
                     </CatalogueArea>
                 </ContentColumns>
             </MainContainer>
 
-            {/* Mobile Floating Cart Dock (fixed bottom-20) */}
-            {isCartActiveForThisStore && (
-                <MobileFloatingCart aria-label="Cart Summary">
-                    <MobileCartInner>
+            {/* Mobile Floating Cart Dock (fixed bottom with auto-hide on scroll-down & minimize pill) */}
+            {isCartActiveForThisStore &&
+                (isDockMinimized ? (
+                    <MinimizedCartPill
+                        type="button"
+                        $hidden={isDockHiddenByScroll}
+                        onClick={() => setIsDockMinimized(false)}
+                        aria-label={`Cart: ${cartTotalItems} items, ₹${cartSubtotal}. Click to expand.`}
+                    >
                         <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => setIsCartSheetOpen(true)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    setIsCartSheetOpen(true);
-                                }
-                            }}
                             style={{
+                                position: 'relative',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '0.75rem',
-                                cursor: 'pointer',
-                                flex: 1,
-                                minWidth: 0,
+                                justifyContent: 'center',
                             }}
                         >
-                            <div
+                            <span
+                                className="material-symbols-outlined"
+                                style={{ fontSize: '22px' }}
+                            >
+                                shopping_bag
+                            </span>
+                            <span
                                 style={{
-                                    position: 'relative',
-                                    width: '2.5rem',
-                                    height: '2.5rem',
-                                    borderRadius: '0.5rem',
-                                    background: '#B72301',
+                                    position: 'absolute',
+                                    top: '-6px',
+                                    right: '-6px',
+                                    background: '#006E2D',
+                                    color: '#ffffff',
+                                    borderRadius: '9999px',
+                                    fontSize: '0.625rem',
+                                    fontWeight: 800,
+                                    width: '18px',
+                                    height: '18px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#ffffff',
-                                    flexShrink: 0,
                                 }}
                             >
-                                <span
-                                    className="material-symbols-outlined"
-                                    style={{ fontSize: '20px' }}
-                                >
-                                    shopping_bag
-                                </span>
-                                <span
+                                {cartTotalItems}
+                            </span>
+                        </div>
+                    </MinimizedCartPill>
+                ) : (
+                    <MobileFloatingCart $hidden={isDockHiddenByScroll} aria-label="Cart Summary">
+                        <MobileCartInner>
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setIsCartSheetOpen(true)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        setIsCartSheetOpen(true);
+                                    }
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.75rem',
+                                    cursor: 'pointer',
+                                    flex: 1,
+                                    minWidth: 0,
+                                }}
+                            >
+                                <div
                                     style={{
-                                        position: 'absolute',
-                                        top: '-4px',
-                                        right: '-4px',
-                                        background: '#006E2D',
-                                        color: '#ffffff',
-                                        borderRadius: '9999px',
-                                        fontSize: '0.625rem',
-                                        fontWeight: 800,
-                                        width: '18px',
-                                        height: '18px',
+                                        position: 'relative',
+                                        width: '2.5rem',
+                                        height: '2.5rem',
+                                        borderRadius: '0.5rem',
+                                        background: '#B72301',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
+                                        color: '#ffffff',
+                                        flexShrink: 0,
                                     }}
                                 >
-                                    {cartTotalItems}
-                                </span>
-                            </div>
-                            <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: '0.9375rem', fontWeight: 800 }}>
-                                    ₹{cartSubtotal}
+                                    <span
+                                        className="material-symbols-outlined"
+                                        style={{ fontSize: '20px' }}
+                                    >
+                                        shopping_bag
+                                    </span>
+                                    <span
+                                        style={{
+                                            position: 'absolute',
+                                            top: '-4px',
+                                            right: '-4px',
+                                            background: '#006E2D',
+                                            color: '#ffffff',
+                                            borderRadius: '9999px',
+                                            fontSize: '0.625rem',
+                                            fontWeight: 800,
+                                            width: '18px',
+                                            height: '18px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}
+                                    >
+                                        {cartTotalItems}
+                                    </span>
                                 </div>
-                                <div
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontSize: '0.9375rem', fontWeight: 800 }}>
+                                        ₹{cartSubtotal}
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: '0.6875rem',
+                                            color: '#7CF994',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                        }}
+                                    >
+                                        Free store pickup or ₹20 delivery
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                <button
+                                    type="button"
+                                    aria-label="View items in cart"
+                                    onClick={() => setIsCartSheetOpen(true)}
                                     style={{
-                                        fontSize: '0.6875rem',
-                                        color: '#7CF994',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
+                                        background: 'rgba(255, 255, 255, 0.12)',
+                                        color: '#ffffff',
+                                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                                        borderRadius: '0.5rem',
+                                        width: '2.25rem',
+                                        height: '2.25rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
                                     }}
                                 >
-                                    Free store pickup or ₹20 delivery
-                                </div>
+                                    <span
+                                        className="material-symbols-outlined"
+                                        style={{ fontSize: '18px' }}
+                                    >
+                                        format_list_bulleted
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCartSheetOpen(true)}
+                                    style={{
+                                        background: '#B72301',
+                                        color: '#ffffff',
+                                        border: 'none',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.5rem 0.875rem',
+                                        fontSize: '0.8125rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    <span>View Cart</span>
+                                    <span
+                                        className="material-symbols-outlined"
+                                        style={{ fontSize: '15px' }}
+                                    >
+                                        expand_less
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    aria-label="Minimize cart dock"
+                                    onClick={() => setIsDockMinimized(true)}
+                                    style={{
+                                        background: 'rgba(255, 255, 255, 0.12)',
+                                        color: '#ffffff',
+                                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                                        borderRadius: '0.5rem',
+                                        width: '2rem',
+                                        height: '2.25rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    <span
+                                        className="material-symbols-outlined"
+                                        style={{ fontSize: '18px' }}
+                                    >
+                                        expand_more
+                                    </span>
+                                </button>
                             </div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <button
-                                type="button"
-                                aria-label="View items in cart"
-                                onClick={() => setIsCartSheetOpen(true)}
-                                style={{
-                                    background: 'rgba(255, 255, 255, 0.12)',
-                                    color: '#ffffff',
-                                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                                    borderRadius: '0.5rem',
-                                    width: '2.25rem',
-                                    height: '2.25rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                <span
-                                    className="material-symbols-outlined"
-                                    style={{ fontSize: '18px' }}
-                                >
-                                    format_list_bulleted
-                                </span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => setIsCartSheetOpen(true)}
-                                style={{
-                                    background: '#B72301',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    borderRadius: '0.5rem',
-                                    padding: '0.5rem 0.875rem',
-                                    fontSize: '0.8125rem',
-                                    fontWeight: 800,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem',
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                <span>View Cart</span>
-                                <span
-                                    className="material-symbols-outlined"
-                                    style={{ fontSize: '15px' }}
-                                >
-                                    expand_less
-                                </span>
-                            </button>
-                        </div>
-                    </MobileCartInner>
-                </MobileFloatingCart>
-            )}
+                        </MobileCartInner>
+                    </MobileFloatingCart>
+                ))}
 
             {/* Desktop Floating Cart Dock (fixed bottom-6 right-6) */}
             {isCartActiveForThisStore && (

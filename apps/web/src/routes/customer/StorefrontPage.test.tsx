@@ -267,4 +267,32 @@ describe('StorefrontPage', () => {
 
         expect(screen.queryByTestId('wolt-modal-sheet')).not.toBeInTheDocument();
     });
+
+    it('supports minimizing and expanding the floating mobile cart dock to prevent obstructing items', async () => {
+        renderStorefront();
+
+        await waitFor(() => {
+            expect(screen.getByText('Fortune Sunlite Refined Sunflower Oil')).toBeInTheDocument();
+        });
+
+        // Add 1 item
+        const addButtons = screen.getAllByRole('button', { name: /ADD/i });
+        fireEvent.click(addButtons[0]);
+
+        // Cart dock appears with minimize button
+        const minimizeBtn = screen.getByRole('button', { name: /Minimize cart dock/i });
+        expect(minimizeBtn).toBeInTheDocument();
+
+        // Click minimize -> dock collapses to pill
+        fireEvent.click(minimizeBtn);
+
+        // Minimized pill should be rendered
+        const expandPill = screen.getByRole('button', { name: /Click to expand/i });
+        expect(expandPill).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Minimize cart dock/i })).not.toBeInTheDocument();
+
+        // Click expand pill -> full dock restores
+        fireEvent.click(expandPill);
+        expect(screen.getByRole('button', { name: /Minimize cart dock/i })).toBeInTheDocument();
+    });
 });
