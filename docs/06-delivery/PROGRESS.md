@@ -3588,3 +3588,61 @@ Status: **Complete.**
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                     |
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)               |
 | Playwright live verification       | **Pass** — Desktop & mobile viewports verified visually |
+
+---
+
+## 2026-11-16 — BC-030: Dropzo OTP Verification Expired & Error State Integration (`/login`, `OTPInput`)
+
+- **Epic**: Frontend
+- **Task ID**: `BC-030`
+- **Requirements Covered**: `FR-AUTH-001`, `FR-AUTH-002`, `FR-AUTH-003`
+- **Design References**:
+    - Mobile Blueprint: Stitch screen `e869ce0a516d40deb03a540d963d7e46` (`audit/stitch-audit/html/e869ce0a516d40deb03a540d963d7e46.html`)
+    - Desktop Blueprint: Stitch screen `7ef77919f0f64d24ae6d685267eb9e62` (`audit/stitch-audit/html/7ef77919f0f64d24ae6d685267eb9e62.html`)
+    - Spike Report: [`spikes/2026-11-16-bc030-otp-error-state-spike.md`](spikes/2026-11-16-bc030-otp-error-state-spike.md) (Confidence: 99%)
+    - Implementation Plan: [`plans/2026-11-16-bc030-otp-error-state-plan.md`](plans/2026-11-16-bc030-otp-error-state-plan.md)
+
+### What Was Built
+
+1. **Enhanced `OTPInput` Primitive (`apps/web/src/components/ui/OTPInput.tsx`)**:
+    - Added `hasError?: boolean` prop.
+    - Tokenized error border styling (`2px solid theme.colors.error`), error container background (`rgba(186, 26, 26, 0.08)`), bold error text color, and `aria-invalid="true"`.
+
+2. **1:1 Stitch Error & Expired State Integration (`apps/web/src/routes/LoginPage.tsx`)**:
+    - **Header Status Pill**:
+        - Switches to `Verification Failed` with error icon and red container on failed attempt.
+        - Switches to `00:00 • Code Expired` with timer icon when countdown expires.
+    - **Circular Status Icon Badge**:
+        - Displays `phonelink_erase` on verification failure and `timer_off` when code expires.
+    - **High-Visibility Error Alert Banner (FR-AUTH-002)**:
+        - Warning/error icon.
+        - Dynamic title: `OTP Expired or Invalid` / `Code Expired & Verification Failed`.
+        - Descriptive body highlighting phone number, FR-AUTH-002 compliance note, and remaining attempts (`2 of 5 before temporary security lockout`).
+    - **Time Validity & Status Strip**:
+        - Displays `timer_off` icon + "Time validity:" with `00:00 (Expired)` chip.
+        - Dynamic failed attempt tracker: `Attempts: X failed`.
+    - **Dual Recovery Action CTAs**:
+        - "Request New OTP via SMS" button with `replay` icon.
+        - Disabled "Verify & Proceed (Disabled)" secondary CTA.
+    - **Phone Edit Flow**:
+        - Preserves inline "Edit" link next to masked mobile number.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/LoginPage.test.tsx`)**:
+    - Added tests for verification failure error banner, attempt decrement, error styling on OTP boxes, and timer expiration state.
+    - 7 tests in `LoginPage.test.tsx` passing.
+
+4. **Playwright Live Verification**:
+    - Live browser verification on `http://localhost:5173/login`.
+    - Screenshots captured:
+        - `audit/playwright-audit/bc030-otp-error-desktop.png` (1280x800).
+        - `audit/playwright-audit/bc030-otp-error-mobile.png` (390x844).
+
+### Verification Performed
+
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 27 test files, 121 tests passing (100%)      |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)               |
+| Playwright live verification       | **Pass** — Desktop & mobile viewports verified visually |

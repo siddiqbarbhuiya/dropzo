@@ -7,6 +7,7 @@ export interface OTPInputProps {
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
+    hasError?: boolean;
     'aria-label'?: string;
 }
 
@@ -15,7 +16,7 @@ const Row = styled.div`
     gap: ${({ theme }) => theme.spacing.sm};
 `;
 
-const Digit = styled.input`
+const Digit = styled.input<{ $hasError?: boolean }>`
     width: 48px;
     height: 56px;
     text-align: center;
@@ -23,17 +24,28 @@ const Digit = styled.input`
     font-weight: 700;
     letter-spacing: 0.3em;
     border-radius: ${({ theme }) => theme.radii.md};
-    border: 1px solid ${({ theme }) => theme.colors.surfaceContainerHighest};
-    background: ${({ theme }) => theme.colors.surfaceContainerLow};
-    color: ${({ theme }) => theme.colors.textPrimary};
+    border: 2px solid
+        ${({ theme, $hasError }) =>
+            $hasError ? theme.colors.error : theme.colors.surfaceContainerHighest};
+    background: ${({ theme, $hasError }) =>
+        $hasError ? 'rgba(186, 26, 26, 0.08)' : theme.colors.surfaceContainerLow};
+    color: ${({ theme, $hasError }) => ($hasError ? theme.colors.error : theme.colors.textPrimary)};
 
     &:focus-visible {
-        border-color: ${({ theme }) => theme.colors.tertiary};
+        border-color: ${({ theme, $hasError }) =>
+            $hasError ? theme.colors.error : theme.colors.tertiary};
     }
 `;
 
 /** A 4-digit pickup/OTP code entry — see DESIGN-SYSTEM-EXTRACTION.md "4-Digit Pickup PIN Card". */
-export function OTPInput({ length = 4, value, onChange, disabled, ...aria }: OTPInputProps) {
+export function OTPInput({
+    length = 4,
+    value,
+    onChange,
+    disabled,
+    hasError,
+    ...aria
+}: OTPInputProps) {
     const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
     const digits = Array.from({ length }, (_, i) => value[i] ?? '');
 
@@ -69,10 +81,12 @@ export function OTPInput({ length = 4, value, onChange, disabled, ...aria }: OTP
                     maxLength={1}
                     value={digit}
                     disabled={disabled}
+                    $hasError={hasError}
                     onChange={(e) => setDigit(index, e.target.value.replace(/\D/g, ''))}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     onPaste={handlePaste}
                     aria-label={`Digit ${index + 1} of ${length}`}
+                    aria-invalid={hasError ? 'true' : undefined}
                 />
             ))}
         </Row>

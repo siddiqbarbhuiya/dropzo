@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginPage } from './LoginPage';
@@ -118,5 +118,75 @@ describe('LoginPage', () => {
 
         // Should be back to phone step with Get OTP button visible
         expect(screen.getByRole('button', { name: /Get OTP/ })).toBeInTheDocument();
+    });
+
+    it('displays 1:1 Stitch error alert, error styling, and remaining attempts when OTP verification fails', async () => {
+        sendOtp.mockResolvedValue({ message: 'OTP sent' });
+        verifyOtp.mockRejectedValueOnce(new Error('Invalid verification code'));
+
+        renderPage();
+
+        const phoneInput = screen.getByPlaceholderText('94351 00000');
+        fireEvent.change(phoneInput, { target: { value: '9435028410' } });
+
+        const sendButton = screen.getByRole('button', { name: /Get OTP/ });
+        fireEvent.click(sendButton);
+
+        await waitFor(() =>
+            expect(screen.getByText('Enter 6-Digit One-Time Password')).toBeInTheDocument(),
+        );
+
+        const otpInputs = screen.getAllByRole('textbox', { name: /Digit/ });
+        ['9', '9', '9', '9', '9', '9'].forEach((digit, i) => {
+            fireEvent.change(otpInputs[i], { target: { value: digit } });
+        });
+
+        const verifyButton = screen.getByRole('button', { name: /Verify OTP/ });
+        fireEvent.click(verifyButton);
+
+        await waitFor(() => {
+            expect(screen.getByText('Verification Failed')).toBeInTheDocument();
+            expect(screen.getByText('OTP Expired or Invalid')).toBeInTheDocument();
+            expect(screen.getByText(/Remaining attempts:/)).toBeInTheDocument();
+            expect(screen.getByText(/4 of 5/)).toBeInTheDocument();
+            expect(screen.getByText('Attempts: 1 failed')).toBeInTheDocument();
+        });
+
+        // Verify that OTP inputs received error attribute
+        expect(otpInputs[0]).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('handles expired countdown state with 00:00 • Code Expired and Request New OTP action', async () => {
+        vi.useFakeTimers();
+        try {
+            sendOtp.mockResolvedValue({ message: 'OTP sent' });
+            renderPage();
+
+            const phoneInput = screen.getByPlaceholderText('94351 00000');
+            fireEvent.change(phoneInput, { target: { value: '9435028410' } });
+
+            const sendButton = screen.getByRole('button', { name: /Get OTP/ });
+            await act(async () => {
+                fireEvent.click(sendButton);
+            });
+
+            expect(screen.getByText('Enter 6-Digit One-Time Password')).toBeInTheDocument();
+
+            // Advance 46 seconds to trigger expiry
+            act(() => {
+                vi.advanceTimersByTime(46000);
+            });
+
+            expect(screen.getByText('00:00 • Code Expired')).toBeInTheDocument();
+            expect(screen.getByText('Code Expired & Verification Failed')).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /Request New OTP via SMS/ }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /Verify & Proceed \(Disabled\)/ }),
+            ).toBeDisabled();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

@@ -590,16 +590,17 @@ const OtpPhoneDisplayRow = styled.div`
     justify-content: space-between;
 `;
 
-const VerificationPill = styled.div`
+const VerificationPill = styled.div<{ $isError?: boolean }>`
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.125rem 0.5rem;
+    padding: 0.125rem 0.625rem;
     border-radius: 9999px;
-    background: rgba(124, 249, 148, 0.4);
-    color: #007230;
+    background: ${({ $isError }) =>
+        $isError ? 'rgba(255, 218, 214, 0.6)' : 'rgba(124, 249, 148, 0.4)'};
+    color: ${({ $isError, theme }) => ($isError ? theme.colors.error : '#007230')};
     ${({ theme }) => typeScale(theme.typography.labelSm)}
-    font-weight: 600;
+    font-weight: 700;
     margin-bottom: 0.25rem;
 `;
 
@@ -636,15 +637,125 @@ const EditPhoneButton = styled.button`
     }
 `;
 
-const SmsIconCircle = styled.div`
-    width: 2rem;
-    height: 2rem;
+const SmsIconCircle = styled.div<{ $isError?: boolean }>`
+    width: 2.5rem;
+    height: 2.5rem;
     border-radius: 50%;
-    background: ${({ theme }) => theme.colors.surfaceContainer};
+    background: ${({ $isError, theme }) =>
+        $isError ? 'rgba(255, 218, 214, 0.5)' : theme.colors.surfaceContainer};
     display: flex;
     align-items: center;
     justify-content: center;
-    color: ${({ theme }) => theme.colors.primary};
+    color: ${({ $isError, theme }) => ($isError ? theme.colors.error : theme.colors.primary)};
+    flex-shrink: 0;
+`;
+
+// High-visibility Error Alert Banner (FR-AUTH-002) matching Stitch e869ce0a516d40deb03a540d963d7e46 & 7ef77919f0f64d24ae6d685267eb9e62
+const HighVisibilityErrorAlert = styled.div`
+    padding: 0.875rem 1rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 218, 214, 0.4);
+    border: 1px solid rgba(186, 26, 26, 0.3);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    color: ${({ theme }) => theme.colors.textPrimary};
+
+    .alert-icon {
+        color: ${({ theme }) => theme.colors.error};
+        font-size: 1.25rem;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+
+    .alert-content {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .alert-title {
+        ${({ theme }) => typeScale(theme.typography.labelMd)}
+        font-weight: 700;
+        color: ${({ theme }) => theme.colors.error};
+        line-height: 1.2;
+    }
+
+    .alert-body {
+        ${({ theme }) => typeScale(theme.typography.bodySm)}
+        color: ${({ theme }) => theme.colors.textSecondary};
+        line-height: 1.35;
+    }
+`;
+
+// Time Validity Row matching Stitch e869ce0a516d40deb03a540d963d7e46
+const TimeValidityRow = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    ${({ theme }) => typeScale(theme.typography.bodySm)}
+    padding: 0.125rem 0.25rem;
+
+    .time-col {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-weight: 600;
+        color: ${({ theme }) => theme.colors.error};
+    }
+
+    .attempts-col {
+        ${({ theme }) => typeScale(theme.typography.labelSm)}
+        color: ${({ theme }) => theme.colors.textMuted};
+    }
+`;
+
+const ExpiredPill = styled.span`
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.375rem;
+    background: rgba(255, 218, 214, 0.6);
+    color: ${({ theme }) => theme.colors.error};
+    font-weight: 700;
+    ${({ theme }) => typeScale(theme.typography.labelSm)}
+`;
+
+const ResendActiveButton = styled.button`
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    border-radius: 9999px;
+    border: none;
+    background: ${({ theme }) => theme.colors.primary};
+    color: #ffffff;
+    ${({ theme }) => typeScale(theme.typography.labelLg)}
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255, 87, 51, 0.25);
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: ${({ theme }) => theme.colors.primaryDark};
+    }
+`;
+
+const SecondaryDisabledVerifyButton = styled.button`
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(228, 190, 182, 0.5);
+    background: ${({ theme }) => theme.colors.surfaceContainerHigh};
+    color: ${({ theme }) => theme.colors.textMuted};
+    ${({ theme }) => typeScale(theme.typography.labelMd)}
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: not-allowed;
+    opacity: 0.6;
 `;
 
 const ResendRow = styled.div`
@@ -1053,11 +1164,15 @@ export function LoginPage() {
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [resendTimer, setResendTimer] = useState(45);
+    const [failedAttempts, setFailedAttempts] = useState(0);
     const [whatsAppNotice, setWhatsAppNotice] = useState<string | null>(null);
 
     const setSession = useAuthStore((state) => state.setSession);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+
+    const isExpired = step === 'code' && resendTimer === 0;
+    const hasOtpError = step === 'code' && (Boolean(error) || isExpired);
 
     // Resend countdown timer
     useEffect(() => {
@@ -1081,6 +1196,8 @@ export function LoginPage() {
         try {
             await apiClient.sendOtp(phone);
             setStep('code');
+            setCode('');
+            setFailedAttempts(0);
             setResendTimer(45);
         } catch (err) {
             setError(err instanceof ApiError ? err.message : 'Could not send the OTP.');
@@ -1114,6 +1231,7 @@ export function LoginPage() {
                 navigate('/');
             }
         } catch (err) {
+            setFailedAttempts((prev) => Math.min(5, prev + 1));
             setError(err instanceof ApiError ? err.message : 'Could not verify the OTP.');
         } finally {
             setBusy(false);
@@ -1526,14 +1644,20 @@ export function LoginPage() {
                                 <OtpCard>
                                     <OtpPhoneDisplayRow>
                                         <div>
-                                            <VerificationPill>
+                                            <VerificationPill $isError={hasOtpError}>
                                                 <span
                                                     className="material-symbols-outlined"
                                                     style={{ fontSize: '14px' }}
                                                 >
-                                                    lock
+                                                    {hasOtpError ? 'error' : 'lock'}
                                                 </span>
-                                                <span>Verification Step</span>
+                                                <span>
+                                                    {hasOtpError
+                                                        ? isExpired
+                                                            ? '00:00 • Code Expired'
+                                                            : 'Verification Failed'
+                                                        : 'Verification Step'}
+                                                </span>
                                             </VerificationPill>
                                             <OtpTitle>Enter 6-Digit One-Time Password</OtpTitle>
                                             <OtpPhoneText>
@@ -1541,59 +1665,125 @@ export function LoginPage() {
                                                 <strong>
                                                     +91{' '}
                                                     {phone.length === 10
-                                                        ? `${phone.slice(0, 5)}-${phone.slice(5)}`
+                                                        ? `${phone.slice(0, 5)} ${phone.slice(5)}`
                                                         : phone}
                                                 </strong>
                                                 <EditPhoneButton
                                                     type="button"
-                                                    onClick={() => setStep('phone')}
+                                                    onClick={() => {
+                                                        setStep('phone');
+                                                        setError(null);
+                                                    }}
                                                 >
                                                     Edit
                                                 </EditPhoneButton>
                                             </OtpPhoneText>
                                         </div>
-                                        <SmsIconCircle>
+                                        <SmsIconCircle $isError={hasOtpError}>
                                             <span
                                                 className="material-symbols-outlined"
-                                                style={{ fontSize: '18px' }}
+                                                style={{ fontSize: '20px' }}
                                             >
-                                                sms
+                                                {hasOtpError
+                                                    ? isExpired
+                                                        ? 'timer_off'
+                                                        : 'phonelink_erase'
+                                                    : 'sms'}
                                             </span>
                                         </SmsIconCircle>
                                     </OtpPhoneDisplayRow>
+
+                                    {/* High-Visibility Error Alert Banner matching Stitch e869ce0a516d40deb03a540d963d7e46 & 7ef77919f0f64d24ae6d685267eb9e62 */}
+                                    {hasOtpError && (
+                                        <HighVisibilityErrorAlert role="alert">
+                                            <span
+                                                className="material-symbols-outlined alert-icon"
+                                                aria-hidden="true"
+                                            >
+                                                {isExpired ? 'error' : 'warning'}
+                                            </span>
+                                            <div className="alert-content">
+                                                <div className="alert-title">
+                                                    {isExpired
+                                                        ? 'Code Expired & Verification Failed'
+                                                        : 'OTP Expired or Invalid'}
+                                                </div>
+                                                <div className="alert-body">
+                                                    {isExpired ? (
+                                                        <>
+                                                            The 6-digit OTP sent to{' '}
+                                                            <strong style={{ color: '#1a1b22' }}>
+                                                                +91 {phone}
+                                                            </strong>{' '}
+                                                            has expired (exceeded 60-second validity
+                                                            window) and can no longer be used as per
+                                                            security protocol FR-AUTH-002. Attempts
+                                                            remaining:{' '}
+                                                            <strong style={{ color: '#ba1a1a' }}>
+                                                                {Math.max(0, 5 - failedAttempts)} of
+                                                                5
+                                                            </strong>
+                                                            .
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {error ??
+                                                                'This 6-digit code expired or is invalid and cannot be reused (FR-AUTH-002).'}{' '}
+                                                            Remaining attempts:{' '}
+                                                            <strong style={{ color: '#ba1a1a' }}>
+                                                                {Math.max(0, 5 - failedAttempts)} of
+                                                                5
+                                                            </strong>{' '}
+                                                            before temporary security lockout.
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </HighVisibilityErrorAlert>
+                                    )}
 
                                     <OTPInput
                                         length={6}
                                         value={code}
                                         onChange={setCode}
+                                        hasError={hasOtpError}
                                         aria-label="One-time password"
                                     />
 
-                                    <ResendRow>
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.375rem',
-                                                color: '#8f7069',
-                                            }}
-                                        >
+                                    {/* Time Validity & Status Row */}
+                                    <TimeValidityRow>
+                                        <div className="time-col">
                                             <span
                                                 className="material-symbols-outlined"
                                                 aria-hidden="true"
                                                 style={{ fontSize: '16px' }}
                                             >
-                                                timer
+                                                {isExpired ? 'timer_off' : 'timer'}
                                             </span>
-                                            <span>
-                                                Resend OTP in{' '}
+                                            <span>Time validity:</span>
+                                            {isExpired ? (
+                                                <ExpiredPill>00:00 (Expired)</ExpiredPill>
+                                            ) : (
                                                 <strong style={{ color: '#1a1b22' }}>
-                                                    {resendTimer > 0
-                                                        ? `0:${resendTimer < 10 ? `0${resendTimer}` : resendTimer}`
-                                                        : '0:00'}
+                                                    0:
+                                                    {resendTimer < 10
+                                                        ? `0${resendTimer}`
+                                                        : resendTimer}
                                                 </strong>
-                                            </span>
+                                            )}
                                         </div>
+                                        <span className="attempts-col">
+                                            {failedAttempts > 0
+                                                ? `Attempts: ${failedAttempts} failed`
+                                                : '5 attempts permitted'}
+                                        </span>
+                                    </TimeValidityRow>
+
+                                    {/* Resend actions row */}
+                                    <ResendRow>
+                                        <span style={{ fontSize: '0.8125rem', color: '#5b403a' }}>
+                                            {isExpired ? 'Code expired' : 'Didn’t receive code?'}
+                                        </span>
                                         <ResendButton
                                             type="button"
                                             disabled={resendTimer > 0 || busy}
@@ -1622,8 +1812,8 @@ export function LoginPage() {
                                 </OtpCard>
                             )}
 
-                            {/* Error Alert */}
-                            {error && (
+                            {/* Error Alert on Phone step */}
+                            {step === 'phone' && error && (
                                 <ErrorBanner role="alert">
                                     <span className="material-symbols-outlined" aria-hidden="true">
                                         error
@@ -1657,6 +1847,38 @@ export function LoginPage() {
                                         arrow_forward
                                     </span>
                                 </PrimaryAuthButton>
+                            ) : isExpired ? (
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.5rem',
+                                        width: '100%',
+                                    }}
+                                >
+                                    <ResendActiveButton
+                                        type="button"
+                                        onClick={handleSendOtp}
+                                        aria-label="Request New OTP via SMS"
+                                    >
+                                        <span
+                                            className="material-symbols-outlined"
+                                            aria-hidden="true"
+                                        >
+                                            replay
+                                        </span>
+                                        <span>Request New OTP via SMS</span>
+                                    </ResendActiveButton>
+                                    <SecondaryDisabledVerifyButton disabled type="button">
+                                        <span
+                                            className="material-symbols-outlined"
+                                            aria-hidden="true"
+                                        >
+                                            verified_user
+                                        </span>
+                                        <span>Verify &amp; Proceed (Disabled)</span>
+                                    </SecondaryDisabledVerifyButton>
+                                </div>
                             ) : (
                                 <PrimaryAuthButton
                                     disabled={busy || code.length < 6}
