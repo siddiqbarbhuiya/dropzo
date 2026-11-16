@@ -107,6 +107,14 @@ export function App() {
                 }
             />
             <Route
+                path="/admin/cod-handover"
+                element={
+                    <RequireAuth role="ADMIN">
+                        <AdminCodHandoverPage />
+                    </RequireAuth>
+                }
+            />
+            <Route
                 path="/admin/delivery-queue"
                 element={
                     <RequireAuth role="ADMIN">

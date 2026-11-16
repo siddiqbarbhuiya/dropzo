@@ -3412,3 +3412,43 @@ Status: **Complete.**
 | `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                         |
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+## BC-026 — Admin COD Handover & Safe Reconciliation Workspace (`/admin/delivery-partners/:id/cod`, `/admin/cod-handover`)
+
+Status: **Complete.**
+
+### What was built
+
+1. **Stitch Blueprint Reference & Download**:
+    - Desktop Blueprint (`7c9e5fe79c3b4a1c98b5d43db306f9ad`): "COD Handover & Cash Reconciliation - Platform Admin (Desktop)"
+    - Mobile Blueprint (`d375a07690cc4342904f7876ae975d41`): "COD Handover & Cash Reconciliation - Admin (Mobile)"
+    - Generated and downloaded via Stitch MCP in project `3837531702173487386`.
+    - HTML and screenshots saved to `audit/stitch-audit/`.
+
+2. **1:1 Responsive Implementation (`apps/web/src/routes/admin/AdminCodHandoverPage.tsx`)**:
+    - **Header & Navigation**: Dropzo brand identity, Platform Admin station badge (`Hub BD-04`), Badarpur Town Zone indicator with live radar pulse, live custody KPI counters, emergency alert trigger, and Kabir Ahmed station cashier identity.
+    - **Desktop Left Sidebar Navigation**: Badarpur Station Hub emblem, Dispatch Hub, Order Queues, Riders Fleet, COD Handover (active), and Merchant Approvals.
+    - **Active Delivery Partner Selector**: Horizontal rail of active riders with cash in custody (Bishnu Das, Rahim Uddin, etc.) enabling quick partner switching.
+    - **Partner Custody Summary Card**: Large avatar, vehicle details (Hero Splendor), road shift duration, contact actions, cash in custody (₹3,420.00), and threshold gauge (85.5% of ₹4,000 maximum custody limit).
+    - **Multi-Select Uncollected Orders Table**: Select-all header, running total badge (`Selected: ₹X.XX (N/Total)`), order ID, customer delivery location, completion timestamp with OTP verification POD badge, and cash amount.
+    - **Handover Settlement Card**: Physical Indian currency verified and deposited toggle, optional cashier notes (≤ 2,000 chars with live counter), summary breakdown (zero variance check), and primary "Record Cash Handover & Print Receipt" CTA wired to `apiClient.recordCodHandover`.
+    - **Past Reconciliation Audit Log**: Comprehensive historical ledger of past settlements (`#HO-...`), cashier identity, settled amounts, timestamps, and notes.
+    - **Transaction Receipt Modal**: Printable receipt slip displaying receipt reference, partner name, cashier name, amount deposited in safe box B-01, and timestamp.
+    - **Route Alias**: Added `/admin/cod-handover` alias in `apps/web/src/App.tsx`.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/admin/AdminCodHandoverPage.test.tsx`)**:
+    - 4 comprehensive tests covering header/partner/orders rendering, multi-select running total calculation, handover recording via `apiClient.recordCodHandover` with receipt modal display, and audit log rendering.
+
+4. **Playwright Live Verification**:
+    - Live browser verification on `http://localhost:5173/admin/cod-handover`.
+    - Screenshots captured at `audit/playwright-audit/bc026-admin-cod-desktop.png` (1280x800) and `audit/playwright-audit/bc026-admin-cod-mobile.png` (390x844).
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 24 test files, 107 tests passing (100%)          |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
