@@ -3452,3 +3452,42 @@ Status: **Complete.**
 | `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+## BC-027 — Courier Fleet & Delivery Partner Management Console (`/admin/delivery-partners`)
+
+- **Status**: Completed (2026-11-16)
+- **Scope**: Platform Admin Courier Fleet & Delivery Partner Management Console (`/admin/delivery-partners`)
+- **Stitch Reference**: Desktop `bcc5b48e78f2429ea5da5f62c4c8e058`, Mobile `6166021b550a4560bba26a77eeedc642`
+- **Spike**: [`docs/06-delivery/spikes/2026-11-16-bc027-courier-fleet-console-spike.md`](spikes/2026-11-16-bc027-courier-fleet-console-spike.md)
+- **Plan**: [`docs/06-delivery/plans/2026-11-16-bc027-courier-fleet-console-plan.md`](plans/2026-11-16-bc027-courier-fleet-console-plan.md)
+
+### Key Deliverables
+
+1. **Stitch Blueprints Generated & Downloaded**:
+    - Desktop: `bcc5b48e78f2429ea5da5f62c4c8e058` (`audit/stitch-audit/html/bcc5b48e78f2429ea5da5f62c4c8e058.html`, `audit/stitch-audit/screenshots/bcc5b48e78f2429ea5da5f62c4c8e058.png`).
+    - Mobile: `6166021b550a4560bba26a77eeedc642` (`audit/stitch-audit/html/6166021b550a4560bba26a77eeedc642.html`, `audit/stitch-audit/screenshots/6166021b550a4560bba26a77eeedc642.png`).
+
+2. **Full Responsive UI Implementation (`apps/web/src/routes/admin/AdminDeliveryPartnersPage.tsx`)**:
+    - **Header & Navigation**: Dropzo Platform Admin header with Hub BD-04 status, active dispatcher profile (Kabir Ahmed), emergency alert button, and desktop left sidebar.
+    - **Fleet Management Banner**: Badarpur Fleet Roster title, registered riders counter, and live online on-duty pulse status badge.
+    - **4-Metric KPI Grid**: Total Fleet Registered, Online on Duty, Pending Cash Custody, and Active Approvals.
+    - **Quick Courier Onboarding Card**: Inline form with User ID input, vehicle type selector chips (`Hero Splendor`, `Honda Activa`, `TVS Jupiter`, `Electric Scooter`, `Bicycle`), and "Register Courier Partner" action wired to `apiClient.createDeliveryPartner`.
+    - **Filterable Fleet Roster**: Segmented filter tabs (`All Riders`, `Active Riders`, `Inactive / Suspended`) with live counter pills.
+    - **Courier Roster Table**: Rider avatar, name, ID, vehicle badge, duty status pill, cash custody indicator with direct link to COD Safe reconciliation (`/admin/delivery-partners/:id/cod`), and one-click Activate/Deactivate actions wired to `apiClient.activateDeliveryPartner` and `apiClient.deactivateDeliveryPartner`.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/admin/AdminDeliveryPartnersPage.test.tsx`)**:
+    - 4 comprehensive tests covering render, onboarding submission, status toggling, and filter tabs.
+
+4. **Playwright Live Verification**:
+    - Live browser verification on `http://localhost:5173/admin/delivery-partners`.
+    - Screenshots captured at `audit/playwright-audit/bc027-admin-fleet-desktop.png` (1280x800) and `audit/playwright-audit/bc027-admin-fleet-mobile.png` (390x844).
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 25 test files, 111 tests passing (100%)          |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
