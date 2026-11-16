@@ -12,6 +12,7 @@ import { MerchantOrderDetailPage } from './routes/merchant/MerchantOrderDetailPa
 import { MerchantInventoryPage } from './routes/merchant/MerchantInventoryPage';
 import { MerchantAnalyticsPage } from './routes/merchant/MerchantAnalyticsPage';
 import { MerchantSettingsPage } from './routes/merchant/MerchantSettingsPage';
+import { MerchantLoginPage } from './routes/merchant/MerchantLoginPage';
 import { MerchantOnboardingPage } from './routes/merchant/MerchantOnboardingPage';
 import { AdminDeliveryPartnersPage } from './routes/admin/AdminDeliveryPartnersPage';
 import { AdminDeliveryQueuePage } from './routes/admin/AdminDeliveryQueuePage';
@@ -27,6 +28,7 @@ export function App() {
             <Route path="/stores/:storeId" element={<StorefrontPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/merchant/login" element={<MerchantLoginPage />} />
             <Route
                 path="/orders"
                 element={

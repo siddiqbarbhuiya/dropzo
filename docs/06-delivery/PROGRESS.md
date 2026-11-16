@@ -3082,7 +3082,6 @@ Status: **Complete.**
 | `npm run format:check`             | **Pass** — "All matched files use Prettier code style!"     |
 | Playwright Visual Verification     | **Pass** — Verified 375x812 (mobile) and 1280x800 (desktop) |
 
-
 ## BC-021 — Platform Admin Merchant Approvals & Store Onboarding Workspace
 
 Status: **Complete.**
@@ -3117,13 +3116,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 21 test files, 89 tests passing (100%)           |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
+| Check                              | Result                                            |
+| :--------------------------------- | :------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 21 test files, 89 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                               |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)         |
 
 ## BC-024 — Admin Delivery Queue & Dispatch Workspace (`/admin/delivery-queue`)
 
@@ -3150,14 +3148,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%)           |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
-
+| Check                              | Result                                            |
+| :--------------------------------- | :------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                               |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)         |
 
 ## BC-023 — Delivery Partner Task Execution Screen (`/delivery/inbox`)
 
@@ -3175,7 +3171,7 @@ Status: **Complete.**
     - **Active Delivery Task Hero Card (#ORD-1052)**:
         - Status chip (`Active Delivery`), estimated trip time/distance (`14 mins total trip • 2.4 km`), and trip payout badge (`₹65` [₹50 Base + ₹15 Surge]).
         - **Point A (Pickup Waypoint)**: Store node (`storefront`), `PICKUP COMPLETED` / `PICKUP PENDING` badge, `Bay #2 Shelf`, `Maa Tara Groceries`, `Station Road, Badarpur, Sribhumi`, and 3 packed items manifest (`Oil 1L, Butter 500g, Salt 1kg`).
-        - **Point B (Drop Waypoint)**: Customer destination pin with pulsing radar dot (`CURRENT DESTINATION • 0.8 km remaining`), customer details (`Rahul S., House #42, Netaji Subhash Road, Badarpur`), one-tap call button, special customer instruction box (*"Leave at door if not answering, call once arrived"*), and Google Maps turn-by-turn navigation button.
+        - **Point B (Drop Waypoint)**: Customer destination pin with pulsing radar dot (`CURRENT DESTINATION • 0.8 km remaining`), customer details (`Rahul S., House #42, Netaji Subhash Road, Badarpur`), one-tap call button, special customer instruction box (_"Leave at door if not answering, call once arrived"_), and Google Maps turn-by-turn navigation button.
     - **Interactive 6-Step Fulfillment Checklist**:
         - Step 1: Accept Delivery Assignment (with Accept & Reject options).
         - Step 2: Arrived at Merchant Store.
@@ -3190,13 +3186,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 96 tests passing (100%)           |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
+| Check                              | Result                                            |
+| :--------------------------------- | :------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 96 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                               |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)         |
 
 ## BC-024 — Admin Delivery Queue & Dispatch Workspace (`/admin/delivery-queue`)
 
@@ -3223,15 +3218,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%)           |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
-
-
+| Check                              | Result                                            |
+| :--------------------------------- | :------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                               |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)         |
 
 ## BC-022 — Merchant Store Settings & Operations Screen (`/merchant/settings`)
 
@@ -3261,13 +3253,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 94 tests passing (100%)           |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
+| Check                              | Result                                            |
+| :--------------------------------- | :------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 94 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                               |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)         |
 
 ## BC-024 — Admin Delivery Queue & Dispatch Workspace (`/admin/delivery-queue`)
 
@@ -3294,14 +3285,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%)           |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
-
+| Check                              | Result                                            |
+| :--------------------------------- | :------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                               |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)         |
 
 ## BC-023 — Delivery Partner Task Execution Screen (`/delivery/inbox`)
 
@@ -3319,7 +3308,7 @@ Status: **Complete.**
     - **Active Delivery Task Hero Card (#ORD-1052)**:
         - Status chip (`Active Delivery`), estimated trip time/distance (`14 mins total trip • 2.4 km`), and trip payout badge (`₹65` [₹50 Base + ₹15 Surge]).
         - **Point A (Pickup Waypoint)**: Store node (`storefront`), `PICKUP COMPLETED` / `PICKUP PENDING` badge, `Bay #2 Shelf`, `Maa Tara Groceries`, `Station Road, Badarpur, Sribhumi`, and 3 packed items manifest (`Oil 1L, Butter 500g, Salt 1kg`).
-        - **Point B (Drop Waypoint)**: Customer destination pin with pulsing radar dot (`CURRENT DESTINATION • 0.8 km remaining`), customer details (`Rahul S., House #42, Netaji Subhash Road, Badarpur`), one-tap call button, special customer instruction box (*"Leave at door if not answering, call once arrived"*), and Google Maps turn-by-turn navigation button.
+        - **Point B (Drop Waypoint)**: Customer destination pin with pulsing radar dot (`CURRENT DESTINATION • 0.8 km remaining`), customer details (`Rahul S., House #42, Netaji Subhash Road, Badarpur`), one-tap call button, special customer instruction box (_"Leave at door if not answering, call once arrived"_), and Google Maps turn-by-turn navigation button.
     - **Interactive 6-Step Fulfillment Checklist**:
         - Step 1: Accept Delivery Assignment (with Accept & Reject options).
         - Step 2: Arrived at Merchant Store.
@@ -3334,13 +3323,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 96 tests passing (100%)           |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
+| Check                              | Result                                            |
+| :--------------------------------- | :------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 96 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                               |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)         |
 
 ## BC-024 — Admin Delivery Queue & Dispatch Workspace (`/admin/delivery-queue`)
 
@@ -3367,15 +3355,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%)           |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
-
-
+| Check                              | Result                                            |
+| :--------------------------------- | :------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 22 test files, 98 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                               |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)         |
 
 ## BC-025 — Merchant Onboarding & Multi-Step KYC Application Wizard (`/merchant/onboarding`)
 
@@ -3406,13 +3391,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 23 test files, 103 tests passing (100%)          |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                         |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
+| Check                              | Result                                             |
+| :--------------------------------- | :------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 23 test files, 103 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)          |
 
 ## BC-026 — Admin COD Handover & Safe Reconciliation Workspace (`/admin/delivery-partners/:id/cod`, `/admin/cod-handover`)
 
@@ -3446,13 +3430,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 24 test files, 107 tests passing (100%)          |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
+| Check                              | Result                                             |
+| :--------------------------------- | :------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 24 test files, 107 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)      |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)          |
 
 ## BC-027 — Courier Fleet & Delivery Partner Management Console (`/admin/delivery-partners`)
 
@@ -3485,13 +3468,12 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 25 test files, 111 tests passing (100%)          |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
-
+| Check                              | Result                                             |
+| :--------------------------------- | :------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 25 test files, 111 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)      |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)          |
 
 ## BC-028 — Merchant Analytics & Daily Performance Dashboard (`/merchant/analytics`)
 
@@ -3537,9 +3519,72 @@ Status: **Complete.**
 
 ### Verification Performed
 
-| Check                              | Result                                                      |
-| :--------------------------------- | :---------------------------------------------------------- |
-| `npm run test -w @dropzo/web`      | **Pass** — 26 test files, 115 tests passing (100%)          |
-| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
-| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
-| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+| Check                              | Result                                             |
+| :--------------------------------- | :------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 26 test files, 115 tests passing (100%) |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)      |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)          |
+
+---
+
+## 2026-11-16 — BC-029: Merchant POS Dedicated Login & OTP Authentication Portal (`/merchant/login`)
+
+- **Epic**: Frontend
+- **Task ID**: `BC-029`
+- **Requirements Covered**: `FR-AUTH-001`, `FR-AUTH-002`, `FR-AUTH-003`, `FR-MER-001`, `FR-MER-002`, `FR-MER-003`, `FR-PICK-001`
+- **Design References**:
+    - Mobile Blueprint: Stitch screen `3356568780464f91b971a22c5a4a461a` (`audit/stitch-audit/html/3356568780464f91b971a22c5a4a461a.html`)
+    - Desktop Blueprint: Stitch screen `60651de42d4a4ad7b6cc0276be87c44a` (`audit/stitch-audit/html/60651de42d4a4ad7b6cc0276be87c44a.html`)
+    - Spike Report: [`spikes/2026-11-16-bc029-merchant-pos-login-spike.md`](spikes/2026-11-16-bc029-merchant-pos-login-spike.md) (Confidence: 99%)
+    - Implementation Plan: [`plans/2026-11-16-bc029-merchant-pos-login-plan.md`](plans/2026-11-16-bc029-merchant-pos-login-plan.md)
+
+### What Was Built
+
+1. **Merchant POS Dedicated Authentication Canvas (`apps/web/src/routes/merchant/MerchantLoginPage.tsx`)**:
+    - **Top Brand Navigation**:
+        - Brand title "Dropzo Merchant — Station Road Counter POS" with bolt icon.
+        - Badarpur Dispatch Desk helpline (`+91 3843 268 000`).
+    - **Desktop Feature Showcase (Split Canvas Left Panel)**:
+        - "Badarpur Hub Live" operational badge.
+        - "Station Road Merchant POS Terminal" title and headline.
+        - 3 Feature Cards:
+            - Instant Counter Orders (audio chime alert + 45s SLA timer).
+            - FR-PICK-001 Verification (strict 6-digit PIN customer handoff).
+            - Automated Daily Reconciliation (zero cash mismatch with Badarpur hub).
+        - Active merchant trust reassurance ("Active across 42+ Badarpur shops").
+    - **Authentication Panel (Right Canvas / Mobile Stack)**:
+        - Segmented role switcher tabs (`Customer`, `Merchant POS` [active], `Platform Admin`).
+        - Step 1: Registered Mobile Number input with Indian flag, `+91` badge, 10-digit validation, clear icon button, SMS Gateway Active indicator, and primary "Continue to Store POS" CTA.
+        - Step 2: 6-digit OTP verification inputs with auto-focus and auto-advance, 45-second countdown timer, active "Resend OTP via SMS" button upon timer expiry, and phone edit link to return to Step 1.
+        - WhatsApp Business OTP fast-connect fallback button.
+        - 256-bit encrypted authentication security notice.
+        - Partner merchant application banner linking to `/merchant/onboarding`.
+    - **Dropzo Footer**:
+        - Copyright, Badarpur Junction Local Fulfillment Hub address, Merchant Terms, Commission Policy, POS Terminal Help, and build version `v2.4.12-rc`.
+
+2. **Full API & State Integration**:
+    - Connected to `@dropzo/api-client`: `sendOtp` and `verifyOtp` methods.
+    - User profile hydration via `apiClient.getMe()`.
+    - Session management via `useAuthStore.getState().setSession(tokens, user)`.
+    - Navigation redirection to `/merchant/orders` upon successful merchant authentication.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/merchant/MerchantLoginPage.test.tsx`)**:
+    - 4 comprehensive tests covering brand identity & feature showcase, phone input typing/clearing & OTP request, 6-digit OTP entry/verifyOtp call & session storage & navigation, and role tab switching to `/login` or `/admin`.
+
+4. **Playwright Live Verification**:
+    - Live browser verification on `http://localhost:5173/merchant/login`.
+    - Screenshots captured:
+        - `audit/playwright-audit/bc029-merchant-login-desktop.png` (1280x800).
+        - `audit/playwright-audit/bc029-merchant-login-mobile.png` (390x844).
+        - `audit/playwright-audit/bc029-merchant-login-otp-mobile.png` (390x844).
+
+### Verification Performed
+
+| Check                              | Result                                                  |
+| :--------------------------------- | :------------------------------------------------------ |
+| `npm run test -w @dropzo/web`      | **Pass** — 27 test files, 119 tests passing (100%)      |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                     |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors                                     |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)               |
+| Playwright live verification       | **Pass** — Desktop & mobile viewports verified visually |
