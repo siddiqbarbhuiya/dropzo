@@ -3491,3 +3491,55 @@ Status: **Complete.**
 | `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
 | `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
 | `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |
+
+
+## BC-028 — Merchant Analytics & Daily Performance Dashboard (`/merchant/analytics`)
+
+- **Status**: Completed (2026-11-16)
+- **Scope**: Merchant Analytics & Daily Performance Dashboard (`/merchant/analytics`)
+- **Stitch Reference**: Desktop `129b076d685a4edeaf1945a394e8e644`, Mobile `2611e18bee8841dfb4409a8fac3a331d`
+- **Spike**: [`docs/06-delivery/spikes/2026-11-16-bc028-merchant-analytics-dashboard-spike.md`](spikes/2026-11-16-bc028-merchant-analytics-dashboard-spike.md)
+- **Plan**: [`docs/06-delivery/plans/2026-11-16-bc028-merchant-analytics-dashboard-plan.md`](plans/2026-11-16-bc028-merchant-analytics-dashboard-plan.md)
+
+### Key Deliverables
+
+1. **Stitch Blueprints Downloaded**:
+    - Desktop: `129b076d685a4edeaf1945a394e8e644` (`audit/stitch-audit/html/129b076d685a4edeaf1945a394e8e644.html`, `audit/stitch-audit/screenshots/129b076d685a4edeaf1945a394e8e644.png`).
+    - Mobile: `2611e18bee8841dfb4409a8fac3a331d` (`audit/stitch-audit/html/2611e18bee8841dfb4409a8fac3a331d.html`, `audit/stitch-audit/screenshots/2611e18bee8841dfb4409a8fac3a331d.png`).
+
+2. **Full Responsive UI Implementation (`apps/web/src/routes/merchant/MerchantAnalyticsPage.tsx`)**:
+    - **Header & Navigation**: Dropzo Merchant header with Badarpur Hub LIVE badge, Maa Tara Groceries store identity (`BDP-04`), desktop center navigation tabs (`Orders`, `Inventory`, `Metrics` [active], `Store`), order chime alert toggle, notifications bell with unread indicator, Counter 01 profile chip, and mobile bottom navigation.
+    - **Dashboard Subheader**: Daily store performance title, 98.4% fulfillment on-track badge, FR-PICK-001 verification notice, interactive date selector (`Today`, `Yesterday`, `Last 7 Days`, `This Month`), active date display pill, CSV export action, and print report action (`window.print()`).
+    - **5 Performance KPI Tiles**:
+        - Gross Revenue: ₹4,820 (+14.2% vs yesterday, 26 orders).
+        - Channel Fulfillment Split: 65% Pickup (₹3,140) vs 35% Del (₹1,680) with dual-color bar.
+        - Average Order Value: ₹185.38 (+₹12.00 vs 7-day avg).
+        - Avg Fulfillment SLA: 10.8 mins (98.4% on-time, goal < 15 min).
+        - PIN Verification Rate: 100% (0 pickup lockouts, FR-PICK-001 badge).
+    - **Hourly Velocity & Commuter Rush Bento**:
+        - Stacked bar chart (7 AM–7 PM) with hover tooltips, Peak ₹1,120 indicator at 6 PM, Live 7 PM pulse, and Badarpur Commuter Rush Insight banner (41% volume during 5:30–7:00 PM train arrivals).
+    - **Fulfillment Funnel Speed**:
+        - Stage 1 Order Accepted (42s avg), Stage 2 Packing & Bagging (6.4m avg), Stage 3 Counter PIN Handoff (3.8m avg), and Total Cycle Time 10.8 Mins.
+    - **Top Selling SKUs Leaderboard**:
+        - Fortune Oil (18 units, ₹2,610), Basmati Rice (14 units, ₹1,540), Assam Valley Tea (12 units, ₹1,920), Amul Butter (9 units, ₹2,475), Fresh Kazi Nemu (24 packs, ₹960) with "View All 214 SKUs" link to inventory.
+    - **Payment Settlement & Collections (FR-PAY-001)**:
+        - COD Cash at Counter (₹3,620), UPI Direct / Online Pre-paid (₹1,200), Dropzo Merchant Commission (₹0.00 Launch Partner Promo), Total Daily Realized Earnings (₹4,820.00 scheduled to State Bank of India, Badarpur Branch).
+    - **Operational Alerts**:
+        - Urgent Stock Depletion for Barak Kazi Nemu with hub restock trigger.
+        - Silchar-Badarpur Commuter Peak Ahead with secondary staging bin trigger.
+
+3. **Automated Unit & Integration Test Suite (`apps/web/src/routes/merchant/MerchantAnalyticsPage.test.tsx`)**:
+    - 4 comprehensive tests covering brand identity, 5 KPI tiles, hourly velocity chart, fulfillment funnel, top-selling SKUs leaderboard, settlement matrix, date switching, sound toggle, and print report.
+
+4. **Playwright Live Verification**:
+    - Live browser verification on `http://localhost:5173/merchant/analytics`.
+    - Screenshots captured at `audit/playwright-audit/bc028-merchant-analytics-desktop.png` (1280x800) and `audit/playwright-audit/bc028-merchant-analytics-mobile.png` (390x844).
+
+### Verification Performed
+
+| Check                              | Result                                                      |
+| :--------------------------------- | :---------------------------------------------------------- |
+| `npm run test -w @dropzo/web`      | **Pass** — 26 test files, 115 tests passing (100%)          |
+| `npm run typecheck -w @dropzo/web` | **Pass** — 0 errors                                         |
+| `npm run lint -w @dropzo/web`      | **Pass** — 0 errors (0 warnings on new files)               |
+| `npm run build -w @dropzo/web`     | **Pass** — Vite build complete (0 errors)                   |

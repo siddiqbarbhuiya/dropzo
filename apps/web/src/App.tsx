@@ -10,6 +10,7 @@ import { CustomerOrderDetailPage } from './routes/customer/CustomerOrderDetailPa
 import { MerchantOrdersPage } from './routes/merchant/MerchantOrdersPage';
 import { MerchantOrderDetailPage } from './routes/merchant/MerchantOrderDetailPage';
 import { MerchantInventoryPage } from './routes/merchant/MerchantInventoryPage';
+import { MerchantAnalyticsPage } from './routes/merchant/MerchantAnalyticsPage';
 import { MerchantSettingsPage } from './routes/merchant/MerchantSettingsPage';
 import { MerchantOnboardingPage } from './routes/merchant/MerchantOnboardingPage';
 import { AdminDeliveryPartnersPage } from './routes/admin/AdminDeliveryPartnersPage';
@@ -63,6 +64,14 @@ export function App() {
                 element={
                     <RequireAuth role="MERCHANT_OWNER">
                         <MerchantInventoryPage />
+                    </RequireAuth>
+                }
+            />
+            <Route
+                path="/merchant/analytics"
+                element={
+                    <RequireAuth role="MERCHANT_OWNER">
+                        <MerchantAnalyticsPage />
                     </RequireAuth>
                 }
             />
